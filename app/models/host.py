@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Index, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -59,6 +59,7 @@ class HostHistory(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
+        server_default=func.now(),
     )
 
     __table_args__ = (Index("ix_host_history_asset_id", "asset_id"),)
@@ -74,6 +75,8 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64), nullable=False, comment="search/export/...")
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (Index("ix_audit_logs_user_id", "user_id"),)

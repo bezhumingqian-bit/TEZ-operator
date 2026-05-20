@@ -12,7 +12,7 @@ class TestDetectQueryType:
         "value",
         [
             "TYSV00000001",
-            "tysv20061x2a",  # 小写也能识别
+            "tysv00000001",  # 小写也能识别
             "TYSV00000002",
             "TYHA12345678",  # 其他 TY 开头型号
         ],
@@ -69,7 +69,7 @@ class TestDetectQueryType:
 
 class TestNormalize:
     def test_asset_uppercase(self) -> None:
-        assert normalize_query("tysv20061x2a") == "TYSV00000001"
+        assert normalize_query("tysv00000001") == "TYSV00000001"
 
     def test_zone_lowercase(self) -> None:
         assert normalize_query("AP-Shanghai-Tea-3") == "ap-shanghai-tea-3"

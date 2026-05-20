@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable, Literal
+from collections.abc import Iterable
+from typing import Literal
 
 QueryType = Literal["asset_id", "ip", "zone", "unknown"]
 

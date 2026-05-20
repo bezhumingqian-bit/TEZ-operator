@@ -10,7 +10,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 # ─────────────────────────── 基础元素 ───────────────────────────
 
 
@@ -43,7 +42,7 @@ class HostMeta(BaseModel):
 class HostInfo(BaseModel):
     """单台机的完整信息（融合三方后的统一视图）。"""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     asset_id: str = Field(..., description="固资号 TYSVxxxx")
     ip: str | None = None
@@ -58,6 +57,15 @@ class HostInfo(BaseModel):
     app_id: str | None = None
     has_tpc: bool | None = None
     billing_tags: dict[str, str] = Field(default_factory=dict)
+
+    # ─── 来自 TCUM Browser 的扩展字段（W2 新增） ───
+    owner: str | None = Field(default=None, description="主负责人 OA")
+    backup_owners: list[str] = Field(
+        default_factory=list, description="备负责人列表（分号分隔后已 split）"
+    )
+    city: str | None = None
+    server_type: str | None = None
+    use_years: float | None = Field(default=None, description="使用年限（如 5.9）")
 
     history: list[HostHistoryEvent] = Field(default_factory=list)
 

@@ -69,6 +69,39 @@ curl http://localhost:8000/health
 
 ---
 
+## 🌐 启用真实模式（Browser，W2）
+
+> 当上游平台暂无 OpenAPI 凭据时，可启用 Playwright 浏览器自动化，复用工位机的 SSO 登录态查询真实数据。
+
+```bash
+# 1. 装 Playwright + Chromium
+uv sync                     # 装 playwright python 包
+uv run python -m playwright install chromium
+
+# 2. 改 .env：把 TCUM 切到 browser 模式 + 填内网真实地址
+#    TEZ_TCUM_MODE=browser
+#    TEZ_TCUM_BASE_URL=<工位机能访问的 TCUM 内网地址>
+#    TEZ_BROWSER_PROFILE_DIR=data/playwright-profile
+#    TEZ_BROWSER_HEADLESS=false
+#    TEZ_BROWSER_LOGIN_VALID_DAYS=7
+
+# 3. 启动后端
+uv run uvicorn app.main:app --reload --port 8000
+
+# 4. 首次访问 /api/v1/hosts/search?q=TYSV<真实固资号> 时
+#    会自动唤起 Chromium，扫码完成 iOA 登录后即可返回数据
+#    登录态保存在 data/playwright-profile/，默认 7 天内复用免登
+```
+
+**故障速查**：
+- 首次唤起没出浏览器？检查 `chromium` 是否装了（`playwright install chromium`）。
+- 多次访问后被踢回 SSO？（`BrowserAuthExpired`）— 后端会日志告警，可设 `TEZ_WECOM_WEBHOOK` 推到企微群；删 `data/playwright-profile/Default/Cookies` 后再次访问会再次扫码。
+- 工位机重启后 profile 仍在？是的，登录态持久化跨进程。
+
+> ⚠️ **数据安全**：`data/playwright-profile/` 已在 `.gitignore` 内，绝不入仓；任何抓取产物 / 截图 / cookie 同样不入仓（详见 `.codebuddy/teams/tez-ops/docs/16-数据安全规则.md`）。
+
+---
+
 ## 🛠 技术栈
 
 | 层 | 技术 |

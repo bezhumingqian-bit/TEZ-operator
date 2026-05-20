@@ -1,14 +1,23 @@
 """应用配置。
 
 使用 pydantic-settings 从环境变量 / .env 读取，所有变量统一前缀 ``TEZ_``。
+
+W2 起：客户端引入三态 ``mode = mock | api | browser``（参见 docs/14 § 二）。
+- ``mock``    —— 不发请求，由 Impl 返回固定假数据
+- ``api``     —— 走官方 OpenAPI（W2 占位，等账号到位再实现）
+- ``browser`` —— 走 Playwright 自动化（W2 实现，登录态在 ``data/playwright-profile``）
 """
 
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 与 app.clients.base.ClientMode 保持一致，但在 config 里独立定义避免循环 import
+ClientMode = Literal["mock", "api", "browser"]
 
 
 class Settings(BaseSettings):
@@ -37,10 +46,24 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://127.0.0.1:6379/0")
     cache_default_ttl: int = Field(default=300, description="单机详情缓存 TTL（秒）")
 
-    # ───────── Mock 模式开关（W1 全开）─────────
-    ccdb_mock_mode: bool = Field(default=True)
-    tcum_mock_mode: bool = Field(default=True)
-    idcrm_mock_mode: bool = Field(default=True)
+    # ───────── 客户端三态模式（W2 起） ─────────
+    ccdb_mode: ClientMode = Field(default="mock", description="ccdb 客户端模式")
+    tcum_mode: ClientMode = Field(default="mock", description="tcum 客户端模式")
+    idcrm_mode: ClientMode = Field(default="mock", description="idcrm 客户端模式")
+
+    # ───────── 浏览器自动化（mode=browser 时使用） ─────────
+    browser_profile_dir: str = Field(
+        default="data/playwright-profile",
+        description="Playwright 持久化 profile 目录（已 .gitignore）",
+    )
+    browser_headless: bool = Field(
+        default=False,
+        description="iOA 鉴权要求可视化扫码，生产建议 false",
+    )
+    browser_login_valid_days: int = Field(
+        default=7, description="Cookies 文件 mtime 在 N 天内视为登录态有效"
+    )
+    browser_page_timeout_ms: int = Field(default=30000, description="单页 goto 超时(ms)")
 
     # ───────── CCDB（HTTP 客户端）─────────
     ccdb_base_url: str = Field(default="http://ccdb-host:8080")
@@ -64,6 +87,9 @@ class Settings(BaseSettings):
     idcrm_base_url: str = Field(default="http://idcrm.example.com")
     idcrm_token: str = Field(default="")
     idcrm_timeout: float = Field(default=5.0)
+
+    # ───────── 告警（企微 webhook，空则只 log） ─────────
+    wecom_webhook: str = Field(default="", description="企业微信群机器人 webhook URL，空则只打日志")
 
 
 @lru_cache(maxsize=1)

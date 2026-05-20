@@ -6,19 +6,27 @@
     3. 用 TCUM 拿到的 idc/cabinet 再去 IDCRM 补机位
     4. _merge() 融合（CCDB > TCUM > IDC）
     5. 写回缓存
+
+W2 增强：
+    - 处理 ``BrowserAuthExpired`` —— TCUM 浏览器登录态失效时降级 + 告警
+    - 缓存 round-trip 显式 ``exclude={"raw_json"}``（reviewer 建议-2）
+    - meta.last_sync_at 改用 UTC 时区（可选-1）
 """
 
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
+from app.clients.base import BrowserAuthExpired
 from app.clients.ccdb import CCDBClient
 from app.clients.idcrm import IDCRMClient
 from app.clients.tcum import TCUMClient
 from app.schemas.host import HostHistoryEvent, HostInfo, HostMeta
-from app.services.cache_service import CacheService, cache as default_cache
+from app.services.cache_service import CacheService
+from app.services.cache_service import cache as default_cache
+from app.utils.alert import alert_fire_and_forget
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -27,6 +35,8 @@ CACHE_KEY_HOST = "host:{asset_id}"
 CACHE_KEY_HOST_BY_IP = "host:ip:{ip}"
 CACHE_KEY_ZONE = "zone:{zone}:hosts"
 ZONE_CACHE_TTL = 600  # 10 分钟
+
+CACHE_DUMP_KW = {"by_alias": True, "mode": "json", "exclude": {"raw_json"}}
 
 
 class HostService:
@@ -61,9 +71,7 @@ class HostService:
         # 并发拉 CCDB + TCUM
         ccdb_task = self.ccdb.get_by_asset(asset_id)
         tcum_task = self.tcum.get_by_asset(asset_id)
-        ccdb_data, tcum_data = await asyncio.gather(
-            ccdb_task, tcum_task, return_exceptions=True
-        )
+        ccdb_data, tcum_data = await asyncio.gather(ccdb_task, tcum_task, return_exceptions=True)
 
         errors: dict[str, str] = {}
         ccdb_dict = self._unwrap("ccdb", ccdb_data, errors)
@@ -85,7 +93,7 @@ class HostService:
             return None
 
         merged = self._merge(asset_id.upper(), ccdb_dict, tcum_dict, idc_dict, errors)
-        await self.cache.set(key, merged.model_dump(by_alias=True, mode="json"))
+        await self.cache.set(key, merged.model_dump(**CACHE_DUMP_KW))
         return merged
 
     async def get_host_by_ip(self, ip: str) -> HostInfo | None:
@@ -99,9 +107,7 @@ class HostService:
 
         ccdb_task = self.ccdb.get_by_ip(ip)
         tcum_task = self.tcum.search_by_ip(ip)
-        ccdb_data, tcum_data = await asyncio.gather(
-            ccdb_task, tcum_task, return_exceptions=True
-        )
+        ccdb_data, tcum_data = await asyncio.gather(ccdb_task, tcum_task, return_exceptions=True)
         errors: dict[str, str] = {}
         ccdb_dict = self._unwrap("ccdb", ccdb_data, errors)
         tcum_dict = self._unwrap("tcum", tcum_data, errors)
@@ -121,12 +127,12 @@ class HostService:
                 errors["idcrm"] = str(exc)
 
         merged = self._merge(asset_id, ccdb_dict, tcum_dict, idc_dict, errors)
-        await self.cache.set(key, merged.model_dump(by_alias=True, mode="json"))
+        await self.cache.set(key, merged.model_dump(**CACHE_DUMP_KW))
         # 反向键也写一份，下次按 asset_id 查能命中
         if merged.asset_id:
             await self.cache.set(
                 CACHE_KEY_HOST.format(asset_id=merged.asset_id),
-                merged.model_dump(by_alias=True, mode="json"),
+                merged.model_dump(**CACHE_DUMP_KW),
             )
         return merged
 
@@ -153,7 +159,7 @@ class HostService:
 
         await self.cache.set(
             key,
-            [h.model_dump(by_alias=True, mode="json") for h in hosts],
+            [h.model_dump(**CACHE_DUMP_KW) for h in hosts],
             ttl=ZONE_CACHE_TTL,
         )
         return hosts
@@ -172,6 +178,12 @@ class HostService:
 
         return await asyncio.gather(*(_one(q) for q in asset_ids))
 
+    async def close(self) -> None:
+        """W2 lifespan close 用：释放三个 client（reviewer 建议-5）。"""
+        await self.ccdb.close()
+        await self.tcum.close()
+        await self.idcrm.close()
+
     # ─────────────────── 内部 ───────────────────
 
     @staticmethod
@@ -180,8 +192,24 @@ class HostService:
         result: Any,
         errors: dict[str, str],
     ) -> dict[str, Any] | None:
-        """统一处理 asyncio.gather 里的异常 / None。"""
+        """统一处理 asyncio.gather 里的异常 / None。
 
+        - 对 ``BrowserAuthExpired`` 单独处理：log + 异步告警；
+        - 其他异常照旧记到 errors，后续 partial 降级。
+        """
+
+        if isinstance(result, BrowserAuthExpired):
+            log.error("host.browser_auth_expired", client=client, error=str(result))
+            errors[client] = "browser_auth_expired"
+            alert_fire_and_forget(
+                title=f"{client.upper()} 浏览器登录态失效",
+                content=(
+                    f"客户端 `{client}` 在抓取时被踢回 SSO 登录页，"
+                    "请到工位机执行 `python -m app.scripts.relogin` 或重启服务并扫码。"
+                ),
+                level="error",
+            )
+            return None
         if isinstance(result, Exception):
             log.warning("host.client_failed", client=client, error=str(result))
             errors[client] = str(result)
@@ -229,7 +257,7 @@ class HostService:
         meta = HostMeta(
             from_cache=False,
             data_sources=sources,
-            last_sync_at=datetime.now(),
+            last_sync_at=datetime.now(timezone.utc),  # noqa: UP017
             partial=bool(errors),
             errors=errors,
         )
@@ -237,17 +265,22 @@ class HostService:
         return HostInfo(
             asset_id=ccdb.get("asset_id") or tcum.get("asset_id") or asset_id,
             ip=ccdb.get("ip") or tcum.get("ip"),
-            zone=ccdb.get("zone"),
+            zone=ccdb.get("zone") or tcum.get("zone"),
             machine_type=ccdb.get("machine_type") or tcum.get("machine_type"),
-            status=ccdb.get("status"),
+            status=ccdb.get("status") or tcum.get("status"),
             idc=tcum.get("idc") or ccdb.get("idc"),
             cabinet=idc.get("cabinet") or tcum.get("cabinet") or ccdb.get("cabinet"),
             position=idc.get("position"),
-            module=ccdb.get("module"),
+            module=ccdb.get("module") or tcum.get("module"),
             customer=ccdb.get("customer"),
             app_id=str(ccdb.get("app_id")) if ccdb.get("app_id") is not None else None,
             has_tpc=idc.get("has_tpc") if idc else ccdb.get("has_tpc"),
             billing_tags=ccdb.get("billing_tags") or {},
+            owner=tcum.get("owner"),
+            backup_owners=tcum.get("backup_owners") or [],
+            city=tcum.get("city"),
+            server_type=tcum.get("server_type"),
+            use_years=tcum.get("use_years"),
             history=history,
             raw_json={"ccdb": ccdb, "tcum": tcum, "idcrm": idc},
             **{"_meta": meta},
