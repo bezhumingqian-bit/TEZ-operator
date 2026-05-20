@@ -36,6 +36,17 @@ class HostMeta(BaseModel):
     errors: dict[str, str] = Field(default_factory=dict)
 
 
+# ─────────────────────────── 类型枚举 ───────────────────────────
+
+
+HostStatus = Literal["online", "offline", "maintenance"]
+"""主机状态字面量（W3 与前端约定的强枚举）。
+
+数据净化由 ``TCUMBrowserImpl._parse_row`` 等采集层完成，HostService 层
+``_normalize_status`` 兜底，未识别的值会被收敛为 None（warning 记录）。
+"""
+
+
 # ─────────────────────────── 主体 ───────────────────────────
 
 
@@ -48,7 +59,10 @@ class HostInfo(BaseModel):
     ip: str | None = None
     zone: str | None = None
     machine_type: str | None = Field(default=None, description="如 CG3-10G")
-    status: str | None = Field(default=None, description="online/offline/maintenance")
+    status: HostStatus | None = Field(
+        default=None,
+        description="主机状态：online / offline / maintenance（采集层已归一化）",
+    )
     idc: str | None = Field(default=None, description="机房代号 / 中文名")
     cabinet: str | None = None
     position: str | None = None

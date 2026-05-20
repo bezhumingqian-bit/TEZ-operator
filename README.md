@@ -208,6 +208,86 @@ uv run alembic revision --autogenerate -m "your message"
 | 客户标识 | `customer_a` / `customer_b` |
 | 节点 / 机房 | `idc_a` / `示例机房A1` |
 | 用户名 | `alice` / `bob` |
+| Zone | `zone_a` / `zone_b` / `zone_c` |
+
+---
+
+## 📊 测试与覆盖率
+
+### 跑全部测试
+
+```bash
+# 基础（默认跳过 slow 性能基准）
+uv run pytest
+
+# 带覆盖率报告
+uv run pytest --cov=app --cov-report=term-missing
+
+# 含性能基准测试
+uv run pytest -m slow
+```
+
+### 当前覆盖率（W3 v0.3.x-alpha）
+
+整体覆盖率 **82%**（目标 ≥ 70%）。关键模块：
+
+| 模块 | 覆盖率 |
+|------|--------|
+| `app/routers/hosts.py` | 100% |
+| `app/services/host_service.py` | 97% |
+| `app/services/cache_service.py` | 92% |
+| `app/services/export_service.py` | 97% |
+| `app/clients/ccdb_browser.py` | 95% |
+| `app/clients/idcrm_browser.py` | 91% |
+| `app/clients/tcum_browser.py` | 90% |
+| `app/schemas/host.py` | 100% |
+| `app/utils/parser.py` | 98% |
+
+> ORM 模型（`app/models/`）与 alembic 迁移在覆盖率统计中 omit，由 `alembic upgrade head` 自身验证。
+
+### 测试分类
+
+- `tests/test_parser.py` — 输入识别（asset_id/ip/zone）
+- `tests/test_clients.py` — 三家客户端 mock 路径
+- `tests/test_tcum_browser.py` — TCUM Browser 解析（含 W3 status 中→英归一化）
+- `tests/test_ccdb_browser.py` — CCDB Browser（W3 实现）
+- `tests/test_idcrm_browser.py` — IDCRM Browser 框架占位（_parse_row 待 W4）
+- `tests/test_browser_session.py` — Playwright 单例 + 登录态判定
+- `tests/test_cache_service.py` — Redis 真路径 (fakeredis) + 内存降级
+- `tests/test_host_service.py` — 三方融合 / 缓存 / partial 降级 / batch
+- `tests/test_api_hosts.py` — Router 端到端（httpx ASGITransport）
+- `tests/test_w3_features.py` — W3 专项：并发限流 / Excel 导出 / status Literal
+- `tests/test_performance.py` — 性能基准（`-m slow`）
+
+---
+
+## 🚀 批量查询与并发限流
+
+### `POST /api/v1/hosts/batch_search`
+
+一次最多 100 条（`TEZ_BATCH_MAX_SIZE`），混合固资号 / IP。请求体：
+
+```json
+{ "queries": ["TYSV00000001", "10.0.0.5", "TYSV00000002"] }
+```
+
+### 限流策略
+
+为避免一次性打开过多 Playwright tab（每条浏览器查询会占用一个 page），
+后端用 `asyncio.Semaphore` 限制并发：
+
+| 配置 | 默认值 | 含义 |
+|------|--------|------|
+| `TEZ_BATCH_CONCURRENCY` | 5 | 同时进行的查询数上限 |
+| `TEZ_BATCH_MAX_SIZE` | 100 | 单次请求接受的最大条数 |
+
+- 100 条以 5 并发跑，理论峰值 5 个 tab，工位机内存友好
+- 单条失败（超时 / 4xx / 浏览器登录态失效）不影响其他条
+- 失败信息在响应 `items[*].error` 字段返回
+
+### `GET /api/v1/hosts/export?asset_ids=A,B,C`
+
+导出 xlsx（中文表头，列序与 HostInfo 字段对齐），同样走并发限流。
 
 ---
 

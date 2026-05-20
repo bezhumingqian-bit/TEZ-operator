@@ -3,6 +3,8 @@
 GET  /api/v1/hosts/search?q=...
 GET  /api/v1/hosts/{asset_id}
 POST /api/v1/hosts/batch_search
+GET  /api/v1/hosts/export?asset_ids=A,B,C&format=xlsx
+GET  /api/v1/zones                 ← W3 新增（前端远程加载）
 GET  /api/v1/zones/{zone}/hosts
 """
 
@@ -58,6 +60,115 @@ async def search(
     )
 
 
+@router.post(
+    "/batch_search",
+    response_model=BatchSearchResponse,
+    summary="批量查询（并发限流；最多 100 条）",
+)
+async def batch_search(
+    payload: BatchSearchRequest,
+    service: HostService = Depends(get_host_service),
+) -> BatchSearchResponse:
+    """W3 改造：用 ``HostService.batch_get_hosts_mixed`` 并发限流。"""
+
+    # 先识别每个 query 的类型
+    typed: list[tuple[str, str, str]] = []  # (raw, qtype, normalized)
+    for raw in payload.queries:
+        qtype = detect_query_type(raw)
+        norm = normalize_query(raw)
+        typed.append((raw, qtype, norm))
+
+    # 把可查的（asset_id / ip）丢进 service 并发；unknown 直接标错
+    results: dict[int, tuple[str, str, object]] = {}
+    queryable: list[tuple[int, str, str]] = []
+    for idx, (raw, qtype, norm) in enumerate(typed):
+        if qtype in ("asset_id", "ip"):
+            queryable.append((idx, norm, qtype))
+        else:
+            results[idx] = (raw, qtype, f"不支持的批量类型：{qtype}（仅支持固资号 / IP）")
+
+    if queryable:
+        batched = await service.batch_get_hosts_mixed(
+            [(norm, qtype) for _, norm, qtype in queryable]
+        )
+        for (idx, _, _), (_, _, host, err) in zip(queryable, batched):  # noqa: B905
+            results[idx] = (typed[idx][0], typed[idx][1], host or err or "未找到")
+
+    items: list[BatchSearchItem] = []
+    success = 0
+    for _idx, (raw, qtype, payload_or_err) in sorted(results.items()):
+        host = payload_or_err if hasattr(payload_or_err, "asset_id") else None
+        err = payload_or_err if isinstance(payload_or_err, str) else None
+        if host is not None:
+            success += 1
+        items.append(
+            BatchSearchItem(
+                query=raw,
+                query_type=qtype,  # type: ignore[arg-type]
+                success=host is not None,
+                data=host,  # type: ignore[arg-type]
+                error=err if host is None else None,
+            )
+        )
+
+    return BatchSearchResponse(
+        total=len(items),
+        success_count=success,
+        items=items,
+    )
+
+
+# ── Excel 导出（W3 Day 4，前端 axios 已封装）────────────────────
+
+
+@router.get(
+    "/export",
+    summary="导出 xlsx（前端调用：?asset_ids=A,B,C）",
+    response_class=None,  # 显式声明返回 StreamingResponse
+)
+async def export_xlsx(
+    asset_ids: str = Query(
+        ...,
+        description="逗号分隔的固资号列表，如 TYSV00000001,TYSV00000002",
+        min_length=1,
+    ),
+    service: HostService = Depends(get_host_service),
+):
+    """导出指定固资号的全字段 xlsx。
+
+    设计：
+    - 前端约定参数名 ``asset_ids``（逗号分隔）
+    - 返回 ``application/vnd.openxmlformats-officedocument.spreadsheetml.sheet``
+    - 表头中文化，列序与 HostInfo 主体字段一致
+    """
+
+    from app.config import get_settings
+    from app.services.export_service import build_hosts_xlsx
+
+    s = get_settings()
+    # 解析 + 校验
+    ids = [x.strip() for x in asset_ids.split(",") if x.strip()]
+    if not ids:
+        raise HTTPException(status_code=400, detail="asset_ids 不能为空")
+    if len(ids) > s.batch_max_size:
+        raise HTTPException(
+            status_code=400,
+            detail=f"asset_ids 超过上限 {s.batch_max_size}（当前 {len(ids)}）",
+        )
+    for a in ids:
+        if detect_query_type(a) != "asset_id":
+            raise HTTPException(status_code=400, detail=f"非法固资号：{a}")
+
+    # 并发拉
+    triples = await service.batch_get_hosts([a.upper() for a in ids])
+    hosts = [h for _, h, _ in triples if h is not None]
+
+    return build_hosts_xlsx(hosts)
+
+
+# ── 单个固资号详情（注意：path 必须放在 /export, /batch_search 等具体路径之后）──
+
+
 @router.get(
     "/{asset_id}",
     response_model=SearchResponse,
@@ -76,60 +187,22 @@ async def detail(
     return SearchResponse(query_type="asset_id", data=host)
 
 
-@router.post(
-    "/batch_search",
-    response_model=BatchSearchResponse,
-    summary="批量查询（最多 100 条）",
-)
-async def batch_search(
-    payload: BatchSearchRequest,
-    service: HostService = Depends(get_host_service),
-) -> BatchSearchResponse:
-    items: list[BatchSearchItem] = []
-    success = 0
-
-    # 把所有 query 先识别类型
-    for raw in payload.queries:
-        qtype = detect_query_type(raw)
-        norm = normalize_query(raw)
-        host = None
-        err: str | None = None
-        try:
-            if qtype == "asset_id":
-                host = await service.get_host(norm)
-            elif qtype == "ip":
-                host = await service.get_host_by_ip(norm)
-            else:
-                err = f"不支持的批量类型：{qtype}（仅支持固资号 / IP）"
-        except Exception as exc:  # noqa: BLE001
-            err = str(exc)
-
-        if host is not None:
-            success += 1
-        elif err is None:
-            err = "未找到"
-
-        items.append(
-            BatchSearchItem(
-                query=raw,
-                query_type=qtype,
-                success=host is not None,
-                data=host,
-                error=err if host is None else None,
-            )
-        )
-
-    return BatchSearchResponse(
-        total=len(items),
-        success_count=success,
-        items=items,
-    )
-
-
 # ── zone 路由（同模块内合并，便于 W1 单一入口）────────────────────
 
 
 zone_router = APIRouter(prefix="/zones", tags=["zones"])
+
+
+@zone_router.get(
+    "",
+    summary="列出所有可用 zone（前端远程加载用）",
+)
+async def list_zones(
+    service: HostService = Depends(get_host_service),
+) -> dict[str, list[str]]:
+    """返回 zone 列表。W3 mock 模式硬编码占位（zone_a~zone_e）。"""
+    zones = await service.list_zones()
+    return {"zones": zones}
 
 
 @zone_router.get(

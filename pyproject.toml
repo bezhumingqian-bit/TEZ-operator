@@ -51,7 +51,12 @@ line-ending = "lf"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "S", "C4"]
-ignore = ["S101"]  # allow assert in tests
+ignore = [
+    "S101",   # allow assert in tests
+    "B008",   # FastAPI 范式 Depends(...) 必须在参数默认值中调用
+    "S110",   # try-except-pass：cleanup 路径可接受静默
+    "S112",   # try-except-continue：history 解析容错可接受
+]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "N"]
@@ -59,7 +64,10 @@ ignore = ["S101"]  # allow assert in tests
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra -m 'not slow'"
+markers = [
+    "slow: 慢速 / 性能基准测试，CI 默认跳过；显式 -m slow 才跑",
+]
 
 [tool.coverage.run]
 source = ["app"]

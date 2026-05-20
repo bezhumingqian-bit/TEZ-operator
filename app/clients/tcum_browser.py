@@ -181,6 +181,37 @@ class TCUMBrowserImpl:
             return v
         return None
 
+    # ── status 中英文映射（W3 与前端对齐）──
+    # 数据净化在采集层完成（越靠近源头越好），下游 HostService 不做转换。
+    _STATUS_CN_TO_EN: dict[str, str] = {
+        "运营中": "online",
+        "在线": "online",
+        "维护中": "maintenance",
+        "维修中": "maintenance",
+        "故障": "offline",
+        "离线": "offline",
+        "下线": "offline",
+    }
+    _VALID_STATUSES = frozenset({"online", "offline", "maintenance"})
+
+    @classmethod
+    def _normalize_status(cls, raw: str | None) -> str | None:
+        """把 TCUM 列表页的中文状态归一化到 ``online/offline/maintenance``。
+
+        - 已是合法英文 → 保留
+        - 中文映射命中 → 翻译
+        - 其他未知值 → None + log.warning（避免 422，留痕便于补映射）
+        """
+        if not raw:
+            return None
+        v = raw.strip()
+        if v in cls._VALID_STATUSES:
+            return v
+        if v in cls._STATUS_CN_TO_EN:
+            return cls._STATUS_CN_TO_EN[v]
+        log.warning("tcum_browser.unknown_status", value=v)
+        return None
+
     @classmethod
     def _parse_row(cls, cells: list[str]) -> dict[str, Any]:
         """把 ``.tea-table tbody tr`` 一行的 cells 映射到 schema。
@@ -211,7 +242,7 @@ class TCUMBrowserImpl:
         machine_type = cls._safe_cell(cells, 6)
         city = cls._safe_cell(cells, 7)
         server_type = cls._safe_cell(cells, 9)
-        status = cls._safe_cell(cells, 10)
+        status_raw = cls._safe_cell(cells, 10)
         zone = cls._safe_cell(cells, 11)
         use_years_raw = cls._safe_cell(cells, 13) or ""
 
@@ -219,11 +250,11 @@ class TCUMBrowserImpl:
             "asset_id": asset_id,
             "ip": ip,
             "idc": zone,  # TCUM 的 zone 列即"机房 / 可用区"，给 HostInfo.idc 用
-            "zone": None,  # 内部规范的 zone（如 ap-shanghai-tea-3）由 CCDB 提供
+            "zone": None,  # 内部规范的 zone（如 zone_a）由 CCDB 提供
             "cabinet": None,  # TCUM 不直接给机柜
             "machine_type": machine_type,
             "module": module,
-            "status": status,
+            "status": cls._normalize_status(status_raw),  # W3：采集层归一化中→英
             "city": city,
             "server_type": server_type,
             "owner": owner,

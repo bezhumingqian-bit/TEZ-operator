@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.clients.base import ClientError, ClientMode
+from app.clients.base import BrowserAuthExpired, ClientError, ClientMode
+from app.clients.idcrm_browser import IDCRMBrowserImpl
 from app.clients.idcrm_mock import IDCRMMockImpl
 from app.config import get_settings
 from app.utils.logger import get_logger
@@ -23,19 +24,6 @@ class IDCRMAPIImpl:
         asset_id: str | None = None,
     ) -> dict[str, Any] | None:
         raise NotImplementedError("IDCRM api 模式待账号到位后接入")
-
-    async def close(self) -> None:
-        return None
-
-
-class IDCRMBrowserImpl:
-    async def get_position(
-        self,
-        idc: str,
-        cabinet: str | None = None,
-        asset_id: str | None = None,
-    ) -> dict[str, Any] | None:
-        raise NotImplementedError("IDCRM browser 模式 W3 实现")
 
     async def close(self) -> None:
         return None
@@ -67,7 +55,10 @@ class IDCRMClient:
         cabinet: str | None = None,
         asset_id: str | None = None,
     ) -> dict[str, Any] | None:
-        return await self._impl.get_position(idc, cabinet, asset_id)
+        try:
+            return await self._impl.get_position(idc, cabinet, asset_id)
+        except BrowserAuthExpired:
+            raise
 
     async def close(self) -> None:
         impl_close = getattr(self._impl, "close", None)

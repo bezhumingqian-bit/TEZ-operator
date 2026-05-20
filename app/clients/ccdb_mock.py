@@ -20,7 +20,7 @@ class CCDBMockImpl:
         return {
             "asset_id": asset_id.upper(),
             "ip": f"10.0.{(ord(suffix) % 200) + 1}.1",
-            "zone": "ap-shanghai-tea-3",
+            "zone": "zone_a",
             "module": f"ten1.{customer}-PRD",
             "customer": customer,
             "app_id": "0000000000",
@@ -37,7 +37,7 @@ class CCDBMockImpl:
         return {
             "asset_id": "TYSV00000001",  # mock 示例 ID,非真实固资号
             "ip": ip,
-            "zone": "ap-shanghai-tea-3",
+            "zone": "zone_a",
             "module": "ten1.customer_a-PRD",
             "customer": "customer_a",
             "app_id": "0000000000",

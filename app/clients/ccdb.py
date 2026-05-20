@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.clients.base import ClientError, ClientMode
+from app.clients.base import BrowserAuthExpired, ClientError, ClientMode
+from app.clients.ccdb_browser import CCDBBrowserImpl
 from app.clients.ccdb_mock import CCDBMockImpl
 from app.config import get_settings
 from app.utils.logger import get_logger
@@ -31,17 +32,17 @@ class CCDBAPIImpl:
         return None
 
 
-class CCDBBrowserImpl:
-    """公司 CMDB Browser 实现（W3 实现，可复用 BrowserSession + Tea Design 选择器）。"""
+class CCDBBrowserImplPlaceholder:
+    """旧占位实现保留为示例，真实使用见 ``ccdb_browser.CCDBBrowserImpl``。"""
 
     async def get_by_asset(self, asset_id: str) -> dict[str, Any] | None:
-        raise NotImplementedError("CCDB browser 模式 W3 实现")
+        raise NotImplementedError("已切换为 ccdb_browser.CCDBBrowserImpl")
 
     async def get_by_ip(self, ip: str) -> dict[str, Any] | None:
-        raise NotImplementedError("CCDB browser 模式 W3 实现")
+        raise NotImplementedError("已切换为 ccdb_browser.CCDBBrowserImpl")
 
     async def list_by_zone(self, zone: str, limit: int = 100) -> list[dict[str, Any]]:
-        raise NotImplementedError("CCDB browser 模式 W3 实现")
+        raise NotImplementedError("已切换为 ccdb_browser.CCDBBrowserImpl")
 
     async def close(self) -> None:
         return None
@@ -70,13 +71,22 @@ class CCDBClient:
     # ──────────────── public ────────────────
 
     async def get_by_asset(self, asset_id: str) -> dict[str, Any] | None:
-        return await self._impl.get_by_asset(asset_id)
+        try:
+            return await self._impl.get_by_asset(asset_id)
+        except BrowserAuthExpired:
+            raise
 
     async def get_by_ip(self, ip: str) -> dict[str, Any] | None:
-        return await self._impl.get_by_ip(ip)
+        try:
+            return await self._impl.get_by_ip(ip)
+        except BrowserAuthExpired:
+            raise
 
     async def list_by_zone(self, zone: str, limit: int = 100) -> list[dict[str, Any]]:
-        return await self._impl.list_by_zone(zone, limit)
+        try:
+            return await self._impl.list_by_zone(zone, limit)
+        except BrowserAuthExpired:
+            raise
 
     async def close(self) -> None:
         impl_close = getattr(self._impl, "close", None)

@@ -34,9 +34,9 @@ class TestCCDBClient:
 
     async def test_list_by_zone(self) -> None:
         client = CCDBClient(mode="mock")
-        items = await client.list_by_zone("ap-shanghai-tea-3", limit=5)
+        items = await client.list_by_zone("zone_a", limit=5)
         assert len(items) == 5
-        assert all(it["zone"] == "ap-shanghai-tea-3" for it in items)
+        assert all(it["zone"] == "zone_a" for it in items)
 
     async def test_api_mode_raises(self) -> None:
         client = CCDBClient(mode="api")

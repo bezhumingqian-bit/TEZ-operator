@@ -1,0 +1,68 @@
+/* 全局样式：尽量克制，仅做布局基底 + 暗色文字阶梯 */
+
+:root {
+  --tez-bg: #f5f7fa;
+  --tez-surface: #ffffff;
+  --tez-border: #e4e7ed;
+  --tez-text-primary: #303133;
+  --tez-text-regular: #606266;
+  --tez-text-secondary: #909399;
+  --tez-primary: #409eff;
+  --tez-success: #67c23a;
+  --tez-warning: #e6a23c;
+  --tez-danger: #f56c6c;
+  --tez-header-h: 56px;
+  --tez-sidebar-w: 220px;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', Roboto, Arial, sans-serif;
+  background: var(--tez-bg);
+  color: var(--tez-text-primary);
+  font-size: 14px;
+}
+
+a {
+  color: var(--tez-primary);
+  text-decoration: none;
+}
+
+.tez-page {
+  padding: 16px 20px;
+}
+
+.tez-page__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tez-card {
+  background: var(--tez-surface);
+  border: 1px solid var(--tez-border);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.tez-empty-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  background: var(--tez-surface);
+  border: 1px dashed var(--tez-border);
+  border-radius: 6px;
+}

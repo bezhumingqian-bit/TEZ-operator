@@ -72,6 +72,13 @@ data/
 #    含腾讯文档导出、内部 Word/Excel、内网平台 URL、接口人名单
 knowledge/
 
+# 1b. 前端产物兜底(web/.gitignore 已配置,这里再加一道保险)
+web/node_modules/
+web/dist/
+web/dist-ssr/
+web/.env.local
+web/.env.*.local
+
 # 2. 整个 .codebuddy 团队工作区不入仓
 #    包含:
 #    - docs/(知识手册,含真实接口人名单/IP/固资号/客户名/计费标签)

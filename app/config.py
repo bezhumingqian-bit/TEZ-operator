@@ -45,6 +45,17 @@ class Settings(BaseSettings):
     )
     redis_url: str = Field(default="redis://127.0.0.1:6379/0")
     cache_default_ttl: int = Field(default=300, description="单机详情缓存 TTL（秒）")
+    cache_zone_ttl: int = Field(default=600, description="Zone 列表缓存 TTL（秒）")
+
+    # ───────── 批量查询限流（W3 reviewer 建议）─────────
+    batch_concurrency: int = Field(
+        default=5,
+        description="batch_search 内并发查询的最大数量，防止瞬间打开过多浏览器 tab",
+    )
+    batch_max_size: int = Field(
+        default=100,
+        description="单次 batch_search / export 接受的最大条数",
+    )
 
     # ───────── 客户端三态模式（W2 起） ─────────
     ccdb_mode: ClientMode = Field(default="mock", description="ccdb 客户端模式")

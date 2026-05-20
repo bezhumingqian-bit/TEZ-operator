@@ -40,7 +40,7 @@ class TestParseRow:
         assert result["machine_type"] == "MOCK-1G"
         assert result["city"] == "城市A"
         assert result["server_type"] == "Server"
-        assert result["status"] == "运营中"
+        assert result["status"] == "online"  # W3：采集层"运营中"→"online"
         assert result["idc"] == "可用区A"
         assert result["use_years"] == 5.9
         assert result["_source"] == "tcum-browser"
@@ -75,6 +75,19 @@ class TestParseRow:
         assert TCUMBrowserImpl._split_backup_owners("") == []
         # 空段过滤
         assert TCUMBrowserImpl._split_backup_owners("a;;b;") == ["a", "b"]
+
+    def test_normalize_status_cn_to_en(self) -> None:
+        # 中文映射
+        assert TCUMBrowserImpl._normalize_status("运营中") == "online"
+        assert TCUMBrowserImpl._normalize_status("维护中") == "maintenance"
+        assert TCUMBrowserImpl._normalize_status("故障") == "offline"
+        # 已是英文
+        assert TCUMBrowserImpl._normalize_status("online") == "online"
+        # 空值
+        assert TCUMBrowserImpl._normalize_status("") is None
+        assert TCUMBrowserImpl._normalize_status(None) is None
+        # 未知值 → None（不阻塞，仅 log warning）
+        assert TCUMBrowserImpl._normalize_status("奇怪状态") is None
 
 
 class TestUrlBuilder:

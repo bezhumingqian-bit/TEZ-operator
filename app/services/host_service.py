@@ -23,6 +23,7 @@ from app.clients.base import BrowserAuthExpired
 from app.clients.ccdb import CCDBClient
 from app.clients.idcrm import IDCRMClient
 from app.clients.tcum import TCUMClient
+from app.config import get_settings
 from app.schemas.host import HostHistoryEvent, HostInfo, HostMeta
 from app.services.cache_service import CacheService
 from app.services.cache_service import cache as default_cache
@@ -34,9 +35,55 @@ log = get_logger(__name__)
 CACHE_KEY_HOST = "host:{asset_id}"
 CACHE_KEY_HOST_BY_IP = "host:ip:{ip}"
 CACHE_KEY_ZONE = "zone:{zone}:hosts"
-ZONE_CACHE_TTL = 600  # 10 分钟
+CACHE_KEY_ZONES_LIST = "zones:list"
 
 CACHE_DUMP_KW = {"by_alias": True, "mode": "json", "exclude": {"raw_json"}}
+
+# ── status 映射兜底（W3 与前端对齐）──
+# 主映射在 TCUMBrowserImpl._parse_row 完成（数据净化在采集层做，越靠近源头越好）。
+# 这里仅作为兜底：万一某 client 漏配映射，HostService 层不让脏数据穿透到前端。
+STATUS_MAP_CN_TO_EN: dict[str, str] = {
+    "运营中": "online",
+    "在线": "online",
+    "维护中": "maintenance",
+    "维修中": "maintenance",
+    "故障": "offline",
+    "离线": "offline",
+    "下线": "offline",
+}
+_VALID_STATUSES = {"online", "offline", "maintenance"}
+
+
+def _normalize_status(raw: str | None) -> str | None:
+    """归一化兜底：把任意来源的 status 收敛到 ``online/offline/maintenance``。
+
+    采集层（TCUMBrowserImpl）已做主映射，这里只兜底：
+    - 已是合法英文 → 返回
+    - 中文映射命中 → 翻译
+    - 其他 → 记 warning + 返回 None（schema 是 Literal，传脏数据会 422）
+    """
+    if not raw:
+        return None
+    v = raw.strip()
+    if v in _VALID_STATUSES:
+        return v
+    if v in STATUS_MAP_CN_TO_EN:
+        return STATUS_MAP_CN_TO_EN[v]
+    log.warning("host.unknown_status", value=v)
+    return None
+
+
+# ── 占位 zone 列表（mock 模式时 GET /api/v1/zones 用）──
+# 严格脱敏：不带任何真实城市/产品代号（docs/16 § 二），
+# 与前端 W3 约定的 zone_a~zone_e 占位保持一致。
+# W4 切真实 CCDB 后由 CCDBClient.list_zones() 提供
+MOCK_ZONES: list[str] = [
+    "zone_a",
+    "zone_b",
+    "zone_c",
+    "zone_d",
+    "zone_e",
+]
 
 
 class HostService:
@@ -160,23 +207,90 @@ class HostService:
         await self.cache.set(
             key,
             [h.model_dump(**CACHE_DUMP_KW) for h in hosts],
-            ttl=ZONE_CACHE_TTL,
+            ttl=get_settings().cache_zone_ttl,
         )
         return hosts
+
+    async def list_zones(self) -> list[str]:
+        """返回当前可用的 zone 列表。
+
+        当前实现：
+        - mock 模式（W3）→ 从 ``MOCK_ZONES`` 返回固定占位
+        - W4 真实 CCDB 接通后改为从 ``self.ccdb.list_zones()`` 拉
+        - 缓存 10 分钟（与 zone hosts 一致）
+        """
+
+        cached = await self.cache.get(CACHE_KEY_ZONES_LIST)
+        if cached:
+            return list(cached)
+
+        # TODO(W4): 改为 self.ccdb.list_zones()
+        zones = list(MOCK_ZONES)
+        await self.cache.set(
+            CACHE_KEY_ZONES_LIST,
+            zones,
+            ttl=get_settings().cache_zone_ttl,
+        )
+        return zones
 
     async def batch_get_hosts(
         self, asset_ids: list[str]
     ) -> list[tuple[str, HostInfo | None, str | None]]:
-        """并发批量查询；返回 (query, host_or_none, error_or_none) 列表。"""
+        """并发批量查询；返回 (query, host_or_none, error_or_none) 列表。
+
+        W3 增强：
+        - 用 ``asyncio.Semaphore(settings.batch_concurrency)`` 限流，
+          防止 100 条同时打开 100 个 BrowserContext page
+        - 单条失败不影响其他（gather + per-task try/except）
+        """
+
+        s = get_settings()
+        sem = asyncio.Semaphore(s.batch_concurrency)
 
         async def _one(qid: str) -> tuple[str, HostInfo | None, str | None]:
-            try:
-                host = await self.get_host(qid)
-                return qid, host, None
-            except Exception as exc:  # noqa: BLE001
-                return qid, None, str(exc)
+            async with sem:
+                try:
+                    host = await self.get_host(qid)
+                    return qid, host, None
+                except Exception as exc:  # noqa: BLE001
+                    return qid, None, str(exc)
 
         return await asyncio.gather(*(_one(q) for q in asset_ids))
+
+    async def batch_get_hosts_mixed(
+        self, queries: list[tuple[str, str]]
+    ) -> list[tuple[str, str, HostInfo | None, str | None]]:
+        """并发批量查询（混合 asset_id / ip），用于 batch_search 路由。
+
+        Args:
+            queries: 列表，每项为 ``(query, query_type)``，``query_type`` ∈ ``asset_id / ip / *``
+
+        Returns:
+            ``(query, query_type, host_or_none, error_or_none)`` 列表，顺序与输入一致。
+        """
+
+        s = get_settings()
+        sem = asyncio.Semaphore(s.batch_concurrency)
+
+        async def _one(qid: str, qtype: str) -> tuple[str, str, HostInfo | None, str | None]:
+            async with sem:
+                try:
+                    if qtype == "asset_id":
+                        host = await self.get_host(qid)
+                    elif qtype == "ip":
+                        host = await self.get_host_by_ip(qid)
+                    else:
+                        return (
+                            qid,
+                            qtype,
+                            None,
+                            f"不支持的批量类型：{qtype}（仅支持固资号 / IP）",
+                        )
+                    return qid, qtype, host, None
+                except Exception as exc:  # noqa: BLE001
+                    return qid, qtype, None, str(exc)
+
+        return await asyncio.gather(*(_one(q, t) for q, t in queries))
 
     async def close(self) -> None:
         """W2 lifespan close 用：释放三个 client（reviewer 建议-5）。"""
@@ -267,7 +381,7 @@ class HostService:
             ip=ccdb.get("ip") or tcum.get("ip"),
             zone=ccdb.get("zone") or tcum.get("zone"),
             machine_type=ccdb.get("machine_type") or tcum.get("machine_type"),
-            status=ccdb.get("status") or tcum.get("status"),
+            status=_normalize_status(ccdb.get("status") or tcum.get("status")),
             idc=tcum.get("idc") or ccdb.get("idc"),
             cabinet=idc.get("cabinet") or tcum.get("cabinet") or ccdb.get("cabinet"),
             position=idc.get("position"),

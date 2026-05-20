@@ -36,9 +36,12 @@ class TestDetectQueryType:
     @pytest.mark.parametrize(
         "value",
         [
-            "ap-shanghai-tea-3",
-            "ap-guangzhou-edgezone-1",
-            "ap-beijing-tea-12",
+            "zone_a",
+            "zone_b",
+            "zone_test_1",
+            "ap-region1-sub1-3",
+            "ap-region1-edgezone-1",
+            "ap-region2-sub1-12",
         ],
     )
     def test_zone(self, value: str) -> None:
@@ -54,7 +57,7 @@ class TestDetectQueryType:
             "256.256.256.256",  # 非法 IP
             "1.2.3",  # 不完整 IP
             "1.2.3.4.5",  # 多段
-            "AP-Shanghai",  # 不是 zone 格式
+            "AP-Region1",  # 不是 zone 格式
             "TYSV",  # 长度不够（前缀+至少 4 位）
             None,  # type: ignore[arg-type]
         ],
@@ -64,7 +67,8 @@ class TestDetectQueryType:
 
     def test_strip_whitespace(self) -> None:
         assert detect_query_type("  TYSV00000001  ") == "asset_id"
-        assert detect_query_type("\tap-shanghai-tea-3\n") == "zone"
+        assert detect_query_type("\tap-region1-sub1-3\n") == "zone"
+        assert detect_query_type("  zone_a  ") == "zone"
 
 
 class TestNormalize:
@@ -72,7 +76,7 @@ class TestNormalize:
         assert normalize_query("tysv00000001") == "TYSV00000001"
 
     def test_zone_lowercase(self) -> None:
-        assert normalize_query("AP-Shanghai-Tea-3") == "ap-shanghai-tea-3"
+        assert normalize_query("AP-Region1-Sub1-3") == "ap-region1-sub1-3"
 
     def test_ip_unchanged(self) -> None:
         assert normalize_query(" 10.0.0.5 ") == "10.0.0.5"

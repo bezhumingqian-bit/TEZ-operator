@@ -16,8 +16,28 @@ ASSET_RE = re.compile(r"^TY[A-Z]{2}[A-Z0-9]{4,}$", re.IGNORECASE)
 _IP_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)"
 IP_RE = re.compile(rf"^{_IP_OCTET}(?:\.{_IP_OCTET}){{3}}$")
 
-# Zone：ap-<region>-<sub>-<digit>，例如 ap-shanghai-tea-3 / ap-guangzhou-edgezone-1
-ZONE_RE = re.compile(r"^[a-z]{2}-[a-z]+(?:-[a-z]+)+-\d+$")
+# Zone：兼容两种格式
+#   - 占位格式：zone_a / zone_b / zone_test_1（开发 / mock 用）
+#   - 真实格式：ap-<region>-<sub>-<digit>（W4 真实联调用）
+# 注意：parser 是输入识别，写得稍宽容；docs/16 § 五 的预提交钩子另有更严的真实
+# 固资号 / 内网信息正则。
+_ZONE_PLACEHOLDER_RE = re.compile(r"^zone(?:_[a-z0-9]+)+$")
+_ZONE_REAL_RE = re.compile(r"^[a-z]{2}-[a-z0-9]+(?:-[a-z0-9]+)+-\d+$")
+
+
+def _is_zone(s: str) -> bool:
+    low = s.lower()
+    return bool(_ZONE_PLACEHOLDER_RE.match(low) or _ZONE_REAL_RE.match(low))
+
+
+# 兼容旧调用（保留对外 ZONE_RE 名称，但语义改为合并匹配器）
+class _ZoneRECompat:
+    @staticmethod
+    def match(s: str):  # noqa: ANN205 - 仅用 truthy 判断
+        return _is_zone(s) or None
+
+
+ZONE_RE = _ZoneRECompat()
 
 
 def detect_query_type(q: str | None) -> QueryType:
@@ -35,7 +55,7 @@ def detect_query_type(q: str | None) -> QueryType:
         return "asset_id"
     if IP_RE.match(s):
         return "ip"
-    if ZONE_RE.match(s.lower()):
+    if _is_zone(s.lower()):
         return "zone"
     return "unknown"
 
