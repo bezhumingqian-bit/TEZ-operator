@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Setup Python
+        run: uv python install 3.11
+
+      - name: Detect backend project
+        id: detect
+        run: |
+          if [[ -f pyproject.toml ]]; then
+            echo "has_py=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_py=0" >> "$GITHUB_OUTPUT"
+            echo "::notice::pyproject.toml 未就位，跳过 Python 检查（W1 仅 ops 脚手架）"
+          fi
+
+      - name: Install dependencies
+        if: steps.detect.outputs.has_py == '1'
+        run: uv sync --all-extras --dev
+
+      - name: Ruff (lint + format check)
+        if: steps.detect.outputs.has_py == '1'
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      # mypy 暂未启用（W3 之后再加，需先在 pyproject.toml 配置 [tool.mypy] 段）
+
+      - name: Pytest
+        if: steps.detect.outputs.has_py == '1'
+        run: uv run pytest -v --cov=app --cov-report=term-missing
+
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: ./scripts
+          severity: warning
+        continue-on-error: true
+
+  compose-validate:
+    name: docker-compose validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create dummy .env
+        run: |
+          cp .env.example .env
+          sed -i 's/change_me_strong_password/ci_dummy/' .env
+      - name: Validate docker-compose.yml
+        run: docker compose config -q

@@ -1,0 +1,7 @@
+Generic single-database configuration with Alembic.
+
+执行迁移：
+    alembic upgrade head
+
+新建迁移：
+    alembic revision -m "msg" --autogenerate

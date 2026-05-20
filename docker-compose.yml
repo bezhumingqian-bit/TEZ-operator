@@ -1,0 +1,87 @@
+version: "3.9"
+
+# TEZ Operator 工位机部署
+# - MySQL/Redis 只绑 127.0.0.1，不对外暴露
+# - backend/frontend 绑 0.0.0.0，5-20 人内部访问
+# - 数据卷在 ./data，日志在 ./logs，均已 gitignore
+#
+# W1 阶段说明：backend/frontend 镜像由 developer/前端 W2-W3 提供，
+# 当前仅 mysql + redis 段可直接 up。如需先跑基础设施，可执行：
+#   docker compose up -d mysql redis
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: tez-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-tez_operator}
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      - ./logs/mysql:/var/log/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=200
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tez-redis
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    container_name: tez-backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env
+    ports:
+      - "0.0.0.0:8000:8000"
+    volumes:
+      - ./logs/backend:/app/logs
+    environment:
+      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-tez_operator}
+      REDIS_URL: redis://redis:6379/0
+    profiles:
+      - app   # W1 不启动；待 backend 镜像就绪后用 --profile app 启用
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: tez-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "0.0.0.0:8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    profiles:
+      - app   # W1 不启动；待前端镜像就绪后启用
+
+networks:
+  default:
+    name: tez-network

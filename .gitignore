@@ -1,0 +1,117 @@
+# =====================================================
+# TEZ Operator .gitignore
+# 安全原则:默认禁止入仓,白名单允许
+# =====================================================
+
+# =====================================================
+# 黑名单(强制不入仓)
+# =====================================================
+
+# Python 标准忽略
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.venv/
+venv/
+env/
+
+# 环境配置/凭据(高敏)
+.env
+.env.*
+!.env.example
+*.token
+*.secret
+*.pem
+*.key
+secrets/
+credentials/
+
+# 测试 / 覆盖率
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# 类型检查 / Lint
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 日志(可能含敏感数据)
+*.log
+logs/
+
+# 数据库本地文件
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker 数据卷
+data/
+
+# =====================================================
+# TEZ Operator 专属:敏感数据保护
+# 原则:任何包含真实 IP/固资号/客户名/人名/接口数据的文件都不入仓
+# =====================================================
+
+# 1. 知识库工作区 — 整个目录不入仓(用户原始资料 + 链接清单 + 内部知识)
+#    含腾讯文档导出、内部 Word/Excel、内网平台 URL、接口人名单
+knowledge/
+
+# 2. 整个 .codebuddy 团队工作区不入仓
+#    包含:
+#    - docs/(知识手册,含真实接口人名单/IP/固资号/客户名/计费标签)
+#    - poc/(浏览器自动化产物,含 cookie/HTML/截图/真实数据)
+#    - inboxes/(团队消息)
+#    - playwright-profile/(登录态)
+#    这些都是本地工作区数据,不应被任何外部系统看到
+.codebuddy/
+
+# 3. Playwright 浏览器自动化产物(双保险,即使移到其他位置也禁止)
+**/playwright-profile/
+**/playwright-state.json
+**/output_step*/
+**/*.har
+
+# 4. 备份产物(脚本入仓,数据不入仓)
+backup/data/
+backup/*.sql.gz
+backup/*.rdb
+backup/*.tar.gz
+backup/*.tar.gz.enc
+backup/.backup_key
+!backup/*.sh
+
+# 5. 应用本地数据
+app/data/
+storage/
+
+# 6. nginx 运行日志
+nginx/logs/
+
+# 7. 用户工作区桌面数据(防误传)
+local-only/
+*.local.*
+*-local.*
+
+# =====================================================
+# 严禁入仓(双保险) - 任何文件名含以下关键字默认排除
+# =====================================================
+*-internal.*
+*-confidential.*
+*真实数据*
+*脱敏前*
