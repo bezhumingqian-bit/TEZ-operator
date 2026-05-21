@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.deps import get_host_service
 from app.routers import hosts as hosts_router
 from app.routers import contacts as contacts_router
+from app.routers import knowledge as knowledge_router
 from app.services.cache_service import cache as default_cache
 from app.utils.logger import get_logger, setup_logging
 
@@ -133,6 +134,7 @@ def create_app() -> FastAPI:
     app.include_router(hosts_router.router, prefix="/api/v1")
     app.include_router(hosts_router.zone_router, prefix="/api/v1")
     app.include_router(contacts_router.router, prefix="/api/v1")
+    app.include_router(knowledge_router.router, prefix="/api/v1")
 
     return app
 
