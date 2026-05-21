@@ -8,7 +8,14 @@ from app.services.host_service import HostService
 
 
 @pytest.mark.asyncio
-async def test_zone_instance_stats_service_mock() -> None:
+async def test_zone_instance_stats_service_mock(monkeypatch) -> None:
+    monkeypatch.setenv("TEZ_CMDB_MODE", "mock")
+    monkeypatch.setenv("TEZ_TCUM_MODE", "mock")
+    monkeypatch.setenv("TEZ_IDCRM_MODE", "mock")
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+
     service = HostService()
 
     stats = await service.get_zone_instance_stats(["zone_a", "zone_b"])

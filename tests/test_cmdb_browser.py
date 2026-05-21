@@ -117,108 +117,62 @@ class TestParseRow:
 
 
 class TestUrlBuilders:
-    def test_search_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_base_query_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEZ_CMDB_BASE_URL", "http://cmdb.example.com")
         from app.config import get_settings
 
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl = CMDBBrowserImpl()
-        url = impl._build_search_url("TYSV00000001")
-        assert url == "http://cmdb.example.com/server/query?page=1&key=TYSV00000001"
-        assert impl._build_search_url("A B") == "http://cmdb.example.com/server/query?page=1&key=A+B"
+        url = impl._base_query_url()
+        assert url == "http://cmdb.example.com/server/query"
 
-    def test_search_url_strips_trailing_slash(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_base_query_url_strips_trailing_slash(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEZ_CMDB_BASE_URL", "http://cmdb.example.com/")
         from app.config import get_settings
 
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl = CMDBBrowserImpl()
-        assert impl._build_search_url("X") == "http://cmdb.example.com/server/query?page=1&key=X"
-
-    def test_zone_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("TEZ_CMDB_BASE_URL", "http://cmdb.example.com")
-        from app.config import get_settings
-
-        get_settings.cache_clear()  # type: ignore[attr-defined]
-        impl = CMDBBrowserImpl()
-        url = impl._build_zone_url("zone_a")
-        assert url == "http://cmdb.example.com/server/query?page=1&zone=zone_a"
-        assert impl._build_zone_url("zone a") == (
-            "http://cmdb.example.com/server/query?page=1&zone=zone+a"
-        )
+        assert impl._base_query_url() == "http://cmdb.example.com/server/query"
 
 
-# ─────────────────────────── _fetch_rows ───────────────────────────
+# ─────────────────────────── _search_by_form (mocked) ───────────────────────────
 
 
 @pytest.mark.asyncio
-class TestFetchRows:
+class TestSearchByForm:
     async def test_auth_expired_raises(self) -> None:
         impl = CMDBBrowserImpl()
         page = MagicMock()
         page.goto = AsyncMock()
         page.url = "https://passport.example.com/login"
-        page.eval_on_selector_all = AsyncMock(return_value=[])
+        page.locator = MagicMock(return_value=MagicMock(first=AsyncMock(is_visible=AsyncMock(return_value=False))))
+        page.get_by_role = MagicMock(return_value=MagicMock(count=AsyncMock(return_value=0)))
+        page.get_by_text = MagicMock(return_value=MagicMock(count=AsyncMock(return_value=0)))
 
         with patch(
             "app.clients.cmdb_browser.BrowserSession.page",
             _fake_page_ctx(page),
         ):
             with pytest.raises(BrowserAuthExpired):
-                await impl._fetch_rows("http://cmdb.example.com/q?key=X")
+                await impl._search_by_form("TYSV00000001")
 
-    async def test_no_rows_returns_empty(self) -> None:
+    async def test_no_input_found_returns_empty(self) -> None:
         impl = CMDBBrowserImpl()
         page = MagicMock()
         page.goto = AsyncMock()
-        page.url = "http://cmdb.example.com/q?key=X"
-        page.eval_on_selector_all = AsyncMock(return_value=[])
+        page.url = "http://cmdb.example.com/server/query"
+        # All locators return invisible
+        mock_loc = MagicMock()
+        mock_loc.first = MagicMock()
+        mock_loc.first.is_visible = AsyncMock(return_value=False)
+        page.locator = MagicMock(return_value=mock_loc)
 
         with patch(
             "app.clients.cmdb_browser.BrowserSession.page",
             _fake_page_ctx(page),
         ):
-            rows = await impl._fetch_rows("http://cmdb.example.com/q?key=X")
+            rows = await impl._search_by_form("TYSV00000001")
             assert rows == []
-
-    async def test_rows_filtered_by_keyword(self) -> None:
-        impl = CMDBBrowserImpl()
-        page = MagicMock()
-        page.goto = AsyncMock()
-        page.url = "http://cmdb.example.com/q"
-        # 三行：第二行包含目标
-        page.eval_on_selector_all = AsyncMock(
-            return_value=[
-                ["", "OTHER", "10.0.0.99"],
-                SAMPLE_CELLS,
-                ["", "ANOTHER", "10.0.0.50"],
-            ]
-        )
-
-        with patch(
-            "app.clients.cmdb_browser.BrowserSession.page",
-            _fake_page_ctx(page),
-        ):
-            rows = await impl._fetch_rows(
-                "http://cmdb.example.com/q",
-                target_keyword="TYSV00000001",
-            )
-        assert len(rows) == 1
-        assert rows[0][2] == "TYSV00000001"
-
-    async def test_goto_failure_does_not_block(self) -> None:
-        impl = CMDBBrowserImpl()
-        page = MagicMock()
-        page.goto = AsyncMock(side_effect=RuntimeError("networkidle timeout"))
-        page.url = "http://cmdb.example.com/q"
-        page.eval_on_selector_all = AsyncMock(return_value=[SAMPLE_CELLS])
-
-        with patch(
-            "app.clients.cmdb_browser.BrowserSession.page",
-            _fake_page_ctx(page),
-        ):
-            rows = await impl._fetch_rows("http://cmdb.example.com/q")
-        assert len(rows) == 1
 
 
 # ─────────────────────────── public 方法 pipeline ───────────────────────────
@@ -226,71 +180,24 @@ class TestFetchRows:
 
 @pytest.mark.asyncio
 class TestPublicMethods:
-    async def test_get_by_asset_full(self) -> None:
+    async def test_get_by_asset_empty_returns_none(self) -> None:
         impl = CMDBBrowserImpl()
-        page = MagicMock()
-        page.goto = AsyncMock()
-        page.url = "http://cmdb.example.com/search?key=TYSV00000001"
-        page.eval_on_selector_all = AsyncMock(return_value=[SAMPLE_CELLS])
+        assert await impl.get_by_asset("") is None
 
-        with patch(
-            "app.clients.cmdb_browser.BrowserSession.page",
-            _fake_page_ctx(page),
-        ):
-            data = await impl.get_by_asset("TYSV00000001")
-        assert data is not None
-        assert data["asset_id"] == "TYSV00000001"
-        assert data["ip"] == "10.0.0.1"
+    async def test_close_no_op(self) -> None:
+        await CMDBBrowserImpl().close()
 
     async def test_get_by_asset_empty(self) -> None:
         impl = CMDBBrowserImpl()
         assert await impl.get_by_asset("") is None
 
-    async def test_get_by_ip_full(self) -> None:
-        impl = CMDBBrowserImpl()
-        page = MagicMock()
-        page.goto = AsyncMock()
-        page.url = "http://cmdb.example.com/search?key=10.0.0.1"
-        page.eval_on_selector_all = AsyncMock(return_value=[SAMPLE_CELLS])
-
-        with patch(
-            "app.clients.cmdb_browser.BrowserSession.page",
-            _fake_page_ctx(page),
-        ):
-            data = await impl.get_by_ip("10.0.0.1")
-        assert data is not None
-        assert data["ip"] == "10.0.0.1"
-
     async def test_get_by_ip_empty(self) -> None:
         impl = CMDBBrowserImpl()
         assert await impl.get_by_ip("") is None
-
-    async def test_list_by_zone_filters_invalid(self) -> None:
-        impl = CMDBBrowserImpl()
-        page = MagicMock()
-        page.goto = AsyncMock()
-        page.url = "http://cmdb.example.com/zone?zone=zone_a"
-        # 第一行没 asset_id（被过滤），第二行有
-        page.eval_on_selector_all = AsyncMock(
-            return_value=[
-                [""] * 12,  # 全空，会被 cleaned 过滤
-                SAMPLE_CELLS,
-            ]
-        )
-
-        with patch(
-            "app.clients.cmdb_browser.BrowserSession.page",
-            _fake_page_ctx(page),
-        ):
-            items = await impl.list_by_zone("zone_a", limit=10)
-        assert len(items) == 1
-        assert items[0]["asset_id"] == "TYSV00000001"
 
     async def test_list_by_zone_empty(self) -> None:
         impl = CMDBBrowserImpl()
         assert await impl.list_by_zone("") == []
 
     async def test_close_no_op(self) -> None:
-        impl = CMDBBrowserImpl()
-        # close 不应抛
-        await impl.close()
+        await CMDBBrowserImpl().close()

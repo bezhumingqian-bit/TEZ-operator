@@ -80,8 +80,7 @@ class CMDBBrowserImpl:
                 "cmdb_browser.login_state_expired_or_missing",
                 hint="若浏览器弹窗请扫码登录；profile 路径见 settings.browser_profile_dir",
             )
-        url = self._build_search_url(asset_id)
-        rows = await self._fetch_rows(url, target_keyword=asset_id)
+        rows = await self._search_by_form(asset_id)
         if not rows:
             return None
         return self._parse_row(rows[0])
@@ -89,8 +88,7 @@ class CMDBBrowserImpl:
     async def get_by_ip(self, ip: str) -> dict[str, Any] | None:
         if not ip:
             return None
-        url = self._build_search_url(ip)
-        rows = await self._fetch_rows(url, target_keyword=ip)
+        rows = await self._search_by_form(ip)
         if not rows:
             return None
         return self._parse_row(rows[0])
@@ -98,59 +96,99 @@ class CMDBBrowserImpl:
     async def list_by_zone(self, zone: str, limit: int = 100) -> list[dict[str, Any]]:
         if not zone:
             return []
-        url = self._build_zone_url(zone)
-        rows = await self._fetch_rows(url)
+        rows = await self._search_by_form(zone)
         if not rows:
             return []
-        # 去掉表头/空行干扰，最多取 limit
         parsed = [self._parse_row(r) for r in rows[:limit]]
-        # 过滤掉 asset_id 为空的（通常是表头）
         return [p for p in parsed if p.get("asset_id")]
 
     async def close(self) -> None:
         return None
 
+    async def get_instance_stats_by_zone(self, zone: str) -> dict[str, Any]:
+        """区域实例统计 — browser 模式暂不支持（云霄数据源待接入）。"""
+
+        raise NotImplementedError(
+            "CMDB browser mode does not support instance stats yet; "
+            "cloud instance data source (yunxiao) is not accessible via browser automation"
+        )
+
     # ──────────────── 内部 ────────────────
 
-    def _build_search_url(self, key: str) -> str:
-        """构造按 key（固资号/IP）搜索 URL。
+    def _base_query_url(self) -> str:
+        return self._settings.cmdb_base_url.rstrip("/") + "/server/query"
 
-        Note:
-            TODO(W4): 真实 CMDB 的 search 路径可能不是 ``/search`` —— 联调时改
-        """
-        base = self._settings.cmdb_base_url.rstrip("/")
-        return f"{base}/server/query?{urlencode({'page': 1, 'key': key})}"
-
-    def _build_zone_url(self, zone: str) -> str:
-        """按 zone 列出母机的 URL。
-
-        Note:
-            TODO(W4): 真实 CMDB 的 zone 列表入口待联调
-        """
-        base = self._settings.cmdb_base_url.rstrip("/")
-        return f"{base}/server/query?{urlencode({'page': 1, 'zone': zone})}"
-
-    async def _fetch_rows(
+    async def _search_by_form(
         self,
-        url: str,
-        target_keyword: str = "",
+        keyword: str,
     ) -> list[list[str]]:
-        """打开 URL → 等渲染 → 提取 ``.tea-table tbody tr`` 行。"""
+        """通过表单操作搜索：填输入框 + 点查询按钮 + 读表格。
+
+        CMDB 前端接口 payload 加密（_encData），无法直接 httpx 调用；
+        必须走 Playwright 模拟用户操作。
+        """
+
         timeout_ms = self._settings.browser_page_timeout_ms
 
         async with BrowserSession.page() as page:
             try:
-                await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+                await page.goto(self._base_query_url(), wait_until="domcontentloaded", timeout=timeout_ms)
             except Exception as exc:  # noqa: BLE001
-                log.debug("cmdb_browser.goto_networkidle_warn", error=str(exc))
+                log.debug("cmdb_browser.goto_warn", error=str(exc))
 
+            # 等 SPA 渲染
             await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
+
+            # SSO 中转处理（同 TCUM 逻辑）
+            await self._try_finish_sso_flow(page)
 
             current_url = page.url
             if is_login_url(current_url):
                 log.warning("cmdb_browser.auth_expired", url=current_url)
                 raise BrowserAuthExpired("CMDB 登录态失效（被踢回 SSO），请重新扫码登录")
 
+            # 填入搜索关键词
+            filled = False
+            for sel in ('input[placeholder*="多个"]', '.t-input__inner', '.t-textarea__inner', 'textarea'):
+                try:
+                    inp = page.locator(sel).first
+                    if await inp.is_visible(timeout=2000):
+                        await inp.fill(keyword)
+                        filled = True
+                        log.debug("cmdb_browser.input_filled", selector=sel)
+                        break
+                except Exception:  # noqa: BLE001
+                    continue
+
+            if not filled:
+                log.warning("cmdb_browser.input_not_found")
+                return []
+
+            await asyncio.sleep(0.5)
+
+            # 点查询按钮
+            clicked = False
+            for sel in ('button:has-text("查询")', 'button:has-text("搜索")', '.t-button--primary'):
+                try:
+                    btn = page.locator(sel).first
+                    if await btn.is_visible(timeout=1000):
+                        await btn.click(timeout=3000)
+                        clicked = True
+                        break
+                except Exception:  # noqa: BLE001
+                    continue
+            if not clicked:
+                # 尝试 Enter
+                try:
+                    inp = page.locator('input[placeholder*="多个"]').first
+                    await inp.press("Enter")
+                except Exception:  # noqa: BLE001
+                    pass
+
+            # 等查询结果加载
+            await asyncio.sleep(5)
+
+            # 提取表格行
             rows: list[list[str]] = []
             for selector in self.SELECTOR_FALLBACKS:
                 try:
@@ -170,15 +208,45 @@ class CMDBBrowserImpl:
                     break
 
             if not rows:
-                log.info("cmdb_browser.no_rows", url=url)
+                log.info("cmdb_browser.no_rows")
                 return []
 
+            # 过滤空行
             cleaned = [r for r in rows if any(c for c in r)]
-            if target_keyword:
-                hits = [r for r in cleaned if any(target_keyword.upper() in c.upper() for c in r)]
+            # 按关键词过滤目标行
+            if keyword:
+                hits = [r for r in cleaned if any(keyword.upper() in c.upper() for c in r)]
                 if hits:
                     return hits
             return cleaned
+
+    async def _try_finish_sso_flow(self, page) -> None:
+        """处理扫码后还需点击确认的 SSO 中转流程。"""
+
+        import re as _re
+
+        click_terms = ("登录", "确认", "确定", "继续", "继续访问", "进入", "进入系统", "授权", "同意")
+        deadline = asyncio.get_running_loop().time() + 30
+        while is_login_url(page.url) and asyncio.get_running_loop().time() < deadline:
+            clicked = False
+            for term in click_terms:
+                locators = (
+                    page.get_by_role("button", name=_re.compile(term, _re.I)),
+                    page.get_by_text(_re.compile(term, _re.I)),
+                )
+                for loc in locators:
+                    try:
+                        if await loc.count() > 0 and await loc.first.is_visible(timeout=500):
+                            await loc.first.click(timeout=3000)
+                            await asyncio.sleep(3)
+                            clicked = True
+                            break
+                    except Exception:  # noqa: BLE001
+                        pass
+                if clicked:
+                    break
+            if not clicked:
+                await asyncio.sleep(3)
 
     # ──────────────── 解析 ────────────────
 
