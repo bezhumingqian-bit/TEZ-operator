@@ -6,7 +6,7 @@
  */
 
 export type QueryType = 'asset_id' | 'ip' | 'zone' | 'unknown'
-export type HostStatus = 'online' | 'offline' | 'maintenance' | string
+export type HostStatus = 'online' | 'offline' | 'maintenance'
 
 export interface HostHistoryEvent {
   event_type: string

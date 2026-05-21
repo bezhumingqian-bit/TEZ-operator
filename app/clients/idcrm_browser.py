@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+from urllib.parse import urlencode
 
 from app.clients.base import BrowserAuthExpired
 from app.clients.browser_session import BrowserSession, is_login_url
@@ -64,6 +65,10 @@ class IDCRMBrowserImpl:
             raise
         if not rows:
             return None
+        log.error(
+            "idcrm_browser.parse_not_implemented",
+            hint="IDCRM browser 模式待 W4 获取真实页面样本后补齐；当前请保持 TEZ_IDCRM_MODE=mock",
+        )
         # _parse_row 会 raise，让 HostService 降级
         return self._parse_row(
             rows[0],
@@ -89,12 +94,12 @@ class IDCRMBrowserImpl:
             TODO(W4): 真实查询路径待联调。当前用占位形式构造，便于单测验证。
         """
         base = self._settings.idcrm_base_url.rstrip("/")
-        params = [f"idc={idc}"]
+        params = {"idc": idc}
         if cabinet:
-            params.append(f"cabinet={cabinet}")
+            params["cabinet"] = cabinet
         if asset_id:
-            params.append(f"asset_id={asset_id}")
-        return f"{base}/query?{'&'.join(params)}"
+            params["asset_id"] = asset_id
+        return f"{base}/query?{urlencode(params)}"
 
     async def _fetch_rows(
         self,
@@ -173,7 +178,10 @@ class IDCRMBrowserImpl:
             NotImplementedError: 真实页面样本待 W4 联调获取。
         """
         # W4 联调时取消下面这行 raise，并按真实列序填充
-        raise NotImplementedError("idcrm browser _parse_row TBD - need real page sample (W4)")
+        raise NotImplementedError(
+            "IDCRM browser mode is not ready: _parse_row needs W4 real page sample; "
+            "keep TEZ_IDCRM_MODE=mock before W4 联调"
+        )
         # 下面代码作为 W4 时的起点保留：
         # return {
         #     "idc": cls._safe_cell(cells, cls.COL_IDC) or fallback_idc,

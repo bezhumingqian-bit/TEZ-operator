@@ -9,17 +9,31 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# 加载 .env（如果存在）
-if [[ -f .env ]]; then
-    # 仅导入 KEY=VALUE 行，避免奇怪的 shell 注入
-    set -a
-    # shellcheck disable=SC1091
-    source .env
-    set +a
-fi
+# 安全读取 .env 中单个 KEY=VALUE；只解析值，不执行文件内容。
+get_env() {
+    local key="$1"
+    local line value
 
+    line="$(grep -E "^${key}=" .env 2>/dev/null | tail -n 1 || true)"
+    [[ -n "$line" ]] || return 0
+
+    value="${line#*=}"
+    if [[ ${#value} -ge 2 ]]; then
+        if [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]] || \
+            [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+            value="${value:1:${#value}-2}"
+        fi
+    fi
+    printf '%s' "$value"
+}
+
+MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-$(get_env MYSQL_ROOT_PASSWORD)}"
+MYSQL_DATABASE="${MYSQL_DATABASE:-$(get_env MYSQL_DATABASE)}"
+MYSQL_DATABASE="${MYSQL_DATABASE:-tez_operator}"
+BACKUP_DIR="${BACKUP_DIR:-$(get_env BACKUP_DIR)}"
 BACKUP_DIR="${BACKUP_DIR:-./backup/data}"
-KEEP_DAYS="${BACKUP_KEEP_DAYS:-30}"
+KEEP_DAYS="${BACKUP_KEEP_DAYS:-$(get_env BACKUP_KEEP_DAYS)}"
+KEEP_DAYS="${KEEP_DAYS:-30}"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 if [[ -z "${MYSQL_ROOT_PASSWORD:-}" ]]; then
@@ -35,7 +49,7 @@ echo "📦 [1/3] 备份 MySQL..."
 docker exec tez-mysql mysqldump \
     -uroot -p"${MYSQL_ROOT_PASSWORD}" \
     --single-transaction --quick --routines --triggers \
-    "${MYSQL_DATABASE:-tez_operator}" 2>/dev/null | \
+    "${MYSQL_DATABASE}" 2>/dev/null | \
     gzip > "${BACKUP_DIR}/mysql_${DATE}.sql.gz"
 
 # 2) Redis BGSAVE → 拷贝 dump.rdb

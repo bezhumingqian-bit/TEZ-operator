@@ -44,7 +44,10 @@ declare -a PATTERNS=(
     '沈阳边缘'
 
     # 真实客户名（按全词或上下文）
-    '虎牙|字节|小鹿|搜狐|声网'
+    '虎牙|\bYY\b|字节|小鹿|搜狐|声网'
+
+    # 真实云地域 / Zone 名
+    'ap-shanghai|ap-guangzhou|ap-beijing'
 
     # 真实 AppId / 计费标签 / 模块
     '1300840453'

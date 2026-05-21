@@ -60,13 +60,14 @@ class BrowserSession:
                 "browser.launch",
                 profile_dir=str(profile_dir),
                 headless=s.browser_headless,
+                ignore_https_errors=s.browser_ignore_https_errors,
             )
 
             cls._playwright = await async_playwright().start()
             cls._ctx = await cls._playwright.chromium.launch_persistent_context(
                 user_data_dir=str(profile_dir),
                 headless=s.browser_headless,
-                ignore_https_errors=True,
+                ignore_https_errors=s.browser_ignore_https_errors,
                 viewport={"width": 1440, "height": 900},
                 args=["--disable-blink-features=AutomationControlled"],
             )

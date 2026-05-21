@@ -157,6 +157,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { HostInfo } from '@/types/host'
+import { ApiError } from '@/api/client'
 import { exportHostsExcel } from '@/api/hosts'
 
 const props = defineProps<{
@@ -189,14 +190,20 @@ const billingTagPairs = computed(() => {
   return Object.entries(tags).map(([k, v]) => `${k}=${v}`)
 })
 
+function formatExportError(error: unknown): string {
+  if (error instanceof ApiError && error.status) {
+    return `导出失败（HTTP ${error.status}），请稍后重试`
+  }
+  return '导出失败，请稍后重试'
+}
+
 async function onExport() {
   exporting.value = true
   try {
     await exportHostsExcel([props.host.asset_id])
     ElMessage.success('已触发导出')
-  } catch {
-    // 后端导出接口 W3 才落地，这里仅做兜底
-    ElMessage.warning('导出接口尚未就绪（GET /api/v1/hosts/export，W3 后端实现中）')
+  } catch (error) {
+    ElMessage.warning(formatExportError(error))
   } finally {
     exporting.value = false
   }

@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import __version__
 from app.clients.browser_session import BrowserSession
 from app.config import get_settings
 from app.deps import get_host_service
@@ -104,7 +105,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="TEZ Operator API",
-        version="0.1.0",
+        version=__version__,
         description="腾讯云边缘可用区运营/运维内部工具平台 — M1 资源查询统一接口",
         lifespan=lifespan,
     )
@@ -121,7 +122,7 @@ def create_app() -> FastAPI:
     # ── 健康检查 ──
     @app.get("/health", tags=["meta"], summary="健康检查")
     def health() -> dict[str, str]:
-        return {"status": "ok", "service": "tez-operator", "version": "0.1.0"}
+        return {"status": "ok", "service": "tez-operator", "version": __version__}
 
     @app.get("/", tags=["meta"], include_in_schema=False)
     def root() -> dict[str, str]:

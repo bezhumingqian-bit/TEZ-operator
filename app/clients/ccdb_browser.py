@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+from urllib.parse import urlencode
 
 from app.clients.base import BrowserAuthExpired
 from app.clients.browser_session import BrowserSession, is_login_url
@@ -115,7 +116,7 @@ class CCDBBrowserImpl:
             TODO(W4): 真实 CCDB 的 search 路径可能不是 ``/search`` —— 联调时改
         """
         base = self._settings.ccdb_base_url.rstrip("/")
-        return f"{base}/search?key={key}"
+        return f"{base}/search?{urlencode({'key': key})}"
 
     def _build_zone_url(self, zone: str) -> str:
         """按 zone 列出母机的 URL。
@@ -124,7 +125,7 @@ class CCDBBrowserImpl:
             TODO(W4): 真实 CCDB 的 zone 列表入口待联调
         """
         base = self._settings.ccdb_base_url.rstrip("/")
-        return f"{base}/zone?zone={zone}"
+        return f"{base}/zone?{urlencode({'zone': zone})}"
 
     async def _fetch_rows(
         self,

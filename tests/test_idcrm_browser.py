@@ -36,7 +36,9 @@ class TestUrlBuilder:
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl = IDCRMBrowserImpl()
         url = impl._build_query_url(idc="示例机房A1")
-        assert url == "http://idcrm.example.com/query?idc=示例机房A1"
+        assert url == (
+            "http://idcrm.example.com/query?idc=%E7%A4%BA%E4%BE%8B%E6%9C%BA%E6%88%BFA1"
+        )
 
     def test_with_cabinet_and_asset(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEZ_IDCRM_BASE_URL", "http://idcrm.example.com/")
@@ -44,8 +46,10 @@ class TestUrlBuilder:
 
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl = IDCRMBrowserImpl()
-        url = impl._build_query_url(idc="示例机房A1", cabinet="A-12", asset_id="TYSV00000001")
-        assert "idc=示例机房A1" in url
+        url = impl._build_query_url(
+            idc="示例机房A1", cabinet="A-12", asset_id="TYSV00000001"
+        )
+        assert "idc=%E7%A4%BA%E4%BE%8B%E6%9C%BA%E6%88%BFA1" in url
         assert "cabinet=A-12" in url
         assert "asset_id=TYSV00000001" in url
 

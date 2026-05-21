@@ -64,7 +64,7 @@ open http://localhost:8000/docs
 
 ```bash
 curl http://localhost:8000/health
-# {"status":"ok","db":"ok","redis":"ok"}
+# {"status":"ok","service":"tez-operator","version":"0.3.0-alpha"}
 ```
 
 ---
@@ -88,10 +88,13 @@ uv run python -m playwright install chromium
 # 3. 启动后端
 uv run uvicorn app.main:app --reload --port 8000
 
-# 4. 首次访问 /api/v1/hosts/search?q=TYSV<真实固资号> 时
-#    会自动唤起 Chromium，扫码完成 iOA 登录后即可返回数据
+# 4. 首次访问 /api/v1/hosts/search?q=TYSV00000001 时
+#    会自动唤起 Chromium，扫码完成 SSO 登录后即可返回数据
 #    登录态保存在 data/playwright-profile/，默认 7 天内复用免登
 ```
+
+> IDCRM Browser 解析仍需 W4 真实页面样本，当前默认保持 `TEZ_IDCRM_MODE=mock`；样本到位前不要开启 `TEZ_IDCRM_MODE=browser`。
+> `TEZ_BROWSER_IGNORE_HTTPS_ERRORS` 默认 `false`；仅内网自签证书导致浏览器无法访问时，才在本地 `.env` 显式改为 `true`。
 
 **故障速查**：
 - 首次唤起没出浏览器？检查 `chromium` 是否装了（`playwright install chromium`）。
@@ -183,17 +186,24 @@ uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "your message"
 ```
 
+前端本地启动入口：
+```bash
+cd web && npm install && npm run dev
+```
+
 ### 配置说明
 
 所有配置走 `.env`，**不要硬编码任何凭据**。关键变量：
 
 | 变量 | 说明 | 示例 |
 |------|------|------|
-| `APP_ENV` | 运行环境 | `dev` / `prod` |
-| `MOCK_MODE` | 是否启用上游 mock | `true` / `false` |
-| `DATABASE_URL` | MySQL 连接串 | `mysql+pymysql://...` |
-| `REDIS_URL` | Redis 连接串 | `redis://localhost:6379/0` |
-| `UPSTREAM_*_URL` | 上游平台地址 | `https://your-internal-platform.example.com` |
+| `TEZ_APP_ENV` | 运行环境 | `local` / `prod` |
+| `TEZ_DATABASE_URL` | SQLAlchemy 连接串 | `mysql+pymysql://tez:tez@127.0.0.1:3306/tez_operator?charset=utf8mb4` |
+| `TEZ_REDIS_URL` | Redis 连接串 | `redis://127.0.0.1:6379/0` |
+| `TEZ_CCDB_MODE` / `TEZ_TCUM_MODE` / `TEZ_IDCRM_MODE` | 上游客户端模式 | `mock` / `api` / `browser` |
+| `TEZ_CCDB_BASE_URL` / `TEZ_TCUM_BASE_URL` / `TEZ_IDCRM_BASE_URL` | 上游平台地址占位 | `http://tcum.example.com` |
+| `TEZ_BROWSER_PROFILE_DIR` | Playwright 登录态目录 | `data/playwright-profile` |
+| `TEZ_BROWSER_IGNORE_HTTPS_ERRORS` | 是否忽略 HTTPS 证书错误 | `false` |
 
 完整变量见 [`.env.example`](.env.example)。
 

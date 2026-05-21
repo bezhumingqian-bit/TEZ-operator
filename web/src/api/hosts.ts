@@ -5,10 +5,11 @@
  *   GET  /api/v1/hosts/search?q=...
  *   GET  /api/v1/hosts/{asset_id}
  *   POST /api/v1/hosts/batch_search
+ *   GET  /api/v1/zones
  *   GET  /api/v1/zones/{zone}/hosts
- *   GET  /api/v1/hosts/export?asset_ids=... (W3 后端实现)
+ *   GET  /api/v1/hosts/export?asset_ids=...
  */
-import apiClient from './client'
+import apiClient, { type ApiRequestConfig } from './client'
 import type {
   BatchSearchRequest,
   BatchSearchResponse,
@@ -18,6 +19,10 @@ import type {
 } from '@/types/host'
 
 const PREFIX = '/api/v1'
+
+interface ListZonesResponse {
+  zones: string[]
+}
 
 /** 单条查询：固资号 / IP / Zone */
 export async function searchHost(q: string): Promise<SearchResponse> {
@@ -43,6 +48,13 @@ export async function batchSearch(queries: string[]): Promise<BatchSearchRespons
     payload,
   )
   return data
+}
+
+/** 列出所有可用 Zone */
+export async function listZones(): Promise<string[]> {
+  const config: ApiRequestConfig = { silent: true }
+  const { data } = await apiClient.get<ListZonesResponse>(`${PREFIX}/zones`, config)
+  return Array.isArray(data.zones) ? data.zones : []
 }
 
 /** 按 Zone 列母机 */

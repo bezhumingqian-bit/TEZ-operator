@@ -150,7 +150,7 @@ TYSV00000002
               allow-create
               default-first-option
               size="large"
-              placeholder="选择或输入 Zone（占位 zone_a / zone_b / zone_c）"
+              placeholder="选择或输入 Zone（来自后端，失败时使用占位列表）"
               style="width: 360px"
             >
               <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
@@ -167,8 +167,8 @@ TYSV00000002
             </el-button>
           </div>
           <div class="host-search__hint">
-            生产 Zone 列表来自后端配置（W3 后端补 <code>GET /api/v1/zones</code>）。
-            本页占位用 zone_a/b/c 演示。
+            Zone 列表来自后端，失败时使用占位列表 <code>zone_a</code> / <code>zone_b</code> /
+            <code>zone_c</code>。
           </div>
 
           <div class="host-search__result">
@@ -192,16 +192,18 @@ TYSV00000002
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import HostCard from '@/components/HostCard.vue'
 import HostTable from '@/components/HostTable.vue'
 import BatchTable from '@/components/BatchTable.vue'
+import { ApiError } from '@/api/client'
 import {
   batchSearch,
   exportHostsExcel,
   listZoneHosts,
+  listZones,
   pickSingleHost,
   searchHost,
 } from '@/api/hosts'
@@ -210,6 +212,7 @@ import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
 const activeTab = ref<'single' | 'batch' | 'zone'>('single')
+const fallbackZoneOptions = ['zone_a', 'zone_b', 'zone_c']
 
 // ─── 单条 ───
 const singleQuery = ref('')
@@ -279,10 +282,20 @@ async function onBatchSearch() {
 }
 
 // ─── Zone ───
-const zoneOptions = ref<string[]>(['zone_a', 'zone_b', 'zone_c'])
+const zoneOptions = ref<string[]>([...fallbackZoneOptions])
 const zoneSelected = ref<string>('')
 const zoneLoading = ref(false)
 const zoneResp = ref<ZoneHostsResponse | null>(null)
+
+async function loadZoneOptions() {
+  try {
+    const zones = await listZones()
+    zoneOptions.value = zones.length ? zones : [...fallbackZoneOptions]
+  } catch {
+    zoneOptions.value = [...fallbackZoneOptions]
+    ElMessage.warning('Zone 列表来自后端，失败时使用占位列表')
+  }
+}
 
 async function onZoneSearch() {
   if (!zoneSelected.value) return
@@ -295,7 +308,18 @@ async function onZoneSearch() {
   }
 }
 
+onMounted(() => {
+  void loadZoneOptions()
+})
+
 // ─── 导出 ───
+function formatExportError(error: unknown): string {
+  if (error instanceof ApiError && error.status) {
+    return `导出失败（HTTP ${error.status}），请稍后重试`
+  }
+  return '导出失败，请稍后重试'
+}
+
 async function onTableExport(rows: HostInfo[]) {
   if (!rows.length) {
     ElMessage.warning('请先勾选要导出的行')
@@ -304,8 +328,8 @@ async function onTableExport(rows: HostInfo[]) {
   try {
     await exportHostsExcel(rows.map((r) => r.asset_id))
     ElMessage.success('已触发导出')
-  } catch {
-    ElMessage.warning('导出接口尚未就绪（W3 后端实现中）')
+  } catch (error) {
+    ElMessage.warning(formatExportError(error))
   }
 }
 
@@ -317,8 +341,8 @@ async function onBatchTableExport(assetIds: string[]) {
   try {
     await exportHostsExcel(assetIds)
     ElMessage.success('已触发导出')
-  } catch {
-    ElMessage.warning('导出接口尚未就绪（W3 后端实现中）')
+  } catch (error) {
+    ElMessage.warning(formatExportError(error))
   }
 }
 </script>

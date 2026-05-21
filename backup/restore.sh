@@ -17,19 +17,34 @@ if [[ ! -f "$BACKUP_FILE" ]]; then
     exit 1
 fi
 
-if [[ -f .env ]]; then
-    set -a
-    # shellcheck disable=SC1091
-    source .env
-    set +a
-fi
+# 安全读取 .env 中单个 KEY=VALUE；只解析值，不执行文件内容。
+get_env() {
+    local key="$1"
+    local line value
+
+    line="$(grep -E "^${key}=" .env 2>/dev/null | tail -n 1 || true)"
+    [[ -n "$line" ]] || return 0
+
+    value="${line#*=}"
+    if [[ ${#value} -ge 2 ]]; then
+        if [[ "${value:0:1}" == "'" && "${value: -1}" == "'" ]] || \
+            [[ "${value:0:1}" == '"' && "${value: -1}" == '"' ]]; then
+            value="${value:1:${#value}-2}"
+        fi
+    fi
+    printf '%s' "$value"
+}
+
+MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-$(get_env MYSQL_ROOT_PASSWORD)}"
+MYSQL_DATABASE="${MYSQL_DATABASE:-$(get_env MYSQL_DATABASE)}"
+MYSQL_DATABASE="${MYSQL_DATABASE:-tez_operator}"
 
 if [[ -z "${MYSQL_ROOT_PASSWORD:-}" ]]; then
     echo "❌ 未读到 MYSQL_ROOT_PASSWORD，请先配置 .env"
     exit 1
 fi
 
-echo "⚠️  即将把 $BACKUP_FILE 恢复到库 ${MYSQL_DATABASE:-tez_operator}"
+echo "⚠️  即将把 $BACKUP_FILE 恢复到库 ${MYSQL_DATABASE}"
 echo "    现有数据将被覆盖！"
 read -r -p "继续？(yes/N) " confirm
 if [[ "$confirm" != "yes" ]]; then
@@ -41,6 +56,6 @@ echo "🔄 恢复 MySQL..."
 gunzip -c "$BACKUP_FILE" | \
     docker exec -i tez-mysql mysql \
         -uroot -p"${MYSQL_ROOT_PASSWORD}" \
-        "${MYSQL_DATABASE:-tez_operator}"
+        "${MYSQL_DATABASE}"
 
 echo "✅ 恢复完成"

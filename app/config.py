@@ -75,9 +75,13 @@ class Settings(BaseSettings):
         default=7, description="Cookies 文件 mtime 在 N 天内视为登录态有效"
     )
     browser_page_timeout_ms: int = Field(default=30000, description="单页 goto 超时(ms)")
+    browser_ignore_https_errors: bool = Field(
+        default=False,
+        description="是否忽略浏览器自动化中的 HTTPS 证书错误；仅内网自签证书场景显式开启",
+    )
 
     # ───────── CCDB（HTTP 客户端）─────────
-    ccdb_base_url: str = Field(default="http://ccdb-host:8080")
+    ccdb_base_url: str = Field(default="http://ccdb.example.com")
     ccdb_token: str = Field(default="")
     ccdb_caller: str = Field(default="tez-operator")
     ccdb_timeout: float = Field(default=5.0)

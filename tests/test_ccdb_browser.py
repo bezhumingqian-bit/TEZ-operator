@@ -122,6 +122,7 @@ class TestUrlBuilders:
         impl = CCDBBrowserImpl()
         url = impl._build_search_url("TYSV00000001")
         assert url == "http://ccdb.example.com/search?key=TYSV00000001"
+        assert impl._build_search_url("A B") == "http://ccdb.example.com/search?key=A+B"
 
     def test_search_url_strips_trailing_slash(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEZ_CCDB_BASE_URL", "http://ccdb.example.com/")
@@ -139,6 +140,9 @@ class TestUrlBuilders:
         impl = CCDBBrowserImpl()
         url = impl._build_zone_url("zone_a")
         assert url == "http://ccdb.example.com/zone?zone=zone_a"
+        assert impl._build_zone_url("zone a") == (
+            "http://ccdb.example.com/zone?zone=zone+a"
+        )
 
 
 # ─────────────────────────── _fetch_rows ───────────────────────────

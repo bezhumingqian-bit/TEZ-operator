@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
+from urllib.parse import urlencode
 
 from app.clients.base import BrowserAuthExpired
 from app.clients.browser_session import BrowserSession, is_login_url
@@ -85,7 +86,7 @@ class TCUMBrowserImpl:
 
     def _build_search_url(self, key: str) -> str:
         base = self._settings.tcum_base_url.rstrip("/")
-        return f"{base}/cmdb/product/search?key={key}"
+        return f"{base}/cmdb/product/search?{urlencode({'key': key})}"
 
     async def _fetch_rows(
         self,

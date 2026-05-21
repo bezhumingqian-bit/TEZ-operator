@@ -101,6 +101,9 @@ class TestUrlBuilder:
         impl = TCUMBrowserImpl()
         url = impl._build_search_url("TYSV00000001")
         assert url == "http://tcum.example.com/cmdb/product/search?key=TYSV00000001"
+        assert impl._build_search_url("A B") == (
+            "http://tcum.example.com/cmdb/product/search?key=A+B"
+        )
         # 末尾斜杠也能处理
         get_settings.cache_clear()  # type: ignore[attr-defined]
         monkeypatch.setenv("TEZ_TCUM_BASE_URL", "http://tcum.example.com/")
