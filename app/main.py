@@ -13,6 +13,7 @@ from app.clients.browser_session import BrowserSession
 from app.config import get_settings
 from app.deps import get_host_service
 from app.routers import hosts as hosts_router
+from app.routers import contacts as contacts_router
 from app.services.cache_service import cache as default_cache
 from app.utils.logger import get_logger, setup_logging
 
@@ -106,7 +107,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="TEZ Operator API",
         version=__version__,
-        description="腾讯云边缘可用区运营/运维内部工具平台 — M1 资源查询统一接口",
+        description="腾讯云边缘可用区运营/运维内部工具平台",
         lifespan=lifespan,
     )
 
@@ -131,6 +132,7 @@ def create_app() -> FastAPI:
     # ── 业务路由 ──
     app.include_router(hosts_router.router, prefix="/api/v1")
     app.include_router(hosts_router.zone_router, prefix="/api/v1")
+    app.include_router(contacts_router.router, prefix="/api/v1")
 
     return app
 
