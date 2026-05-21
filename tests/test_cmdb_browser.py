@@ -20,21 +20,27 @@ def _fast_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(CMDBBrowserImpl, "DEFAULT_WAIT_AFTER_GOTO_MS", 1)
 
 
-# 按 W4 真实页面表头生成的 cells 顺序（已脱敏）
+# 按真实页面列序生成的 cells 顺序（已脱敏，2026-05-21 校准）
+# [0] 空  [1] 固资号  [2] SN  [3] 状态(带箭头)  [4] 子状态
+# [5] IP  [6] 部门/客户  [7] 负责人  [8] 备份负责人
+# [9] 业务模块  [10] 机型  [11] 机型详情  [12] IDC简称
+# [13] 可用区  [14] 机房管理单元全称
 SAMPLE_CELLS = [
-    "TYSV00000001",  # [0] 服务器固资编号
-    "",  # [1] 异常信息
-    "TYSV00000001",  # [2] 固资编号
-    "SN00000001",  # [3] SN
-    "online",  # [4] 状态
-    "10.0.0.1",  # [5] 内网IPV4
-    "ops_team",  # [6] 运维部门
-    "alice",  # [7] 维护人
-    "bob;carol",  # [8] 备份维护人
-    "biz_module_a",  # [9] 业务模块
-    "ten1.customer_a-PRD",  # [10] Module
-    "zone_a",  # [11] 可用区
-    "idc_a",  # [12] 机房管理单元
+    "",  # [0] 复选框/空
+    "TYSV00000001",  # [1] 固资号
+    "SN00000001",  # [2] SN号
+    "--->运营中[需告警]",  # [3] 状态
+    "未知",  # [4] 子状态
+    "10.0.0.1",  # [5] 内网IP
+    "ops_team",  # [6] 部门/客户
+    "alice",  # [7] 负责人
+    "bob;carol",  # [8] 备份负责人
+    "ten1.customer_a-PRD",  # [9] 业务模块
+    "Y0-MI32-25G",  # [10] 机型
+    "Y0-MI32-25G_detail_desc",  # [11] 机型详情
+    "idc_a",  # [12] IDC简称
+    "zone_a",  # [13] 可用区
+    "idc_full_name",  # [14] 机房管理单元全称
 ]
 
 
@@ -85,9 +91,9 @@ class TestParseRow:
         assert row["ip"] == "10.0.0.1"
         assert row["zone"] == "zone_a"
         assert row["module"] == "ten1.customer_a-PRD"
-        assert row["customer"] is None
+        assert row["customer"] == "ops_team"
         assert row["app_id"] is None
-        assert row["machine_type"] is None
+        assert row["machine_type"] == "Y0-MI32-25G"
         assert row["status"] == "online"
         assert row["idc"] == "idc_a"
         assert row["cabinet"] is None
@@ -98,16 +104,16 @@ class TestParseRow:
         assert row["_source"] == "cmdb-browser"
 
     def test_short_cells_safe(self) -> None:
-        # 列数不足，所有字段都安全 None
+        # 列数不足，大部分字段安全 None，但 cell[1] 是固资号
         row = CMDBBrowserImpl._parse_row(["", "TYSV00000001"])
-        assert row["asset_id"] is None
+        assert row["asset_id"] == "TYSV00000001"
         assert row["ip"] is None
         assert row["zone"] is None
         assert row["has_tpc"] is None
 
     def test_dashes_become_none(self) -> None:
-        cells = ["-"] * 13
-        cells[2] = "TYSV00000002"
+        cells = ["-"] * 15
+        cells[1] = "TYSV00000002"
         row = CMDBBrowserImpl._parse_row(cells)
         assert row["asset_id"] == "TYSV00000002"
         assert row["ip"] is None

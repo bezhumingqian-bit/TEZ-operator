@@ -221,6 +221,8 @@ class TCUMBrowserImpl:
         "在线": "online",
         "维护中": "maintenance",
         "维修中": "maintenance",
+        "待运营": "maintenance",
+        "待上线": "maintenance",
         "故障": "offline",
         "离线": "offline",
         "下线": "offline",
@@ -231,18 +233,23 @@ class TCUMBrowserImpl:
     def _normalize_status(cls, raw: str | None) -> str | None:
         """把 TCUM 列表页的中文状态归一化到 ``online/offline/maintenance``。
 
-        - 已是合法英文 → 保留
-        - 中文映射命中 → 翻译
-        - 其他未知值 → None + log.warning（避免 422，留痕便于补映射）
+        真实格式示例: ``--->运营中[需告警]`` / ``运营中`` / ``维护中``。
+        处理：去除 ``--->`` 前缀、``[...]`` 后缀，提取核心状态。
         """
         if not raw:
             return None
-        v = raw.strip()
+        import re
+
+        # 去除前缀箭头 和 后缀方括号标注
+        v = re.sub(r"^[-=>{>]*", "", raw).strip()
+        v = re.sub(r"\[.*?\]", "", v).strip()
+        if not v:
+            return None
         if v in cls._VALID_STATUSES:
             return v
         if v in cls._STATUS_CN_TO_EN:
             return cls._STATUS_CN_TO_EN[v]
-        log.warning("tcum_browser.unknown_status", value=v)
+        log.warning("tcum_browser.unknown_status", value=raw)
         return None
 
     @classmethod

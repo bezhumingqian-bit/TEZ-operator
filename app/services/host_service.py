@@ -48,6 +48,8 @@ STATUS_MAP_CN_TO_EN: dict[str, str] = {
     "在线": "online",
     "维护中": "maintenance",
     "维修中": "maintenance",
+    "待运营": "maintenance",
+    "待上线": "maintenance",
     "故障": "offline",
     "离线": "offline",
     "下线": "offline",
@@ -58,19 +60,27 @@ _VALID_STATUSES = {"online", "offline", "maintenance"}
 def _normalize_status(raw: str | None) -> str | None:
     """归一化兜底：把任意来源的 status 收敛到 ``online/offline/maintenance``。
 
-    采集层（TCUMBrowserImpl）已做主映射，这里只兜底：
+    采集层（TCUMBrowserImpl/CMDBBrowserImpl）已做主映射，这里只兜底：
     - 已是合法英文 → 返回
+    - 带前缀箭头/后缀标注 → 清洗后再匹配
     - 中文映射命中 → 翻译
     - 其他 → 记 warning + 返回 None（schema 是 Literal，传脏数据会 422）
     """
     if not raw:
         return None
+    import re
+
     v = raw.strip()
+    if v in _VALID_STATUSES:
+        return v
+    # 清洗箭头前缀和方括号标注
+    v = re.sub(r"^[-=>{>]*", "", v).strip()
+    v = re.sub(r"\[.*?\]", "", v).strip()
     if v in _VALID_STATUSES:
         return v
     if v in STATUS_MAP_CN_TO_EN:
         return STATUS_MAP_CN_TO_EN[v]
-    log.warning("host.unknown_status", value=v)
+    log.warning("host.unknown_status", value=raw)
     return None
 
 

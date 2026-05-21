@@ -50,21 +50,23 @@ class CMDBBrowserImpl:
     )
     DEFAULT_WAIT_AFTER_GOTO_MS = 3500
 
-    # ── 列序（W4 真实页面样本：/server/query 表头）──
-    # 0 服务器固资编号 / 2 固资编号 / 4 状态 / 5 内网IPV4 / 7 维护人
-    # 8 备份维护人 / 9 业务模块 / 10 Module / 11 可用区 / 12 机房管理单元
-    COL_ASSET_ID = 2
-    COL_STATUS = 4
+    # ── 列序（真实页面校准 2026-05-21）──
+    # [0] 空/复选框  [1] 固资号  [2] SN号  [3] 状态(带箭头格式)  [4] 子状态
+    # [5] 内网IP  [6] 部门/客户  [7] 负责人  [8] 备份负责人
+    # [9] 业务模块  [10] 机型  [11] 机型详情  [12] IDC简称
+    # [13] 可用区  [14] 机房管理单元全称
+    COL_ASSET_ID = 1
+    COL_STATUS = 3
     COL_IP = 5
+    COL_CUSTOMER = 6
     COL_OWNER = 7
     COL_BACKUP_OWNERS = 8
-    COL_MODULE = 10
-    COL_ZONE = 11
+    COL_MODULE = 9
+    COL_MACHINE_TYPE = 10
+    COL_ZONE = 13
     COL_IDC = 12
-    COL_CUSTOMER = -1
-    COL_APP_ID = -1
-    COL_MACHINE_TYPE = -1
     COL_CABINET = -1
+    COL_APP_ID = -1
     COL_HAS_TPC = -1
 
     def __init__(self) -> None:
@@ -259,6 +261,43 @@ class CMDBBrowserImpl:
             return v
         return None
 
+    # ── status 中英文映射 ──
+    _STATUS_CN_TO_EN: dict[str, str] = {
+        "运营中": "online",
+        "在线": "online",
+        "维护中": "maintenance",
+        "维修中": "maintenance",
+        "待运营": "maintenance",
+        "待上线": "maintenance",
+        "故障": "offline",
+        "离线": "offline",
+        "下线": "offline",
+    }
+    _VALID_STATUSES = frozenset({"online", "offline", "maintenance"})
+
+    @classmethod
+    def _normalize_status(cls, raw: str | None) -> str | None:
+        """解析 CMDB 的 status 字段。
+
+        真实格式示例: ``--->运营中[需告警]`` / ``运营中`` / ``维护中``。
+        需要：去除 ``--->`` 前缀、``[...]`` 后缀，提取核心状态。
+        """
+        if not raw:
+            return None
+        import re
+
+        # 去除前缀箭头 和 后缀方括号标注
+        v = re.sub(r"^[-=>{>]*", "", raw).strip()
+        v = re.sub(r"\[.*?\]", "", v).strip()
+        if not v:
+            return None
+        if v in cls._VALID_STATUSES:
+            return v
+        if v in cls._STATUS_CN_TO_EN:
+            return cls._STATUS_CN_TO_EN[v]
+        log.warning("cmdb_browser.unknown_status", value=raw)
+        return None
+
     @staticmethod
     def _parse_bool(s: str | None) -> bool | None:
         if s is None:
@@ -276,7 +315,7 @@ class CMDBBrowserImpl:
             return []
         import re
 
-        return [x.strip() for x in re.split(r"[;,；、\\s]+", s) if x.strip()]
+        return [x.strip() for x in re.split(r"[;,；、\s]+", s) if x.strip()]
 
     @classmethod
     def _parse_row(cls, cells: list[str]) -> dict[str, Any]:
@@ -294,12 +333,12 @@ class CMDBBrowserImpl:
             "customer": cls._safe_cell(cells, cls.COL_CUSTOMER),
             "app_id": cls._safe_cell(cells, cls.COL_APP_ID),
             "machine_type": cls._safe_cell(cells, cls.COL_MACHINE_TYPE),
-            "status": cls._safe_cell(cells, cls.COL_STATUS),
+            "status": cls._normalize_status(cls._safe_cell(cells, cls.COL_STATUS)),
             "idc": cls._safe_cell(cells, cls.COL_IDC),
             "cabinet": cls._safe_cell(cells, cls.COL_CABINET),
             "owner": cls._safe_cell(cells, cls.COL_OWNER),
             "backup_owners": cls._split_people(cls._safe_cell(cells, cls.COL_BACKUP_OWNERS)),
             "has_tpc": cls._parse_bool(cls._safe_cell(cells, cls.COL_HAS_TPC)),
-            "billing_tags": {},  # TODO(W4): 真实页面如有标签列再补
+            "billing_tags": {},
             "_source": "cmdb-browser",
         }
