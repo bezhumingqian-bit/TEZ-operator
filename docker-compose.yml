@@ -68,7 +68,7 @@ services:
       TEZ_APP_DEBUG: ${TEZ_APP_DEBUG:-false}
       TEZ_DATABASE_URL: "mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-change_me_strong_password}@mysql:3306/${MYSQL_DATABASE:-tez_operator}?charset=utf8mb4"
       TEZ_REDIS_URL: redis://redis:6379/0
-      TEZ_CCDB_MODE: ${TEZ_CCDB_MODE:-mock}
+      TEZ_CMDB_MODE: ${TEZ_CMDB_MODE:-mock}
       TEZ_TCUM_MODE: ${TEZ_TCUM_MODE:-mock}
       TEZ_IDCRM_MODE: ${TEZ_IDCRM_MODE:-mock}
     profiles:

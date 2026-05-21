@@ -283,7 +283,7 @@ class TCUMBrowserImpl:
             "asset_id": asset_id,
             "ip": ip,
             "idc": zone,  # TCUM 的 zone 列即"机房 / 可用区"，给 HostInfo.idc 用
-            "zone": None,  # 内部规范的 zone（如 zone_a）由 CCDB 提供
+            "zone": None,  # 内部规范的 zone（如 zone_a）由 CMDB 提供
             "cabinet": None,  # TCUM 不直接给机柜
             "machine_type": machine_type,
             "module": module,

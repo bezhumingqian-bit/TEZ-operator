@@ -4,42 +4,42 @@ from __future__ import annotations
 
 import pytest
 
-from app.clients.ccdb import CCDBClient
+from app.clients.cmdb import CMDBClient
 from app.clients.idcrm import IDCRMClient
 from app.clients.tcum import TCUMClient
 
 
 @pytest.mark.asyncio
-class TestCCDBClient:
+class TestCMDBClient:
     async def test_get_by_asset(self) -> None:
-        client = CCDBClient(mode="mock")
+        client = CMDBClient(mode="mock")
         data = await client.get_by_asset("TYSV00000001")
         assert data is not None
         assert data["asset_id"] == "TYSV00000001"
         assert data["ip"].startswith("10.0.")
         assert data["module"]
         assert data["customer"] in {"customer_a", "customer_b", "customer_c"}
-        assert data["_source"] == "ccdb-mock"
+        assert data["_source"] == "cmdb-mock"
 
     async def test_get_by_asset_empty(self) -> None:
-        client = CCDBClient(mode="mock")
+        client = CMDBClient(mode="mock")
         assert await client.get_by_asset("") is None
 
     async def test_get_by_ip(self) -> None:
-        client = CCDBClient(mode="mock")
+        client = CMDBClient(mode="mock")
         data = await client.get_by_ip("10.0.0.5")
         assert data is not None
         assert data["ip"] == "10.0.0.5"
         assert data["asset_id"]
 
     async def test_list_by_zone(self) -> None:
-        client = CCDBClient(mode="mock")
+        client = CMDBClient(mode="mock")
         items = await client.list_by_zone("zone_a", limit=5)
         assert len(items) == 5
         assert all(it["zone"] == "zone_a" for it in items)
 
     async def test_api_mode_raises(self) -> None:
-        client = CCDBClient(mode="api")
+        client = CMDBClient(mode="api")
         with pytest.raises(NotImplementedError):
             await client.get_by_asset("TYSV00000001")
 

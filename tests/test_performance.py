@@ -26,16 +26,16 @@ def _fake_host(asset_id: str = "TYSV00000001") -> HostInfo:
         machine_type="MOCK-1G",
         status="online",
         owner="alice",
-        **{"_meta": HostMeta(data_sources=["ccdb"])},
+        **{"_meta": HostMeta(data_sources=["cmdb"])},
     )
 
 
 def _make_service() -> HostService:
-    ccdb = MagicMock()
-    ccdb.get_by_asset = AsyncMock(side_effect=lambda x: {"asset_id": x, "ip": "10.0.0.1"})
-    ccdb.get_by_ip = AsyncMock(return_value={"asset_id": "TYSV00000001"})
-    ccdb.list_by_zone = AsyncMock(return_value=[])
-    ccdb.close = AsyncMock(return_value=None)
+    cmdb = MagicMock()
+    cmdb.get_by_asset = AsyncMock(side_effect=lambda x: {"asset_id": x, "ip": "10.0.0.1"})
+    cmdb.get_by_ip = AsyncMock(return_value={"asset_id": "TYSV00000001"})
+    cmdb.list_by_zone = AsyncMock(return_value=[])
+    cmdb.close = AsyncMock(return_value=None)
 
     tcum = MagicMock()
     tcum.get_by_asset = AsyncMock(return_value=None)
@@ -46,7 +46,7 @@ def _make_service() -> HostService:
     idcrm.get_position = AsyncMock(return_value=None)
     idcrm.close = AsyncMock(return_value=None)
 
-    return HostService(ccdb=ccdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
+    return HostService(cmdb=cmdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
 
 
 @pytest.mark.asyncio

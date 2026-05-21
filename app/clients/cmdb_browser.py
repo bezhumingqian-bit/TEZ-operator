@@ -1,8 +1,8 @@
-"""CCDB Browser 实现 —— 通过 Playwright 自动化爬 CCDB（公司 CMDB）页面。
+"""CMDB Browser 实现 —— 通过 Playwright 自动化爬 CMDB（公司 CMDB）页面。
 
 设计来源
 ========
-- PoC 验证（docs/15）：CCDB 也是 Tea Design 框架，``.tea-table tbody tr`` 一次命中
+- PoC 验证（docs/15）：CMDB 也是 Tea Design 框架，``.tea-table tbody tr`` 一次命中
 - 复用 ``BrowserSession`` 单例 BrowserContext 与 TCUM 共享登录态
 - 字段映射的列序与 PoC TCUM 不同 —— 联调阶段（W4）才能拿到真实页面，
   当前先用占位 + ``# TODO(W4):`` 注释
@@ -15,8 +15,8 @@
 
 数据安全
 ========
-- 基础 URL 必须从 ``.env`` 的 ``TEZ_CCDB_BASE_URL`` 读取，不入仓任何真实内网域名
-- mock 路径 / api 路径 / browser 路径三态切换由 settings.ccdb_mode 决定
+- 基础 URL 必须从 ``.env`` 的 ``TEZ_CMDB_BASE_URL`` 读取，不入仓任何真实内网域名
+- mock 路径 / api 路径 / browser 路径三态切换由 settings.cmdb_mode 决定
 """
 
 from __future__ import annotations
@@ -33,14 +33,14 @@ from app.utils.logger import get_logger
 log = get_logger(__name__)
 
 
-class CCDBBrowserImpl:
-    """CCDB 浏览器自动化实现。
+class CMDBBrowserImpl:
+    """CMDB 浏览器自动化实现。
 
     Note:
         所有字段索引（``COL_*``）都是占位，W4 联调时根据真实页面调整。
     """
 
-    name = "ccdb-browser"
+    name = "cmdb-browser"
 
     SELECTOR_TABLE = ".tea-table tbody tr"
     SELECTOR_FALLBACKS = (
@@ -77,7 +77,7 @@ class CCDBBrowserImpl:
             return None
         if not BrowserSession.is_login_valid():
             log.warning(
-                "ccdb_browser.login_state_expired_or_missing",
+                "cmdb_browser.login_state_expired_or_missing",
                 hint="若浏览器弹窗请扫码登录；profile 路径见 settings.browser_profile_dir",
             )
         url = self._build_search_url(asset_id)
@@ -116,18 +116,18 @@ class CCDBBrowserImpl:
         """构造按 key（固资号/IP）搜索 URL。
 
         Note:
-            TODO(W4): 真实 CCDB 的 search 路径可能不是 ``/search`` —— 联调时改
+            TODO(W4): 真实 CMDB 的 search 路径可能不是 ``/search`` —— 联调时改
         """
-        base = self._settings.ccdb_base_url.rstrip("/")
+        base = self._settings.cmdb_base_url.rstrip("/")
         return f"{base}/server/query?{urlencode({'page': 1, 'key': key})}"
 
     def _build_zone_url(self, zone: str) -> str:
         """按 zone 列出母机的 URL。
 
         Note:
-            TODO(W4): 真实 CCDB 的 zone 列表入口待联调
+            TODO(W4): 真实 CMDB 的 zone 列表入口待联调
         """
-        base = self._settings.ccdb_base_url.rstrip("/")
+        base = self._settings.cmdb_base_url.rstrip("/")
         return f"{base}/server/query?{urlencode({'page': 1, 'zone': zone})}"
 
     async def _fetch_rows(
@@ -142,14 +142,14 @@ class CCDBBrowserImpl:
             try:
                 await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
             except Exception as exc:  # noqa: BLE001
-                log.debug("ccdb_browser.goto_networkidle_warn", error=str(exc))
+                log.debug("cmdb_browser.goto_networkidle_warn", error=str(exc))
 
             await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
 
             current_url = page.url
             if is_login_url(current_url):
-                log.warning("ccdb_browser.auth_expired", url=current_url)
-                raise BrowserAuthExpired("CCDB 登录态失效（被踢回 SSO），请重新扫码登录")
+                log.warning("cmdb_browser.auth_expired", url=current_url)
+                raise BrowserAuthExpired("CMDB 登录态失效（被踢回 SSO），请重新扫码登录")
 
             rows: list[list[str]] = []
             for selector in self.SELECTOR_FALLBACKS:
@@ -163,14 +163,14 @@ class CCDBBrowserImpl:
                         )""",
                     )
                 except Exception as exc:  # noqa: BLE001
-                    log.debug("ccdb_browser.selector_failed", selector=selector, error=str(exc))
+                    log.debug("cmdb_browser.selector_failed", selector=selector, error=str(exc))
                     continue
                 if rows:
-                    log.debug("ccdb_browser.selector_hit", selector=selector, count=len(rows))
+                    log.debug("cmdb_browser.selector_hit", selector=selector, count=len(rows))
                     break
 
             if not rows:
-                log.info("ccdb_browser.no_rows", url=url)
+                log.info("cmdb_browser.no_rows", url=url)
                 return []
 
             cleaned = [r for r in rows if any(c for c in r)]
@@ -215,7 +215,7 @@ class CCDBBrowserImpl:
         """把 ``.tea-table tbody tr`` 一行映射到 schema。
 
         Note:
-            列序 ``COL_*`` 为占位值，W4 联调时根据真实 CCDB 页面调整。
+            列序 ``COL_*`` 为占位值，W4 联调时根据真实 CMDB 页面调整。
             当前实现保证：即便列序错，也只是字段错位，不会崩。
         """
         return {
@@ -233,5 +233,5 @@ class CCDBBrowserImpl:
             "backup_owners": cls._split_people(cls._safe_cell(cells, cls.COL_BACKUP_OWNERS)),
             "has_tpc": cls._parse_bool(cls._safe_cell(cells, cls.COL_HAS_TPC)),
             "billing_tags": {},  # TODO(W4): 真实页面如有标签列再补
-            "_source": "ccdb-browser",
+            "_source": "cmdb-browser",
         }

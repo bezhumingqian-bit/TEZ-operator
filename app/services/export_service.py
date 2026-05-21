@@ -8,7 +8,7 @@
 
 数据安全：
 - mock / 真实数据共用同一段代码路径，不在导出层做特殊脱敏
-- 真实数据的脱敏责任在采集层（CCDB/TCUM/IDCRM 客户端）
+- 真实数据的脱敏责任在采集层（CMDB/TCUM/IDCRM 客户端）
 """
 
 from __future__ import annotations

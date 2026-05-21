@@ -36,7 +36,7 @@ def _fake_host(asset_id: str = "TYSV00000001") -> HostInfo:
         owner="alice",
         backup_owners=["bob"],
         history=[],
-        **{"_meta": HostMeta(data_sources=["ccdb", "tcum"])},
+        **{"_meta": HostMeta(data_sources=["cmdb", "tcum"])},
     )
 
 

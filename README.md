@@ -200,8 +200,8 @@ cd web && npm install && npm run dev
 | `TEZ_APP_ENV` | 运行环境 | `local` / `prod` |
 | `TEZ_DATABASE_URL` | SQLAlchemy 连接串 | `mysql+pymysql://tez:tez@127.0.0.1:3306/tez_operator?charset=utf8mb4` |
 | `TEZ_REDIS_URL` | Redis 连接串 | `redis://127.0.0.1:6379/0` |
-| `TEZ_CCDB_MODE` / `TEZ_TCUM_MODE` / `TEZ_IDCRM_MODE` | 上游客户端模式 | `mock` / `api` / `browser` |
-| `TEZ_CCDB_BASE_URL` / `TEZ_TCUM_BASE_URL` / `TEZ_IDCRM_BASE_URL` | 上游平台地址占位 | `http://tcum.example.com` |
+| `TEZ_CMDB_MODE` / `TEZ_TCUM_MODE` / `TEZ_IDCRM_MODE` | 上游客户端模式 | `mock` / `api` / `browser` |
+| `TEZ_CMDB_BASE_URL` / `TEZ_TCUM_BASE_URL` / `TEZ_IDCRM_BASE_URL` | 上游平台地址占位 | `http://tcum.example.com` |
 | `TEZ_BROWSER_PROFILE_DIR` | Playwright 登录态目录 | `data/playwright-profile` |
 | `TEZ_BROWSER_IGNORE_HTTPS_ERRORS` | 是否忽略 HTTPS 证书错误 | `false` |
 
@@ -247,7 +247,7 @@ uv run pytest -m slow
 | `app/services/host_service.py` | 97% |
 | `app/services/cache_service.py` | 92% |
 | `app/services/export_service.py` | 97% |
-| `app/clients/ccdb_browser.py` | 95% |
+| `app/clients/cmdb_browser.py` | 95% |
 | `app/clients/idcrm_browser.py` | 91% |
 | `app/clients/tcum_browser.py` | 90% |
 | `app/schemas/host.py` | 100% |
@@ -260,7 +260,7 @@ uv run pytest -m slow
 - `tests/test_parser.py` — 输入识别（asset_id/ip/zone）
 - `tests/test_clients.py` — 三家客户端 mock 路径
 - `tests/test_tcum_browser.py` — TCUM Browser 解析（含 W3 status 中→英归一化）
-- `tests/test_ccdb_browser.py` — CCDB Browser（W3 实现）
+- `tests/test_cmdb_browser.py` — CMDB Browser（W3 实现）
 - `tests/test_idcrm_browser.py` — IDCRM Browser 框架占位（_parse_row 待 W4）
 - `tests/test_browser_session.py` — Playwright 单例 + 登录态判定
 - `tests/test_cache_service.py` — Redis 真路径 (fakeredis) + 内存降级

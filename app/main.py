@@ -34,7 +34,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         "app.startup",
         env=settings.app_env,
         debug=settings.app_debug,
-        ccdb_mode=settings.ccdb_mode,
+        cmdb_mode=settings.cmdb_mode,
         tcum_mode=settings.tcum_mode,
         idcrm_mode=settings.idcrm_mode,
     )

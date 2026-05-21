@@ -1,7 +1,7 @@
 """HostService 单测：mock 三个 client 验证融合 / 缓存 / 降级 / 批量。
 
 覆盖范围：
-- _merge() 字段合并优先级（CCDB 优先 / TCUM 次之 / IDC 仅补机位）
+- _merge() 字段合并优先级（CMDB 优先 / TCUM 次之 / IDC 仅补机位）
 - get_host: 缓存未命中走 client → 写缓存
 - get_host: 缓存命中直返
 - get_host: BrowserAuthExpired 降级 partial
@@ -25,7 +25,7 @@ from app.services.host_service import CACHE_KEY_HOST, HostService
 # ─────────────────────────── helpers ───────────────────────────
 
 
-def _ccdb_payload(asset_id: str = "TYSV00000001") -> dict:
+def _cmdb_payload(asset_id: str = "TYSV00000001") -> dict:
     return {
         "asset_id": asset_id,
         "ip": "10.0.0.1",
@@ -33,21 +33,21 @@ def _ccdb_payload(asset_id: str = "TYSV00000001") -> dict:
         "module": "ten1.customer_a-PRD",
         "customer": "customer_a",
         "app_id": "0000000000",
-        "machine_type": "MOCK-CCDB",
+        "machine_type": "MOCK-CMDB",
         "status": "online",
         "has_tpc": True,
         "billing_tags": {"tag_a": "1"},
-        "_source": "ccdb-mock",
+        "_source": "cmdb-mock",
     }
 
 
 def _tcum_payload(asset_id: str = "TYSV00000001") -> dict:
     return {
         "asset_id": asset_id,
-        "ip": "10.0.0.99",  # 应被 CCDB 覆盖
+        "ip": "10.0.0.99",  # 应被 CMDB 覆盖
         "idc": "示例机房A1",
         "cabinet": "A-12",
-        "machine_type": "MOCK-TCUM",  # 应被 CCDB 覆盖
+        "machine_type": "MOCK-TCUM",  # 应被 CMDB 覆盖
         "owner": "alice",
         "backup_owners": ["bob", "carol"],
         "city": "城市A",
@@ -76,25 +76,25 @@ def _idc_payload() -> dict:
 
 
 def _make_service(
-    ccdb_resp=None,
+    cmdb_resp=None,
     tcum_resp=None,
     idc_resp=None,
-    ccdb_exc=None,
+    cmdb_exc=None,
     tcum_exc=None,
     idc_exc=None,
     cache: CacheService | None = None,
 ) -> HostService:
     """构造一个三 client 全 mock 的 HostService。"""
-    ccdb = MagicMock()
-    if ccdb_exc is not None:
-        ccdb.get_by_asset = AsyncMock(side_effect=ccdb_exc)
-        ccdb.get_by_ip = AsyncMock(side_effect=ccdb_exc)
-        ccdb.list_by_zone = AsyncMock(side_effect=ccdb_exc)
+    cmdb = MagicMock()
+    if cmdb_exc is not None:
+        cmdb.get_by_asset = AsyncMock(side_effect=cmdb_exc)
+        cmdb.get_by_ip = AsyncMock(side_effect=cmdb_exc)
+        cmdb.list_by_zone = AsyncMock(side_effect=cmdb_exc)
     else:
-        ccdb.get_by_asset = AsyncMock(return_value=ccdb_resp)
-        ccdb.get_by_ip = AsyncMock(return_value=ccdb_resp)
-        ccdb.list_by_zone = AsyncMock(return_value=ccdb_resp if isinstance(ccdb_resp, list) else [])
-    ccdb.close = AsyncMock(return_value=None)
+        cmdb.get_by_asset = AsyncMock(return_value=cmdb_resp)
+        cmdb.get_by_ip = AsyncMock(return_value=cmdb_resp)
+        cmdb.list_by_zone = AsyncMock(return_value=cmdb_resp if isinstance(cmdb_resp, list) else [])
+    cmdb.close = AsyncMock(return_value=None)
 
     tcum = MagicMock()
     if tcum_exc is not None:
@@ -112,32 +112,32 @@ def _make_service(
         idcrm.get_position = AsyncMock(return_value=idc_resp)
     idcrm.close = AsyncMock(return_value=None)
 
-    return HostService(ccdb=ccdb, tcum=tcum, idcrm=idcrm, cache=cache or CacheService())
+    return HostService(cmdb=cmdb, tcum=tcum, idcrm=idcrm, cache=cache or CacheService())
 
 
 # ─────────────────────────── _merge 优先级 ───────────────────────────
 
 
 class TestMerge:
-    def test_ccdb_overrides_tcum_for_machine_type(self) -> None:
+    def test_cmdb_overrides_tcum_for_machine_type(self) -> None:
         svc = _make_service()
         merged = svc._merge(
             "TYSV00000001",
-            _ccdb_payload(),
+            _cmdb_payload(),
             _tcum_payload(),
             _idc_payload(),
             errors={},
         )
-        # CCDB 的 machine_type 应优先（_merge 第一个 or）
-        assert merged.machine_type == "MOCK-CCDB"
-        # CCDB 的 ip 优先
+        # CMDB 的 machine_type 应优先（_merge 第一个 or）
+        assert merged.machine_type == "MOCK-CMDB"
+        # CMDB 的 ip 优先
         assert merged.ip == "10.0.0.1"
 
-    def test_tcum_owner_kept_when_ccdb_no_owner(self) -> None:
+    def test_tcum_owner_kept_when_cmdb_no_owner(self) -> None:
         svc = _make_service()
         merged = svc._merge(
             "TYSV00000001",
-            _ccdb_payload(),
+            _cmdb_payload(),
             _tcum_payload(),
             _idc_payload(),
             errors={},
@@ -151,25 +151,25 @@ class TestMerge:
         svc = _make_service()
         merged = svc._merge(
             "TYSV00000001",
-            _ccdb_payload(),
+            _cmdb_payload(),
             _tcum_payload(),
             _idc_payload(),
             errors={},
         )
         assert merged.position == "A-12-3"
-        # cabinet 优先 IDC，再 TCUM 再 CCDB
+        # cabinet 优先 IDC，再 TCUM 再 CMDB
         assert merged.cabinet == "A-12"
 
     def test_data_sources_recorded(self) -> None:
         svc = _make_service()
         merged = svc._merge(
             "TYSV00000001",
-            _ccdb_payload(),
+            _cmdb_payload(),
             _tcum_payload(),
             _idc_payload(),
             errors={},
         )
-        assert "ccdb" in merged.meta.data_sources
+        assert "cmdb" in merged.meta.data_sources
         assert "tcum" in merged.meta.data_sources
         assert "idcrm" in merged.meta.data_sources
 
@@ -177,7 +177,7 @@ class TestMerge:
         svc = _make_service()
         merged = svc._merge(
             "TYSV00000001",
-            _ccdb_payload(),
+            _cmdb_payload(),
             None,
             None,
             errors={"tcum": "boom"},
@@ -189,7 +189,7 @@ class TestMerge:
         svc = _make_service()
         merged = svc._merge(
             "TYSV00000001",
-            _ccdb_payload(),
+            _cmdb_payload(),
             _tcum_payload(),
             None,
             errors={},
@@ -220,7 +220,7 @@ class TestMerge:
 class TestGetHost:
     async def test_full_three_sources(self) -> None:
         svc = _make_service(
-            ccdb_resp=_ccdb_payload(),
+            cmdb_resp=_cmdb_payload(),
             tcum_resp=_tcum_payload(),
             idc_resp=_idc_payload(),
         )
@@ -239,11 +239,11 @@ class TestGetHost:
             {
                 "asset_id": "TYSV00000001",
                 "ip": "10.0.0.1",
-                "_meta": {"from_cache": False, "data_sources": ["ccdb"]},
+                "_meta": {"from_cache": False, "data_sources": ["cmdb"]},
             },
         )
         svc = _make_service(
-            ccdb_resp=_ccdb_payload(),
+            cmdb_resp=_cmdb_payload(),
             tcum_resp=_tcum_payload(),
             cache=cache,
         )
@@ -251,23 +251,23 @@ class TestGetHost:
         assert host is not None
         assert host.meta.from_cache is True
         # 命中缓存 → client 不应被调用
-        svc.ccdb.get_by_asset.assert_not_called()  # type: ignore[attr-defined]
+        svc.cmdb.get_by_asset.assert_not_called()  # type: ignore[attr-defined]
 
     async def test_one_client_fails_partial(self) -> None:
-        # tcum 失败，ccdb 成功
+        # tcum 失败，cmdb 成功
         svc = _make_service(
-            ccdb_resp=_ccdb_payload(),
+            cmdb_resp=_cmdb_payload(),
             tcum_exc=RuntimeError("tcum boom"),
         )
         host = await svc.get_host("TYSV00000001")
         assert host is not None
         assert host.meta.partial is True
         assert "tcum" in host.meta.errors
-        assert host.machine_type == "MOCK-CCDB"
+        assert host.machine_type == "MOCK-CMDB"
 
     async def test_browser_auth_expired_handled_as_partial(self) -> None:
         svc = _make_service(
-            ccdb_resp=_ccdb_payload(),
+            cmdb_resp=_cmdb_payload(),
             tcum_exc=BrowserAuthExpired("login expired"),
         )
         host = await svc.get_host("TYSV00000001")
@@ -277,7 +277,7 @@ class TestGetHost:
 
     async def test_all_fail_returns_none(self) -> None:
         svc = _make_service(
-            ccdb_exc=RuntimeError("c boom"),
+            cmdb_exc=RuntimeError("c boom"),
             tcum_exc=RuntimeError("t boom"),
         )
         host = await svc.get_host("TYSV00000001")
@@ -290,7 +290,7 @@ class TestGetHost:
     async def test_writes_cache_after_miss(self) -> None:
         cache = CacheService()
         svc = _make_service(
-            ccdb_resp=_ccdb_payload(),
+            cmdb_resp=_cmdb_payload(),
             tcum_resp=_tcum_payload(),
             idc_resp=_idc_payload(),
             cache=cache,
@@ -310,7 +310,7 @@ class TestGetHost:
 class TestGetHostByIp:
     async def test_full_path(self) -> None:
         svc = _make_service(
-            ccdb_resp=_ccdb_payload(),
+            cmdb_resp=_cmdb_payload(),
             tcum_resp=_tcum_payload(),
             idc_resp=_idc_payload(),
         )
@@ -323,7 +323,7 @@ class TestGetHostByIp:
         assert await svc.get_host_by_ip("") is None
 
     async def test_not_found(self) -> None:
-        svc = _make_service(ccdb_resp=None, tcum_resp=None)
+        svc = _make_service(cmdb_resp=None, tcum_resp=None)
         assert await svc.get_host_by_ip("10.0.0.99") is None
 
     async def test_cache_hit_by_ip(self) -> None:
@@ -341,7 +341,7 @@ class TestGetHostByIp:
 
     async def test_idcrm_failure_does_not_block(self) -> None:
         svc = _make_service(
-            ccdb_resp=_ccdb_payload(),
+            cmdb_resp=_cmdb_payload(),
             tcum_resp=_tcum_payload(),
             idc_exc=RuntimeError("idc boom"),
         )
@@ -357,7 +357,7 @@ class TestGetHostByIp:
 @pytest.mark.asyncio
 class TestListZoneHosts:
     async def test_returns_hosts(self) -> None:
-        svc = _make_service(ccdb_resp=[_ccdb_payload(), _ccdb_payload("TYSV00000002")])
+        svc = _make_service(cmdb_resp=[_cmdb_payload(), _cmdb_payload("TYSV00000002")])
         hosts = await svc.list_zone_hosts("zone_a")
         assert len(hosts) == 2
         assert all(isinstance(h, HostInfo) for h in hosts)
@@ -366,8 +366,8 @@ class TestListZoneHosts:
         svc = _make_service()
         assert await svc.list_zone_hosts("") == []
 
-    async def test_ccdb_failure_returns_empty(self) -> None:
-        svc = _make_service(ccdb_exc=RuntimeError("boom"))
+    async def test_cmdb_failure_returns_empty(self) -> None:
+        svc = _make_service(cmdb_exc=RuntimeError("boom"))
         assert await svc.list_zone_hosts("zone_a") == []
 
     async def test_zone_cache_hit(self) -> None:
@@ -408,15 +408,15 @@ class TestListZones:
 @pytest.mark.asyncio
 class TestBatchGetHosts:
     async def test_one_fails_others_succeed(self) -> None:
-        ccdb = MagicMock()
-        ccdb.close = AsyncMock(return_value=None)
+        cmdb = MagicMock()
+        cmdb.close = AsyncMock(return_value=None)
 
-        async def _ccdb(asset_id: str):
+        async def _cmdb(asset_id: str):
             if asset_id == "TYSV00000002":
                 raise RuntimeError("boom")
-            return _ccdb_payload(asset_id)
+            return _cmdb_payload(asset_id)
 
-        ccdb.get_by_asset = AsyncMock(side_effect=_ccdb)
+        cmdb.get_by_asset = AsyncMock(side_effect=_cmdb)
 
         tcum = MagicMock()
         tcum.get_by_asset = AsyncMock(return_value=None)
@@ -425,7 +425,7 @@ class TestBatchGetHosts:
         idcrm.get_position = AsyncMock(return_value=None)
         idcrm.close = AsyncMock(return_value=None)
 
-        svc = HostService(ccdb=ccdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
+        svc = HostService(cmdb=cmdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
         results = await svc.batch_get_hosts(["TYSV00000001", "TYSV00000002", "TYSV00000003"])
 
         assert len(results) == 3
@@ -442,7 +442,7 @@ class TestBatchGetHosts:
 async def test_close_calls_each_client() -> None:
     svc = _make_service()
     await svc.close()
-    svc.ccdb.close.assert_awaited()  # type: ignore[attr-defined]
+    svc.cmdb.close.assert_awaited()  # type: ignore[attr-defined]
     svc.tcum.close.assert_awaited()  # type: ignore[attr-defined]
     svc.idcrm.close.assert_awaited()  # type: ignore[attr-defined]
 
@@ -451,10 +451,10 @@ async def test_close_calls_each_client() -> None:
 async def test_get_host_unwrap_non_dict_treated_as_none() -> None:
     """_unwrap 对非 dict 结果应返回 None。"""
     svc = _make_service(
-        ccdb_resp="not-a-dict",  # type: ignore[arg-type]
+        cmdb_resp="not-a-dict",  # type: ignore[arg-type]
         tcum_resp=_tcum_payload(),
     )
     host = await svc.get_host("TYSV00000001")
-    # ccdb 给的非 dict → 被当成 None 处理；tcum 仍提供数据
+    # cmdb 给的非 dict → 被当成 None 处理；tcum 仍提供数据
     assert host is not None
     assert host.owner == "alice"  # tcum 数据保留

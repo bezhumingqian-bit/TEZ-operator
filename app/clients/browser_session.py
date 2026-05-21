@@ -2,7 +2,7 @@
 
 设计要点
 ========
-- 整个应用只持有 1 个 ``BrowserContext``，多个 Impl（TCUMBrowser / CCDBBrowser…）
+- 整个应用只持有 1 个 ``BrowserContext``，多个 Impl（TCUMBrowser / CMDBBrowser…）
   通过 ``new_page()`` 共享登录态（iOA SSO 已验证可跨平台复用，docs/15）。
 - 使用 ``launch_persistent_context(user_data_dir=...)``，cookies / localStorage
   自动持久化在 ``data/playwright-profile``（已 .gitignore）。

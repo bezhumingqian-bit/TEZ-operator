@@ -54,7 +54,7 @@ class HostHistory(Base):
     to_module: Mapped[str | None] = mapped_column(String(128), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str | None] = mapped_column(
-        String(32), nullable=True, comment="ccdb/tcum/manual"
+        String(32), nullable=True, comment="cmdb/tcum/manual"
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

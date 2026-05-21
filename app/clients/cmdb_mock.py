@@ -1,14 +1,14 @@
-"""CCDB Mock 实现 —— 数据严格脱敏（参考 docs/16）。"""
+"""CMDB Mock 实现 —— 数据严格脱敏（参考 docs/16）。"""
 
 from __future__ import annotations
 
 from typing import Any
 
 
-class CCDBMockImpl:
-    """CCDB mock 数据返回器。"""
+class CMDBMockImpl:
+    """CMDB mock 数据返回器。"""
 
-    name = "ccdb-mock"
+    name = "cmdb-mock"
 
     async def get_by_asset(self, asset_id: str) -> dict[str, Any] | None:
         if not asset_id:
@@ -28,7 +28,7 @@ class CCDBMockImpl:
             "machine_type": "MOCK-1G",
             "has_tpc": True,
             "billing_tags": {"tag_a": "1"},
-            "_source": "ccdb-mock",
+            "_source": "cmdb-mock",
         }
 
     async def get_by_ip(self, ip: str) -> dict[str, Any] | None:
@@ -45,7 +45,7 @@ class CCDBMockImpl:
             "machine_type": "MOCK-1G",
             "has_tpc": True,
             "billing_tags": {"tag_a": "1"},
-            "_source": "ccdb-mock",
+            "_source": "cmdb-mock",
         }
 
     async def list_by_zone(self, zone: str, limit: int = 100) -> list[dict[str, Any]]:
@@ -63,7 +63,7 @@ class CCDBMockImpl:
                 "machine_type": "MOCK-1G",
                 "has_tpc": True,
                 "billing_tags": {"tag_a": "1"},
-                "_source": "ccdb-mock",
+                "_source": "cmdb-mock",
             }
             for i in range(n)
         ]
@@ -92,7 +92,7 @@ class CCDBMockImpl:
                 "customer_a": online_instances * 2 // 3,
                 "customer_b": online_instances - online_instances * 2 // 3,
             },
-            "_source": "ccdb-mock",
+            "_source": "cmdb-mock",
         }
 
     async def close(self) -> None:

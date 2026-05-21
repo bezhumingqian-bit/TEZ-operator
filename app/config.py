@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     )
 
     # ───────── 客户端三态模式（W2 起） ─────────
-    ccdb_mode: ClientMode = Field(default="mock", description="ccdb 客户端模式")
+    cmdb_mode: ClientMode = Field(default="mock", description="cmdb 客户端模式")
     tcum_mode: ClientMode = Field(default="mock", description="tcum 客户端模式")
     idcrm_mode: ClientMode = Field(default="mock", description="idcrm 客户端模式")
 
@@ -80,18 +80,18 @@ class Settings(BaseSettings):
         description="是否忽略浏览器自动化中的 HTTPS 证书错误；仅内网自签证书场景显式开启",
     )
 
-    # ───────── CCDB（HTTP 客户端）─────────
-    ccdb_base_url: str = Field(default="http://ccdb.example.com")
-    ccdb_token: str = Field(default="")
-    ccdb_caller: str = Field(default="tez-operator")
-    ccdb_timeout: float = Field(default=5.0)
+    # ───────── CMDB（HTTP 客户端）─────────
+    cmdb_base_url: str = Field(default="http://cmdb.example.com")
+    cmdb_token: str = Field(default="")
+    cmdb_caller: str = Field(default="tez-operator")
+    cmdb_timeout: float = Field(default=5.0)
 
-    # CCDB 直查（DB，可选）
-    ccdb_db_host: str = Field(default="")
-    ccdb_db_port: int = Field(default=3306)
-    ccdb_db_user: str = Field(default="")
-    ccdb_db_password: str = Field(default="")
-    ccdb_db_name: str = Field(default="CCDB4")
+    # CMDB 直查（DB，可选）
+    cmdb_db_host: str = Field(default="")
+    cmdb_db_port: int = Field(default=3306)
+    cmdb_db_user: str = Field(default="")
+    cmdb_db_password: str = Field(default="")
+    cmdb_db_name: str = Field(default="CMDB4")
 
     # ───────── TCUM ─────────
     tcum_base_url: str = Field(default="http://tcum.example.com")

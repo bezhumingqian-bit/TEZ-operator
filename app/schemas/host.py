@@ -23,7 +23,7 @@ class HostHistoryEvent(BaseModel):
     from_module: str | None = None
     to_module: str | None = None
     description: str | None = None
-    source: str | None = Field(default=None, description="ccdb/tcum/manual")
+    source: str | None = Field(default=None, description="cmdb/tcum/manual")
 
 
 class HostMeta(BaseModel):

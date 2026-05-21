@@ -67,7 +67,7 @@ def upgrade() -> None:
             "source",
             sa.String(length=32),
             nullable=True,
-            comment="ccdb/tcum/manual",
+            comment="cmdb/tcum/manual",
         ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_host_history")),

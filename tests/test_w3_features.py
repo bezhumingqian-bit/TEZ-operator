@@ -30,7 +30,7 @@ def _fake_host(asset_id: str = "TYSV00000001") -> HostInfo:
         backup_owners=["bob", "carol"],
         has_tpc=True,
         billing_tags={"tag_a": "1"},
-        **{"_meta": HostMeta(data_sources=["ccdb"])},
+        **{"_meta": HostMeta(data_sources=["cmdb"])},
     )
 
 
@@ -109,14 +109,14 @@ class TestBatchConcurrency:
                 async with lock:
                     in_flight -= 1
 
-        ccdb = MagicMock()
-        ccdb.close = AsyncMock(return_value=None)
+        cmdb = MagicMock()
+        cmdb.close = AsyncMock(return_value=None)
         tcum = MagicMock()
         tcum.close = AsyncMock(return_value=None)
         idcrm = MagicMock()
         idcrm.close = AsyncMock(return_value=None)
 
-        svc = HostService(ccdb=ccdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
+        svc = HostService(cmdb=cmdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
         # 直接打补丁覆盖 svc.get_host
         svc.get_host = slow_get_host  # type: ignore[assignment]
 
@@ -133,13 +133,13 @@ class TestBatchConcurrency:
                 raise RuntimeError("specific boom")
             return _fake_host(asset_id)
 
-        ccdb = MagicMock()
-        ccdb.close = AsyncMock(return_value=None)
+        cmdb = MagicMock()
+        cmdb.close = AsyncMock(return_value=None)
         tcum = MagicMock()
         tcum.close = AsyncMock(return_value=None)
         idcrm = MagicMock()
         idcrm.close = AsyncMock(return_value=None)
-        svc = HostService(ccdb=ccdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
+        svc = HostService(cmdb=cmdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
         svc.get_host = get_host  # type: ignore[assignment]
 
         ids = [f"TYSV0000000{i}" for i in range(1, 9)]
@@ -156,13 +156,13 @@ class TestBatchConcurrency:
                 assert err is None
 
     async def test_mixed_ip_and_asset(self) -> None:
-        ccdb = MagicMock()
-        ccdb.close = AsyncMock(return_value=None)
+        cmdb = MagicMock()
+        cmdb.close = AsyncMock(return_value=None)
         tcum = MagicMock()
         tcum.close = AsyncMock(return_value=None)
         idcrm = MagicMock()
         idcrm.close = AsyncMock(return_value=None)
-        svc = HostService(ccdb=ccdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
+        svc = HostService(cmdb=cmdb, tcum=tcum, idcrm=idcrm, cache=CacheService())
         svc.get_host = AsyncMock(side_effect=lambda x: _fake_host(x))  # type: ignore[assignment]
         svc.get_host_by_ip = AsyncMock(side_effect=lambda x: _fake_host("BY_IP"))  # type: ignore[assignment]
 

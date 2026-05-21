@@ -2,9 +2,9 @@
 
 数据流（11 文档 § 3.1）：
     1. 缓存优先
-    2. 并发拉 TCUM + CCDB
+    2. 并发拉 TCUM + CMDB
     3. 用 TCUM 拿到的 idc/cabinet 再去 IDCRM 补机位
-    4. _merge() 融合（CCDB > TCUM > IDC）
+    4. _merge() 融合（CMDB > TCUM > IDC）
     5. 写回缓存
 
 W2 增强：
@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.clients.base import BrowserAuthExpired
-from app.clients.ccdb import CCDBClient
+from app.clients.cmdb import CMDBClient
 from app.clients.idcrm import IDCRMClient
 from app.clients.tcum import TCUMClient
 from app.config import get_settings
@@ -77,7 +77,7 @@ def _normalize_status(raw: str | None) -> str | None:
 # ── 占位 zone 列表（mock 模式时 GET /api/v1/zones 用）──
 # 严格脱敏：不带任何真实城市/产品代号（docs/16 § 二），
 # 与前端 W3 约定的 zone_a~zone_e 占位保持一致。
-# W4 切真实 CCDB 后由 CCDBClient.list_zones() 提供
+# W4 切真实 CMDB 后由 CMDBClient.list_zones() 提供
 MOCK_ZONES: list[str] = [
     "zone_a",
     "zone_b",
@@ -92,12 +92,12 @@ class HostService:
 
     def __init__(
         self,
-        ccdb: CCDBClient | None = None,
+        cmdb: CMDBClient | None = None,
         tcum: TCUMClient | None = None,
         idcrm: IDCRMClient | None = None,
         cache: CacheService | None = None,
     ) -> None:
-        self.ccdb = ccdb or CCDBClient()
+        self.cmdb = cmdb or CMDBClient()
         self.tcum = tcum or TCUMClient()
         self.idcrm = idcrm or IDCRMClient()
         self.cache = cache or default_cache
@@ -116,13 +116,13 @@ class HostService:
             log.debug("host.cache_hit", asset_id=asset_id)
             return self._dict_to_host(cached, from_cache=True)
 
-        # 并发拉 CCDB + TCUM
-        ccdb_task = self.ccdb.get_by_asset(asset_id)
+        # 并发拉 CMDB + TCUM
+        cmdb_task = self.cmdb.get_by_asset(asset_id)
         tcum_task = self.tcum.get_by_asset(asset_id)
-        ccdb_data, tcum_data = await asyncio.gather(ccdb_task, tcum_task, return_exceptions=True)
+        cmdb_data, tcum_data = await asyncio.gather(cmdb_task, tcum_task, return_exceptions=True)
 
         errors: dict[str, str] = {}
-        ccdb_dict = self._unwrap("ccdb", ccdb_data, errors)
+        cmdb_dict = self._unwrap("cmdb", cmdb_data, errors)
         tcum_dict = self._unwrap("tcum", tcum_data, errors)
 
         # 用 TCUM 的 idc/cabinet 再查 IDCRM
@@ -136,11 +136,11 @@ class HostService:
                 log.warning("host.idcrm_failed", asset_id=asset_id, error=str(exc))
                 errors["idcrm"] = str(exc)
 
-        if not ccdb_dict and not tcum_dict:
+        if not cmdb_dict and not tcum_dict:
             log.info("host.not_found", asset_id=asset_id, errors=errors)
             return None
 
-        merged = self._merge(asset_id.upper(), ccdb_dict, tcum_dict, idc_dict, errors)
+        merged = self._merge(asset_id.upper(), cmdb_dict, tcum_dict, idc_dict, errors)
         await self.cache.set(key, merged.model_dump(**CACHE_DUMP_KW))
         return merged
 
@@ -153,17 +153,17 @@ class HostService:
             log.debug("host.cache_hit_by_ip", ip=ip)
             return self._dict_to_host(cached, from_cache=True)
 
-        ccdb_task = self.ccdb.get_by_ip(ip)
+        cmdb_task = self.cmdb.get_by_ip(ip)
         tcum_task = self.tcum.search_by_ip(ip)
-        ccdb_data, tcum_data = await asyncio.gather(ccdb_task, tcum_task, return_exceptions=True)
+        cmdb_data, tcum_data = await asyncio.gather(cmdb_task, tcum_task, return_exceptions=True)
         errors: dict[str, str] = {}
-        ccdb_dict = self._unwrap("ccdb", ccdb_data, errors)
+        cmdb_dict = self._unwrap("cmdb", cmdb_data, errors)
         tcum_dict = self._unwrap("tcum", tcum_data, errors)
 
-        if not ccdb_dict and not tcum_dict:
+        if not cmdb_dict and not tcum_dict:
             return None
 
-        asset_id = (ccdb_dict or {}).get("asset_id") or (tcum_dict or {}).get("asset_id") or ""
+        asset_id = (cmdb_dict or {}).get("asset_id") or (tcum_dict or {}).get("asset_id") or ""
 
         idc_dict: dict[str, Any] | None = None
         if tcum_dict and tcum_dict.get("idc"):
@@ -174,7 +174,7 @@ class HostService:
             except Exception as exc:  # noqa: BLE001
                 errors["idcrm"] = str(exc)
 
-        merged = self._merge(asset_id, ccdb_dict, tcum_dict, idc_dict, errors)
+        merged = self._merge(asset_id, cmdb_dict, tcum_dict, idc_dict, errors)
         await self.cache.set(key, merged.model_dump(**CACHE_DUMP_KW))
         # 反向键也写一份，下次按 asset_id 查能命中
         if merged.asset_id:
@@ -194,7 +194,7 @@ class HostService:
             return [self._dict_to_host(d, from_cache=True) for d in cached]
 
         try:
-            rows = await self.ccdb.list_by_zone(zone)
+            rows = await self.cmdb.list_by_zone(zone)
         except Exception as exc:  # noqa: BLE001
             log.warning("host.list_zone_failed", zone=zone, error=str(exc))
             return []
@@ -217,7 +217,7 @@ class HostService:
 
         当前实现：
         - mock 模式（W3）→ 从 ``MOCK_ZONES`` 返回固定占位
-        - W4 真实 CCDB 接通后改为从 ``self.ccdb.list_zones()`` 拉
+        - W4 真实 CMDB 接通后改为从 ``self.cmdb.list_zones()`` 拉
         - 缓存 10 分钟（与 zone hosts 一致）
         """
 
@@ -225,7 +225,7 @@ class HostService:
         if cached:
             return list(cached)
 
-        # TODO(W4): 改为 self.ccdb.list_zones()
+        # TODO(W4): 改为 self.cmdb.list_zones()
         zones = list(MOCK_ZONES)
         await self.cache.set(
             CACHE_KEY_ZONES_LIST,
@@ -250,7 +250,7 @@ class HostService:
                 continue
 
             try:
-                raw = await self.ccdb.get_instance_stats_by_zone(zone)
+                raw = await self.cmdb.get_instance_stats_by_zone(zone)
                 stat = ZoneInstanceStat(**raw)
             except Exception as exc:  # noqa: BLE001
                 log.warning("zone.instance_stats_failed", zone=zone, error=str(exc))
@@ -339,7 +339,7 @@ class HostService:
 
     async def close(self) -> None:
         """W2 lifespan close 用：释放三个 client（reviewer 建议-5）。"""
-        await self.ccdb.close()
+        await self.cmdb.close()
         await self.tcum.close()
         await self.idcrm.close()
 
@@ -392,19 +392,19 @@ class HostService:
     def _merge(
         self,
         asset_id: str,
-        ccdb: dict[str, Any] | None,
+        cmdb: dict[str, Any] | None,
         tcum: dict[str, Any] | None,
         idc: dict[str, Any] | None,
         errors: dict[str, str],
     ) -> HostInfo:
-        """三方数据融合：CCDB > TCUM > IDC。"""
+        """三方数据融合：CMDB > TCUM > IDC。"""
 
-        ccdb = ccdb or {}
+        cmdb = cmdb or {}
         tcum = tcum or {}
         idc = idc or {}
         sources: list[str] = []
-        if ccdb:
-            sources.append("ccdb")
+        if cmdb:
+            sources.append("cmdb")
         if tcum:
             sources.append("tcum")
         if idc:
@@ -422,26 +422,26 @@ class HostService:
         )
 
         return HostInfo(
-            asset_id=ccdb.get("asset_id") or tcum.get("asset_id") or asset_id,
-            ip=ccdb.get("ip") or tcum.get("ip"),
-            zone=ccdb.get("zone") or tcum.get("zone"),
-            machine_type=ccdb.get("machine_type") or tcum.get("machine_type"),
-            status=_normalize_status(ccdb.get("status") or tcum.get("status")),
-            idc=tcum.get("idc") or ccdb.get("idc"),
-            cabinet=idc.get("cabinet") or tcum.get("cabinet") or ccdb.get("cabinet"),
+            asset_id=cmdb.get("asset_id") or tcum.get("asset_id") or asset_id,
+            ip=cmdb.get("ip") or tcum.get("ip"),
+            zone=cmdb.get("zone") or tcum.get("zone"),
+            machine_type=cmdb.get("machine_type") or tcum.get("machine_type"),
+            status=_normalize_status(cmdb.get("status") or tcum.get("status")),
+            idc=tcum.get("idc") or cmdb.get("idc"),
+            cabinet=idc.get("cabinet") or tcum.get("cabinet") or cmdb.get("cabinet"),
             position=idc.get("position"),
-            module=ccdb.get("module") or tcum.get("module"),
-            customer=ccdb.get("customer"),
-            app_id=str(ccdb.get("app_id")) if ccdb.get("app_id") is not None else None,
-            has_tpc=idc.get("has_tpc") if idc else ccdb.get("has_tpc"),
-            billing_tags=ccdb.get("billing_tags") or {},
+            module=cmdb.get("module") or tcum.get("module"),
+            customer=cmdb.get("customer"),
+            app_id=str(cmdb.get("app_id")) if cmdb.get("app_id") is not None else None,
+            has_tpc=idc.get("has_tpc") if idc else cmdb.get("has_tpc"),
+            billing_tags=cmdb.get("billing_tags") or {},
             owner=tcum.get("owner"),
             backup_owners=tcum.get("backup_owners") or [],
             city=tcum.get("city"),
             server_type=tcum.get("server_type"),
             use_years=tcum.get("use_years"),
             history=history,
-            raw_json={"ccdb": ccdb, "tcum": tcum, "idcrm": idc},
+            raw_json={"cmdb": cmdb, "tcum": tcum, "idcrm": idc},
             **{"_meta": meta},
         )
 
