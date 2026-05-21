@@ -58,7 +58,6 @@ class CategoryCreate(CategoryBase):
 
 class CategoryInfo(CategoryBase):
     id: int
-    children: list["CategoryInfo"] = []
 
     model_config = {"from_attributes": True}
 
