@@ -50,19 +50,22 @@ class CCDBBrowserImpl:
     )
     DEFAULT_WAIT_AFTER_GOTO_MS = 3500
 
-    # ── 列序占位（W4 联调时根据真实页面调整）──
-    # TODO(W4): 拿到真实 CCDB 列表页 cells 后修正下面所有 COL_* 索引
-    COL_ASSET_ID = 1
-    COL_IP = 2
-    COL_ZONE = 3
-    COL_MODULE = 4
-    COL_CUSTOMER = 5
-    COL_APP_ID = 6
-    COL_MACHINE_TYPE = 7
-    COL_STATUS = 8
-    COL_IDC = 9
-    COL_CABINET = 10
-    COL_HAS_TPC = 11
+    # ── 列序（W4 真实页面样本：/server/query 表头）──
+    # 0 服务器固资编号 / 2 固资编号 / 4 状态 / 5 内网IPV4 / 7 维护人
+    # 8 备份维护人 / 9 业务模块 / 10 Module / 11 可用区 / 12 机房管理单元
+    COL_ASSET_ID = 2
+    COL_STATUS = 4
+    COL_IP = 5
+    COL_OWNER = 7
+    COL_BACKUP_OWNERS = 8
+    COL_MODULE = 10
+    COL_ZONE = 11
+    COL_IDC = 12
+    COL_CUSTOMER = -1
+    COL_APP_ID = -1
+    COL_MACHINE_TYPE = -1
+    COL_CABINET = -1
+    COL_HAS_TPC = -1
 
     def __init__(self) -> None:
         self._settings = get_settings()
@@ -116,7 +119,7 @@ class CCDBBrowserImpl:
             TODO(W4): 真实 CCDB 的 search 路径可能不是 ``/search`` —— 联调时改
         """
         base = self._settings.ccdb_base_url.rstrip("/")
-        return f"{base}/search?{urlencode({'key': key})}"
+        return f"{base}/server/query?{urlencode({'page': 1, 'key': key})}"
 
     def _build_zone_url(self, zone: str) -> str:
         """按 zone 列出母机的 URL。
@@ -125,7 +128,7 @@ class CCDBBrowserImpl:
             TODO(W4): 真实 CCDB 的 zone 列表入口待联调
         """
         base = self._settings.ccdb_base_url.rstrip("/")
-        return f"{base}/zone?{urlencode({'zone': zone})}"
+        return f"{base}/server/query?{urlencode({'page': 1, 'zone': zone})}"
 
     async def _fetch_rows(
         self,
@@ -154,7 +157,7 @@ class CCDBBrowserImpl:
                     rows = await page.eval_on_selector_all(
                         selector,
                         """rows => rows.slice(0, 200).map(r =>
-                            Array.from(r.cells || r.children || []).slice(0, 16).map(
+                            Array.from(r.cells || r.children || []).slice(0, 32).map(
                                 c => (c.innerText || '').trim()
                             )
                         )""",
@@ -199,6 +202,14 @@ class CCDBBrowserImpl:
             return False
         return None
 
+    @staticmethod
+    def _split_people(s: str | None) -> list[str]:
+        if not s:
+            return []
+        import re
+
+        return [x.strip() for x in re.split(r"[;,；、\\s]+", s) if x.strip()]
+
     @classmethod
     def _parse_row(cls, cells: list[str]) -> dict[str, Any]:
         """把 ``.tea-table tbody tr`` 一行映射到 schema。
@@ -218,6 +229,8 @@ class CCDBBrowserImpl:
             "status": cls._safe_cell(cells, cls.COL_STATUS),
             "idc": cls._safe_cell(cells, cls.COL_IDC),
             "cabinet": cls._safe_cell(cells, cls.COL_CABINET),
+            "owner": cls._safe_cell(cells, cls.COL_OWNER),
+            "backup_owners": cls._split_people(cls._safe_cell(cells, cls.COL_BACKUP_OWNERS)),
             "has_tpc": cls._parse_bool(cls._safe_cell(cells, cls.COL_HAS_TPC)),
             "billing_tags": {},  # TODO(W4): 真实页面如有标签列再补
             "_source": "ccdb-browser",

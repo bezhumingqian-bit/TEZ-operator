@@ -36,11 +36,13 @@ class IDCRMBrowserImpl:
     )
     DEFAULT_WAIT_AFTER_GOTO_MS = 3500
 
-    # TODO(W4): 拿到真实数全通页面后填充
-    COL_IDC = 1
-    COL_CABINET = 2
-    COL_POSITION = 3
-    COL_HAS_TPC = 4
+    # W4 真实页面样本：0 机位ID / 1 一级机房 / 2 机房管理单元 / 3 机架编号
+    # 4 机位编号 / 5 Module / 6 机位逻辑区域 / 7 机位状态
+    COL_IDC = 2
+    COL_CABINET = 3
+    COL_POSITION = 4
+    COL_STATUS = 7
+    COL_HAS_TPC = -1
 
     def __init__(self) -> None:
         self._settings = get_settings()
@@ -99,7 +101,7 @@ class IDCRMBrowserImpl:
             params["cabinet"] = cabinet
         if asset_id:
             params["asset_id"] = asset_id
-        return f"{base}/query?{urlencode(params)}"
+        return f"{base}/db/positions?{urlencode(params)}"
 
     async def _fetch_rows(
         self,
@@ -127,7 +129,7 @@ class IDCRMBrowserImpl:
                     rows = await page.eval_on_selector_all(
                         selector,
                         """rows => rows.slice(0, 50).map(r =>
-                            Array.from(r.cells || r.children || []).slice(0, 16).map(
+                            Array.from(r.cells || r.children || []).slice(0, 24).map(
                                 c => (c.innerText || '').trim()
                             )
                         )""",
@@ -164,6 +166,17 @@ class IDCRMBrowserImpl:
             return v
         return None
 
+    @staticmethod
+    def _parse_has_tpc(status: str | None) -> bool | None:
+        if status is None:
+            return None
+        value = status.strip().lower()
+        if value in {"已占用", "已使用", "使用中", "occupied", "used"}:
+            return True
+        if value in {"空闲", "未使用", "free", "idle"}:
+            return False
+        return None
+
     @classmethod
     def _parse_row(
         cls,
@@ -172,21 +185,16 @@ class IDCRMBrowserImpl:
         fallback_idc: str | None = None,
         fallback_cabinet: str | None = None,
     ) -> dict[str, Any]:
-        """把数全通页面一行映射到 schema。
+        """把数全通页面一行映射到 schema。"""
 
-        Raises:
-            NotImplementedError: 真实页面样本待 W4 联调获取。
-        """
-        # W4 联调时取消下面这行 raise，并按真实列序填充
-        raise NotImplementedError(
-            "IDCRM browser mode is not ready: _parse_row needs W4 real page sample; "
-            "keep TEZ_IDCRM_MODE=mock before W4 联调"
-        )
-        # 下面代码作为 W4 时的起点保留：
-        # return {
-        #     "idc": cls._safe_cell(cells, cls.COL_IDC) or fallback_idc,
-        #     "cabinet": cls._safe_cell(cells, cls.COL_CABINET) or fallback_cabinet,
-        #     "position": cls._safe_cell(cells, cls.COL_POSITION),
-        #     "has_tpc": _parse_bool(cls._safe_cell(cells, cls.COL_HAS_TPC)),
-        #     "_source": "idcrm-browser",
-        # }
+        return {
+            "idc": cls._safe_cell(cells, cls.COL_IDC) or fallback_idc,
+            "cabinet": cls._safe_cell(cells, cls.COL_CABINET) or fallback_cabinet,
+            "position": cls._safe_cell(cells, cls.COL_POSITION),
+            "has_tpc": cls._parse_has_tpc(cls._safe_cell(cells, cls.COL_STATUS)),
+            "raw_json": {
+                "asset_id": asset_id,
+                "source_status": cls._safe_cell(cells, cls.COL_STATUS),
+            },
+            "_source": "idcrm-browser",
+        }

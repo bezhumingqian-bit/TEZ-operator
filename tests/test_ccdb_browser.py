@@ -20,20 +20,21 @@ def _fast_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(CCDBBrowserImpl, "DEFAULT_WAIT_AFTER_GOTO_MS", 1)
 
 
-# 按当前 COL_* 占位生成的 cells 顺序（W4 联调可能会调整）
+# 按 W4 真实页面表头生成的 cells 顺序（已脱敏）
 SAMPLE_CELLS = [
-    "",  # [0]
-    "TYSV00000001",  # [1] asset_id
-    "10.0.0.1",  # [2] ip
-    "zone_a",  # [3] zone（脱敏占位）
-    "ten1.customer_a-PRD",  # [4] module
-    "customer_a",  # [5] customer
-    "0000000000",  # [6] app_id
-    "MOCK-1G",  # [7] machine_type
-    "online",  # [8] status
-    "示例机房A1",  # [9] idc
-    "A-12",  # [10] cabinet
-    "是",  # [11] has_tpc
+    "TYSV00000001",  # [0] 服务器固资编号
+    "",  # [1] 异常信息
+    "TYSV00000001",  # [2] 固资编号
+    "SN00000001",  # [3] SN
+    "online",  # [4] 状态
+    "10.0.0.1",  # [5] 内网IPV4
+    "ops_team",  # [6] 运维部门
+    "alice",  # [7] 维护人
+    "bob;carol",  # [8] 备份维护人
+    "biz_module_a",  # [9] 业务模块
+    "ten1.customer_a-PRD",  # [10] Module
+    "zone_a",  # [11] 可用区
+    "idc_a",  # [12] 机房管理单元
 ]
 
 
@@ -84,27 +85,29 @@ class TestParseRow:
         assert row["ip"] == "10.0.0.1"
         assert row["zone"] == "zone_a"
         assert row["module"] == "ten1.customer_a-PRD"
-        assert row["customer"] == "customer_a"
-        assert row["app_id"] == "0000000000"
-        assert row["machine_type"] == "MOCK-1G"
+        assert row["customer"] is None
+        assert row["app_id"] is None
+        assert row["machine_type"] is None
         assert row["status"] == "online"
-        assert row["idc"] == "示例机房A1"
-        assert row["cabinet"] == "A-12"
-        assert row["has_tpc"] is True
+        assert row["idc"] == "idc_a"
+        assert row["cabinet"] is None
+        assert row["owner"] == "alice"
+        assert row["backup_owners"] == ["bob", "carol"]
+        assert row["has_tpc"] is None
         assert row["billing_tags"] == {}
         assert row["_source"] == "ccdb-browser"
 
     def test_short_cells_safe(self) -> None:
         # 列数不足，所有字段都安全 None
         row = CCDBBrowserImpl._parse_row(["", "TYSV00000001"])
-        assert row["asset_id"] == "TYSV00000001"
+        assert row["asset_id"] is None
         assert row["ip"] is None
         assert row["zone"] is None
         assert row["has_tpc"] is None
 
     def test_dashes_become_none(self) -> None:
-        cells = ["-"] * 12
-        cells[1] = "TYSV00000002"
+        cells = ["-"] * 13
+        cells[2] = "TYSV00000002"
         row = CCDBBrowserImpl._parse_row(cells)
         assert row["asset_id"] == "TYSV00000002"
         assert row["ip"] is None
@@ -121,8 +124,8 @@ class TestUrlBuilders:
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl = CCDBBrowserImpl()
         url = impl._build_search_url("TYSV00000001")
-        assert url == "http://ccdb.example.com/search?key=TYSV00000001"
-        assert impl._build_search_url("A B") == "http://ccdb.example.com/search?key=A+B"
+        assert url == "http://ccdb.example.com/server/query?page=1&key=TYSV00000001"
+        assert impl._build_search_url("A B") == "http://ccdb.example.com/server/query?page=1&key=A+B"
 
     def test_search_url_strips_trailing_slash(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEZ_CCDB_BASE_URL", "http://ccdb.example.com/")
@@ -130,7 +133,7 @@ class TestUrlBuilders:
 
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl = CCDBBrowserImpl()
-        assert impl._build_search_url("X") == "http://ccdb.example.com/search?key=X"
+        assert impl._build_search_url("X") == "http://ccdb.example.com/server/query?page=1&key=X"
 
     def test_zone_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("TEZ_CCDB_BASE_URL", "http://ccdb.example.com")
@@ -139,9 +142,9 @@ class TestUrlBuilders:
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl = CCDBBrowserImpl()
         url = impl._build_zone_url("zone_a")
-        assert url == "http://ccdb.example.com/zone?zone=zone_a"
+        assert url == "http://ccdb.example.com/server/query?page=1&zone=zone_a"
         assert impl._build_zone_url("zone a") == (
-            "http://ccdb.example.com/zone?zone=zone+a"
+            "http://ccdb.example.com/server/query?page=1&zone=zone+a"
         )
 
 
@@ -201,7 +204,7 @@ class TestFetchRows:
                 target_keyword="TYSV00000001",
             )
         assert len(rows) == 1
-        assert rows[0][1] == "TYSV00000001"
+        assert rows[0][2] == "TYSV00000001"
 
     async def test_goto_failure_does_not_block(self) -> None:
         impl = CCDBBrowserImpl()
