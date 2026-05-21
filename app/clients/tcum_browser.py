@@ -88,6 +88,37 @@ class TCUMBrowserImpl:
         base = self._settings.tcum_base_url.rstrip("/")
         return f"{base}/cmdb/product/search?{urlencode({'key': key})}"
 
+    async def _try_finish_sso_flow(self, page: Any) -> None:
+        """处理扫码后还需点击“登录/确认/进入”的 SSO 中转流程。
+
+        有些内部 SSO 扫码后不会立刻跳转到业务页，需要用户再点一次按钮。
+        这里做非侵入式自动点击：仅在当前 URL 仍像登录页时尝试，成功后等待跳转。
+        """
+
+        click_terms = ("登录", "确认", "确定", "继续", "继续访问", "进入", "进入系统", "授权", "同意")
+        deadline = asyncio.get_running_loop().time() + 30
+        while is_login_url(page.url) and asyncio.get_running_loop().time() < deadline:
+            clicked = False
+            for term in click_terms:
+                locators = (
+                    page.get_by_role("button", name=term),
+                    page.get_by_text(term),
+                )
+                for loc in locators:
+                    try:
+                        if await loc.count() > 0 and await loc.first.is_visible(timeout=500):
+                            log.info("tcum_browser.sso_click", text=term)
+                            await loc.first.click(timeout=3000)
+                            await asyncio.sleep(3)
+                            clicked = True
+                            break
+                    except Exception as exc:  # noqa: BLE001
+                        log.debug("tcum_browser.sso_click_failed", text=term, error=str(exc))
+                if clicked:
+                    break
+            if not clicked:
+                await asyncio.sleep(3)
+
     async def _fetch_rows(
         self,
         url: str,
@@ -106,8 +137,9 @@ class TCUMBrowserImpl:
                 # networkidle 经常 timeout 但页面其实加载完了，PoC 也是这么处理
                 log.debug("tcum_browser.goto_networkidle_warn", error=str(exc))
 
-            # SPA 渲染留点时间
+            # SPA 渲染留点时间；如落到 SSO 登录/中转页，尝试自动点击登录后的确认按钮。
             await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
+            await self._try_finish_sso_flow(page)
 
             current_url = page.url
             if is_login_url(current_url):
