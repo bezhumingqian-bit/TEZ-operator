@@ -84,3 +84,24 @@ export interface ZoneHostsResponse {
   total: number
   items: HostInfo[]
 }
+
+export interface ZoneInstanceStat {
+  zone: string
+  host_count: number
+  total_instances: number
+  online_instances: number
+  offline_instances: number
+  maintenance_instances: number
+  by_machine_type: Record<string, number>
+  by_customer: Record<string, number>
+}
+
+export interface ZoneInstanceStatsResponse {
+  code: number
+  message: string
+  total_zones: number
+  total_hosts: number
+  total_instances: number
+  online_instances: number
+  items: ZoneInstanceStat[]
+}

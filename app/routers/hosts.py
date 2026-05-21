@@ -19,6 +19,7 @@ from app.schemas.host import (
     BatchSearchResponse,
     SearchResponse,
     ZoneHostsResponse,
+    ZoneInstanceStatsResponse,
 )
 from app.services.host_service import HostService
 from app.utils.parser import detect_query_type, normalize_query
@@ -203,6 +204,32 @@ async def list_zones(
     """返回 zone 列表。W3 mock 模式硬编码占位（zone_a~zone_e）。"""
     zones = await service.list_zones()
     return {"zones": zones}
+
+
+@zone_router.get(
+    "/instances/stats",
+    response_model=ZoneInstanceStatsResponse,
+    summary="按区域统计线上实例资源",
+)
+async def zone_instance_stats(
+    zones: str = Query(..., description="逗号分隔的 Zone 列表，如 zone_a,zone_b", min_length=1),
+    service: HostService = Depends(get_host_service),
+) -> ZoneInstanceStatsResponse:
+    parsed = [z.strip() for z in zones.split(",") if z.strip()]
+    if not parsed:
+        raise HTTPException(status_code=400, detail="zones 不能为空")
+    invalid = [z for z in parsed if detect_query_type(z) != "zone"]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"非法 zone：{','.join(invalid)}")
+
+    stats = await service.get_zone_instance_stats([normalize_query(z) for z in parsed])
+    return ZoneInstanceStatsResponse(
+        total_zones=len(stats),
+        total_hosts=sum(s.host_count for s in stats),
+        total_instances=sum(s.total_instances for s in stats),
+        online_instances=sum(s.online_instances for s in stats),
+        items=stats,
+    )
 
 
 @zone_router.get(

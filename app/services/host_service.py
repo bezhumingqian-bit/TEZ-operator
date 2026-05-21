@@ -24,7 +24,7 @@ from app.clients.ccdb import CCDBClient
 from app.clients.idcrm import IDCRMClient
 from app.clients.tcum import TCUMClient
 from app.config import get_settings
-from app.schemas.host import HostHistoryEvent, HostInfo, HostMeta
+from app.schemas.host import HostHistoryEvent, HostInfo, HostMeta, ZoneInstanceStat
 from app.services.cache_service import CacheService
 from app.services.cache_service import cache as default_cache
 from app.utils.alert import alert_fire_and_forget
@@ -36,6 +36,7 @@ CACHE_KEY_HOST = "host:{asset_id}"
 CACHE_KEY_HOST_BY_IP = "host:ip:{ip}"
 CACHE_KEY_ZONE = "zone:{zone}:hosts"
 CACHE_KEY_ZONES_LIST = "zones:list"
+CACHE_KEY_ZONE_INSTANCE_STATS = "zone:{zone}:instance_stats"
 
 CACHE_DUMP_KW = {"by_alias": True, "mode": "json", "exclude": {"raw_json"}}
 
@@ -232,6 +233,50 @@ class HostService:
             ttl=get_settings().cache_zone_ttl,
         )
         return zones
+
+    async def get_zone_instance_stats(self, zones: list[str]) -> list[ZoneInstanceStat]:
+        """查询一个或多个区域的线上实例资源统计。"""
+
+        normalized = [z.strip() for z in zones if z and z.strip()]
+        if not normalized:
+            return []
+
+        results: list[ZoneInstanceStat] = []
+        for zone in normalized:
+            cache_key = CACHE_KEY_ZONE_INSTANCE_STATS.format(zone=zone)
+            cached = await self.cache.get(cache_key)
+            if cached:
+                results.append(ZoneInstanceStat(**cached))
+                continue
+
+            try:
+                raw = await self.ccdb.get_instance_stats_by_zone(zone)
+                stat = ZoneInstanceStat(**raw)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("zone.instance_stats_failed", zone=zone, error=str(exc))
+                stat = self._fallback_instance_stat(zone)
+
+            await self.cache.set(
+                cache_key,
+                stat.model_dump(mode="json"),
+                ttl=get_settings().cache_zone_ttl,
+            )
+            results.append(stat)
+        return results
+
+    def _fallback_instance_stat(self, zone: str) -> ZoneInstanceStat:
+        """区域统计兜底：当上游统计失败时基于母机列表估算。"""
+
+        return ZoneInstanceStat(
+            zone=zone,
+            host_count=0,
+            total_instances=0,
+            online_instances=0,
+            offline_instances=0,
+            maintenance_instances=0,
+            by_machine_type={},
+            by_customer={},
+        )
 
     async def batch_get_hosts(
         self, asset_ids: list[str]

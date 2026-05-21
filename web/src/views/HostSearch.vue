@@ -143,6 +143,13 @@ TYSV00000002
 
         <!-- ─────────── 按 Zone 列表 ─────────── -->
         <el-tab-pane label="按 Zone 列表" name="zone">
+          <el-alert
+            class="host-search__zone-alert"
+            type="info"
+            :closable="false"
+            show-icon
+            title="常用：先查区域线上实例资源总量，再下钻查看母机列表"
+          />
           <div class="host-search__bar">
             <el-select
               v-model="zoneSelected"
@@ -156,6 +163,15 @@ TYSV00000002
               <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
             </el-select>
             <el-button
+              type="success"
+              size="large"
+              :loading="zoneStatsLoading"
+              :disabled="!zoneSelected"
+              @click="onZoneStats"
+            >
+              查线上实例数
+            </el-button>
+            <el-button
               type="primary"
               size="large"
               :loading="zoneLoading"
@@ -163,7 +179,7 @@ TYSV00000002
               :disabled="!zoneSelected"
               @click="onZoneSearch"
             >
-              查询
+              查母机列表
             </el-button>
           </div>
           <div class="host-search__hint">
@@ -172,7 +188,48 @@ TYSV00000002
           </div>
 
           <div class="host-search__result">
-            <el-skeleton v-if="zoneLoading" :rows="6" animated />
+            <el-skeleton v-if="zoneLoading || zoneStatsLoading" :rows="6" animated />
+            <template v-else-if="zoneStatsResp">
+              <div class="host-search__stats-summary">
+                <el-statistic title="区域数" :value="zoneStatsResp.total_zones" />
+                <el-statistic title="母机数" :value="zoneStatsResp.total_hosts" />
+                <el-statistic title="实例总数" :value="zoneStatsResp.total_instances" />
+                <el-statistic title="线上实例" :value="zoneStatsResp.online_instances" />
+              </div>
+              <el-table :data="zoneStatsResp.items" border stripe class="host-search__stats-table">
+                <el-table-column prop="zone" label="Zone" min-width="120" />
+                <el-table-column prop="host_count" label="母机数" width="90" />
+                <el-table-column prop="total_instances" label="实例总数" width="110" />
+                <el-table-column prop="online_instances" label="线上实例" width="110" />
+                <el-table-column prop="offline_instances" label="离线" width="90" />
+                <el-table-column prop="maintenance_instances" label="维护中" width="90" />
+                <el-table-column label="机型分布" min-width="180">
+                  <template #default="{ row }">
+                    <el-tag
+                      v-for="(count, name) in row.by_machine_type"
+                      :key="name"
+                      class="host-search__mini-tag"
+                      effect="plain"
+                    >
+                      {{ name }}: {{ count }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="客户分布" min-width="180">
+                  <template #default="{ row }">
+                    <el-tag
+                      v-for="(count, name) in row.by_customer"
+                      :key="name"
+                      class="host-search__mini-tag"
+                      type="success"
+                      effect="plain"
+                    >
+                      {{ name }}: {{ count }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </template>
             <template v-else-if="zoneResp">
               <el-alert
                 :title="`Zone ${zoneResp.zone} 共 ${zoneResp.total} 台母机`"
@@ -202,12 +259,18 @@ import { ApiError } from '@/api/client'
 import {
   batchSearch,
   exportHostsExcel,
+  getZoneInstanceStats,
   listZoneHosts,
   listZones,
   pickSingleHost,
   searchHost,
 } from '@/api/hosts'
-import type { BatchSearchResponse, HostInfo, ZoneHostsResponse } from '@/types/host'
+import type {
+  BatchSearchResponse,
+  HostInfo,
+  ZoneHostsResponse,
+  ZoneInstanceStatsResponse,
+} from '@/types/host'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
@@ -285,7 +348,9 @@ async function onBatchSearch() {
 const zoneOptions = ref<string[]>([...fallbackZoneOptions])
 const zoneSelected = ref<string>('')
 const zoneLoading = ref(false)
+const zoneStatsLoading = ref(false)
 const zoneResp = ref<ZoneHostsResponse | null>(null)
+const zoneStatsResp = ref<ZoneInstanceStatsResponse | null>(null)
 
 async function loadZoneOptions() {
   try {
@@ -297,10 +362,23 @@ async function loadZoneOptions() {
   }
 }
 
+async function onZoneStats() {
+  if (!zoneSelected.value) return
+  zoneStatsLoading.value = true
+  zoneStatsResp.value = null
+  zoneResp.value = null
+  try {
+    zoneStatsResp.value = await getZoneInstanceStats([zoneSelected.value])
+  } finally {
+    zoneStatsLoading.value = false
+  }
+}
+
 async function onZoneSearch() {
   if (!zoneSelected.value) return
   zoneLoading.value = true
   zoneResp.value = null
+  zoneStatsResp.value = null
   try {
     zoneResp.value = await listZoneHosts(zoneSelected.value)
   } finally {
@@ -413,6 +491,25 @@ async function onBatchTableExport(assetIds: string[]) {
 
 .host-search__zone-alert {
   margin-bottom: 12px;
+}
+
+.host-search__stats-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--tez-border);
+  border-radius: 8px;
+}
+
+.host-search__stats-table {
+  width: 100%;
+}
+
+.host-search__mini-tag {
+  margin: 2px 4px 2px 0;
 }
 
 .host-search__batch {

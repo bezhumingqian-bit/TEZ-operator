@@ -16,6 +16,7 @@ import type {
   HostInfo,
   SearchResponse,
   ZoneHostsResponse,
+  ZoneInstanceStatsResponse,
 } from '@/types/host'
 
 const PREFIX = '/api/v1'
@@ -62,6 +63,14 @@ export async function listZoneHosts(zone: string): Promise<ZoneHostsResponse> {
   const { data } = await apiClient.get<ZoneHostsResponse>(
     `${PREFIX}/zones/${encodeURIComponent(zone)}/hosts`,
   )
+  return data
+}
+
+/** 按一个或多个 Zone 统计线上实例资源 */
+export async function getZoneInstanceStats(zones: string[]): Promise<ZoneInstanceStatsResponse> {
+  const { data } = await apiClient.get<ZoneInstanceStatsResponse>(`${PREFIX}/zones/instances/stats`, {
+    params: { zones: zones.join(',') },
+  })
   return data
 }
 

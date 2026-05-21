@@ -143,3 +143,28 @@ class ZoneHostsResponse(BaseModel):
     zone: str
     total: int
     items: list[HostInfo]
+
+
+class ZoneInstanceStat(BaseModel):
+    """单个 Zone 的实例资源统计。"""
+
+    zone: str
+    host_count: int = Field(default=0, description="母机数量")
+    total_instances: int = Field(default=0, description="实例总数")
+    online_instances: int = Field(default=0, description="线上实例数")
+    offline_instances: int = Field(default=0, description="离线实例数")
+    maintenance_instances: int = Field(default=0, description="维护中实例数")
+    by_machine_type: dict[str, int] = Field(default_factory=dict)
+    by_customer: dict[str, int] = Field(default_factory=dict)
+
+
+class ZoneInstanceStatsResponse(BaseModel):
+    """多个 Zone 的实例资源统计响应。"""
+
+    code: int = 0
+    message: str = "ok"
+    total_zones: int
+    total_hosts: int
+    total_instances: int
+    online_instances: int
+    items: list[ZoneInstanceStat]

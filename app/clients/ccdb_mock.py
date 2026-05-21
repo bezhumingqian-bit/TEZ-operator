@@ -68,5 +68,32 @@ class CCDBMockImpl:
             for i in range(n)
         ]
 
+    async def get_instance_stats_by_zone(self, zone: str) -> dict[str, Any]:
+        """返回区域实例资源统计（mock 占位，严格脱敏）。"""
+
+        idx = max(0, ord(zone[-1:].lower() or "a") - ord("a"))
+        host_count = 5 + idx
+        total_instances = 120 + idx * 24
+        maintenance_instances = idx % 3 + 2
+        offline_instances = idx % 4 + 3
+        online_instances = total_instances - maintenance_instances - offline_instances
+        return {
+            "zone": zone,
+            "host_count": host_count,
+            "total_instances": total_instances,
+            "online_instances": online_instances,
+            "offline_instances": offline_instances,
+            "maintenance_instances": maintenance_instances,
+            "by_machine_type": {
+                "MOCK-1G": online_instances // 2,
+                "MOCK-2G": online_instances - online_instances // 2,
+            },
+            "by_customer": {
+                "customer_a": online_instances * 2 // 3,
+                "customer_b": online_instances - online_instances * 2 // 3,
+            },
+            "_source": "ccdb-mock",
+        }
+
     async def close(self) -> None:
         return None

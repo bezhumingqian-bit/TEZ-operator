@@ -28,6 +28,9 @@ class CCDBAPIImpl:
     async def list_by_zone(self, zone: str, limit: int = 100) -> list[dict[str, Any]]:
         raise NotImplementedError("CCDB api 模式待账号 Q1 到位后接入")
 
+    async def get_instance_stats_by_zone(self, zone: str) -> dict[str, Any]:
+        raise NotImplementedError("CCDB api 模式待账号 Q1 到位后接入")
+
     async def close(self) -> None:
         return None
 
@@ -42,6 +45,9 @@ class CCDBBrowserImplPlaceholder:
         raise NotImplementedError("已切换为 ccdb_browser.CCDBBrowserImpl")
 
     async def list_by_zone(self, zone: str, limit: int = 100) -> list[dict[str, Any]]:
+        raise NotImplementedError("已切换为 ccdb_browser.CCDBBrowserImpl")
+
+    async def get_instance_stats_by_zone(self, zone: str) -> dict[str, Any]:
         raise NotImplementedError("已切换为 ccdb_browser.CCDBBrowserImpl")
 
     async def close(self) -> None:
@@ -85,6 +91,12 @@ class CCDBClient:
     async def list_by_zone(self, zone: str, limit: int = 100) -> list[dict[str, Any]]:
         try:
             return await self._impl.list_by_zone(zone, limit)
+        except BrowserAuthExpired:
+            raise
+
+    async def get_instance_stats_by_zone(self, zone: str) -> dict[str, Any]:
+        try:
+            return await self._impl.get_instance_stats_by_zone(zone)
         except BrowserAuthExpired:
             raise
 
