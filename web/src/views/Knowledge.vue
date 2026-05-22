@@ -86,6 +86,37 @@
         </el-collapse>
       </el-tab-pane>
     </el-tabs>
+
+    <!-- 手册详情弹窗 -->
+    <el-dialog
+      v-model="manualDialogVisible"
+      :title="selectedManual?.title || ''"
+      width="600px"
+      destroy-on-close
+    >
+      <div v-if="selectedManual" class="manual-detail">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="分类">
+            <el-tag size="small" :type="selectedManual.tagType">{{ selectedManual.tag }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="说明">{{ selectedManual.description }}</el-descriptions-item>
+          <el-descriptions-item label="文件路径">
+            <code>docs/0{{ selectedManual.id }}-*.md</code>
+          </el-descriptions-item>
+          <el-descriptions-item label="适合角色">
+            {{ selectedManual.id <= 3 ? '全员 / developer' : selectedManual.id <= 8 ? 'ops / 运营' : 'developer / qa' }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <div class="manual-tip">
+          <el-alert
+            title="知识手册存储在项目 docs/ 目录下，后续将支持在线浏览全文。"
+            type="info"
+            show-icon
+            :closable="false"
+          />
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -167,9 +198,13 @@ function handleFilter() {
   // 触发 computed 重新计算
 }
 
+// ─── 手册详情弹窗 ───
+const manualDialogVisible = ref(false)
+const selectedManual = ref<typeof manuals.value[0] | null>(null)
+
 function openManual(manual: typeof manuals.value[0]) {
-  // TODO: 打开手册详情页/弹窗
-  console.log('Open manual:', manual.title)
+  selectedManual.value = manual
+  manualDialogVisible.value = true
 }
 
 function openUrl(url: string) {
@@ -271,5 +306,15 @@ function openUrl(url: string) {
 
 :deep(.el-collapse-item__header) {
   font-weight: 500;
+}
+
+.manual-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.manual-tip {
+  margin-top: 8px;
 }
 </style>

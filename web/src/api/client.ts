@@ -46,7 +46,9 @@ export class ApiError extends Error {
   }
 }
 
-const baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+// 开发环境：baseURL 为空，请求走 Vite proxy(/api → localhost:8000)
+// 生产环境：通过 VITE_API_BASE 环境变量指定
+const baseURL = import.meta.env.VITE_API_BASE || ''
 
 function toMessage(value: unknown): string | undefined {
   if (typeof value === 'string' && value.trim()) return value
