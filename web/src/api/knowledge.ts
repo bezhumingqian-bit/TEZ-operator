@@ -67,3 +67,16 @@ export async function listFaqs(category?: string): Promise<FAQInfo[]> {
   })
   return data
 }
+
+export interface ArticleContentResponse {
+  id: number
+  title: string
+  content: string
+  source_file: string | null
+}
+
+/** 获取文章正文内容 */
+export async function getArticleContent(articleId: number): Promise<ArticleContentResponse> {
+  const { data } = await apiClient.get<ArticleContentResponse>(`/api/v1/knowledge/articles/${articleId}/content`)
+  return data
+}

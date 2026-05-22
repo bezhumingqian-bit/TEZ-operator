@@ -91,29 +91,19 @@
     <el-dialog
       v-model="manualDialogVisible"
       :title="selectedManual?.title || ''"
-      width="600px"
+      width="80%"
+      top="5vh"
       destroy-on-close
     >
       <div v-if="selectedManual" class="manual-detail">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="分类">
-            <el-tag size="small" :type="selectedManual.tagType">{{ selectedManual.tag }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="说明">{{ selectedManual.description }}</el-descriptions-item>
-          <el-descriptions-item label="文件路径">
-            <code>docs/0{{ selectedManual.id }}-*.md</code>
-          </el-descriptions-item>
-          <el-descriptions-item label="适合角色">
-            {{ selectedManual.id <= 3 ? '全员 / developer' : selectedManual.id <= 8 ? 'ops / 运营' : 'developer / qa' }}
-          </el-descriptions-item>
-        </el-descriptions>
-        <div class="manual-tip">
-          <el-alert
-            title="知识手册存储在项目 docs/ 目录下，后续将支持在线浏览全文。"
-            type="info"
-            show-icon
-            :closable="false"
-          />
+        <div class="manual-meta">
+          <el-tag size="small" :type="selectedManual.tagType">{{ selectedManual.tag }}</el-tag>
+          <span class="meta-desc">{{ selectedManual.description }}</span>
+        </div>
+        <el-divider />
+        <div v-loading="manualLoading" class="manual-content">
+          <pre v-if="manualContent" class="markdown-body">{{ manualContent }}</pre>
+          <el-empty v-else-if="!manualLoading" description="暂无内容" />
         </div>
       </div>
     </el-dialog>
@@ -123,6 +113,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, Reading, Star, Document, DataAnalysis, Setting, Connection, Coin, Grid } from '@element-plus/icons-vue'
+import { getArticleContent } from '@/api/knowledge'
 
 const searchQuery = ref('')
 const activeTab = ref('manuals')
@@ -201,10 +192,22 @@ function handleFilter() {
 // ─── 手册详情弹窗 ───
 const manualDialogVisible = ref(false)
 const selectedManual = ref<typeof manuals.value[0] | null>(null)
+const manualContent = ref('')
+const manualLoading = ref(false)
 
-function openManual(manual: typeof manuals.value[0]) {
+async function openManual(manual: typeof manuals.value[0]) {
   selectedManual.value = manual
   manualDialogVisible.value = true
+  manualContent.value = ''
+  manualLoading.value = true
+  try {
+    const resp = await getArticleContent(manual.id)
+    manualContent.value = resp.content
+  } catch {
+    manualContent.value = '*加载失败，请稍后重试*'
+  } finally {
+    manualLoading.value = false
+  }
 }
 
 function openUrl(url: string) {
@@ -311,7 +314,34 @@ function openUrl(url: string) {
 .manual-detail {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+}
+
+.manual-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meta-desc {
+  color: #909399;
+  font-size: 13px;
+}
+
+.manual-content {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.markdown-body {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #333;
+  padding: 0;
+  margin: 0;
 }
 
 .manual-tip {
