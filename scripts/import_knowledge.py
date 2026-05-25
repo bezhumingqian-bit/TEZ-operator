@@ -34,23 +34,37 @@ ARTICLES = [
     {"title": "系统总体设计", "category": "manual", "summary": "北极星目标、5大模块、技术架构、4个里程碑", "tags": "设计,架构,路线图", "importance": 5, "source_file": "docs/10-系统总体设计.md"},
 ]
 
-# ─── 平台链接（脱敏 URL）───
+# ─── 平台链接（URL 从 .env 读取）───
+import os
+from pathlib import Path as _P
+
+# 手动加载 .env
+_env_file = _P(__file__).resolve().parent.parent / ".env"
+if _env_file.exists():
+    for line in _env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
+
+def _env_url(key: str, fallback: str = "#") -> str:
+    return os.environ.get(key, fallback)
 
 LINKS = [
-    {"name": "ECM 运营管理系统", "purpose": "资源看板、机房数据、资源预留、配额策略、账单导出", "url": "#ecm", "importance": 3},
-    {"name": "CMDB 服务器查询", "purpose": "按固资号/模块查服务器", "url": "#cmdb", "importance": 3},
-    {"name": "TCUM CMDB", "purpose": "按固资号查服务器（机房/模块/IP/状态）", "url": "#tcum", "importance": 3},
-    {"name": "数全通-机位列表", "purpose": "机架机位查询（开区交付/搬迁必用）", "url": "#idcrm", "importance": 3},
-    {"name": "云霄平台", "purpose": "云霄入口（VS调度、机型配置、库存）", "url": "#yunxiao", "importance": 3},
-    {"name": "野鹤系统", "purpose": "白名单管理（可用区+APPID开白）", "url": "#yehe", "importance": 3},
-    {"name": "磐石", "purpose": "产品管理（上下架/定价）、客户查询", "url": "#panshi", "importance": 2},
-    {"name": "QCC", "purpose": "机型配置、上线", "url": "#qcc", "importance": 2},
-    {"name": "QFlow", "purpose": "开区流程", "url": "#qflow", "importance": 2},
-    {"name": "地域系统", "purpose": "可用区上线管理", "url": "#region", "importance": 2},
-    {"name": "OBS", "purpose": "成本明细", "url": "#obs", "importance": 1},
-    {"name": "secmyadmin", "purpose": "CMDB母机查询导出", "url": "#secmyadmin", "importance": 2},
-    {"name": "安灯工具", "purpose": "库存可视化", "url": "#andon", "importance": 1},
-    {"name": "njecm", "purpose": "母机剩余资源、可用装箱", "url": "#njecm", "importance": 2},
+    {"name": "ECM 运营管理系统", "purpose": "资源看板、机房数据、资源预留、配额策略、账单导出", "url": _env_url("TEZ_ECM_URL"), "importance": 3, "category": "ops"},
+    {"name": "CMDB 服务器查询", "purpose": "按固资号/模块查服务器", "url": _env_url("TEZ_CMDB_BASE_URL") + "/server/query", "importance": 3, "category": "query"},
+    {"name": "TCUM CMDB", "purpose": "按固资号查服务器（机房/模块/IP/状态）", "url": _env_url("TEZ_TCUM_BASE_URL") + "/cmdb/product/search", "importance": 3, "category": "query"},
+    {"name": "数全通-机位列表", "purpose": "机架机位查询（开区交付/搬迁必用）", "url": _env_url("TEZ_IDCRM_BASE_URL") + "/db/positions", "importance": 3, "category": "query"},
+    {"name": "云霄平台", "purpose": "云霄入口（VS调度、机型配置、库存）", "url": _env_url("TEZ_YUNXIAO_URL"), "importance": 3, "category": "query"},
+    {"name": "野鹤系统", "purpose": "白名单管理（可用区+APPID开白）", "url": _env_url("TEZ_YEHE_URL"), "importance": 3, "category": "flow"},
+    {"name": "磐石", "purpose": "产品管理（上下架/定价）、客户查询", "url": _env_url("TEZ_PANSHI_URL"), "importance": 2, "category": "ops"},
+    {"name": "QCC", "purpose": "机型配置、上线", "url": _env_url("TEZ_QCC_URL"), "importance": 2, "category": "flow"},
+    {"name": "QFlow", "purpose": "开区流程", "url": _env_url("TEZ_QFLOW_URL"), "importance": 2, "category": "flow"},
+    {"name": "地域系统", "purpose": "可用区上线管理", "url": _env_url("TEZ_REGION_URL"), "importance": 2, "category": "flow"},
+    {"name": "OBS", "purpose": "成本明细", "url": _env_url("TEZ_OBS_URL"), "importance": 1, "category": "ops"},
+    {"name": "secmyadmin", "purpose": "CMDB母机查询导出", "url": _env_url("TEZ_SECMYADMIN_URL"), "importance": 2, "category": "query"},
+    {"name": "安灯工具", "purpose": "库存可视化", "url": _env_url("TEZ_ANDON_URL"), "importance": 1, "category": "ops"},
+    {"name": "njecm", "purpose": "母机剩余资源、可用装箱", "url": _env_url("TEZ_NJECM_URL"), "importance": 2, "category": "query"},
 ]
 
 # ─── FAQ ───

@@ -151,11 +151,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search, User, Document, Link, TopRight, Star, QuestionFilled } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import { routeContacts, type RouteResult } from '@/api/contacts'
-import { searchKnowledge, getArticleContent, type ArticleInfo, type LinkInfo, type FAQInfo } from '@/api/knowledge'
+import { searchKnowledge, getArticleContent, listLinks, type ArticleInfo, type LinkInfo, type FAQInfo } from '@/api/knowledge'
 
 const md = new MarkdownIt({ html: true, breaks: true, linkify: true })
 
@@ -233,36 +233,35 @@ function enterScene(scene: typeof scenes[0]) {
   handleSearch()
 }
 
-// ─── 平台导航 ───
-const platformGroups = [
-  {
-    label: '资源查询',
-    links: [
-      { name: 'CMDB', url: '#cmdb', importance: 3 },
-      { name: 'TCUM', url: '#tcum', importance: 3 },
-      { name: '数全通', url: '#idcrm', importance: 3 },
-      { name: '云霄平台', url: '#yunxiao', importance: 3 },
-    ],
-  },
-  {
-    label: '运营管理',
-    links: [
-      { name: 'ECM管理系统', url: '#ecm', importance: 3 },
-      { name: '磐石', url: '#panshi', importance: 2 },
-      { name: 'OBS成本', url: '#obs', importance: 1 },
-      { name: '安灯', url: '#andon', importance: 1 },
-    ],
-  },
-  {
-    label: '流程工具',
-    links: [
-      { name: '野鹤(白名单)', url: '#yehe', importance: 3 },
-      { name: 'QFlow(开区)', url: '#qflow', importance: 2 },
-      { name: 'QCC(机型)', url: '#qcc', importance: 2 },
-      { name: '地域系统', url: '#region', importance: 2 },
-    ],
-  },
-]
+// ─── 平台导航（从 API 加载）───
+const platformGroups = ref([
+  { label: '资源查询', links: [] as {name: string; url: string; importance: number}[] },
+  { label: '运营管理', links: [] as {name: string; url: string; importance: number}[] },
+  { label: '流程工具', links: [] as {name: string; url: string; importance: number}[] },
+])
+
+onMounted(async () => {
+  try {
+    const links = await listLinks()
+    // 按关键词分组
+    const queryKeywords = ['CMDB', 'TCUM', '数全通', '云霄', 'secmyadmin', 'njecm']
+    const opsKeywords = ['ECM', '磐石', 'OBS', '安灯']
+    const flowKeywords = ['野鹤', 'QFlow', 'QCC', '地域']
+
+    for (const link of links) {
+      const item = { name: link.name, url: link.url, importance: link.importance }
+      if (queryKeywords.some(k => link.name.includes(k))) {
+        platformGroups.value[0].links.push(item)
+      } else if (opsKeywords.some(k => link.name.includes(k))) {
+        platformGroups.value[1].links.push(item)
+      } else {
+        platformGroups.value[2].links.push(item)
+      }
+    }
+  } catch {
+    // 静态 fallback
+  }
+})
 
 // ─── 文章详情 ───
 async function openArticle(art: ArticleInfo) {
@@ -281,8 +280,11 @@ async function openArticle(art: ArticleInfo) {
 }
 
 function openUrl(url: string) {
-  if (url.startsWith('#')) {
-    // 占位链接，提示用户
+  if (!url || url === '#' || url.startsWith('#')) {
+    // 占位链接：提示用户需要配置
+    import('element-plus').then(({ ElMessage }) => {
+      ElMessage.info('该链接需在 .env 中配置真实内网地址后方可跳转')
+    })
     return
   }
   window.open(url, '_blank')
