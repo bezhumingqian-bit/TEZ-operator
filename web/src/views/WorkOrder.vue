@@ -95,7 +95,9 @@
             <el-input v-model="createForm.vs_type" placeholder="如 CG3-10G_LOCALDISK / Y0-MI32-25G_LOCALDISK" />
           </el-form-item>
           <el-form-item label="目标可用区">
-            <el-input v-model="createForm.zone" placeholder="如：重庆边缘一区" />
+            <el-select v-model="createForm.zone" placeholder="选择可用区" filterable style="width: 100%">
+              <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
+            </el-select>
           </el-form-item>
           <el-form-item label="关联需求">
             <el-input v-model="createForm.related_demand" placeholder="如：客户补充资源需求" />
@@ -111,13 +113,17 @@
             <el-input v-model="createForm.related_demand" placeholder="如：优云、BIGO-补充资源" />
           </el-form-item>
           <el-form-item label="搬迁前可用区">
-            <el-input v-model="createForm.source_zone" placeholder="如：石家庄边缘二区" />
+            <el-select v-model="createForm.source_zone" placeholder="选择来源可用区" filterable style="width: 100%">
+              <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
+            </el-select>
           </el-form-item>
           <el-form-item label="搬迁前机房">
             <el-input v-model="createForm.source_idc" placeholder="如：石家庄电信纺织基地OC3-160G-MY" />
           </el-form-item>
           <el-form-item label="目的可用区">
-            <el-input v-model="createForm.zone" placeholder="如：池州边缘一区（电信）" />
+            <el-select v-model="createForm.zone" placeholder="选择目的可用区" filterable style="width: 100%">
+              <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
+            </el-select>
           </el-form-item>
           <el-form-item label="目的机房">
             <el-input v-model="createForm.target_idc" placeholder="如：池州电信长江路EIC1-60G-V" />
@@ -296,6 +302,21 @@ const createForm = ref({
 const showDetailDialog = ref(false)
 const selectedOrder = ref<OrderInfo | null>(null)
 
+// 可用区下拉选项（从后端 API 加载）
+const zoneOptions = ref<string[]>([])
+
+async function loadZones() {
+  try {
+    const resp = await fetch('/api/v1/zones')
+    if (resp.ok) {
+      const data = await resp.json()
+      zoneOptions.value = Array.isArray(data) ? data : data.zones || []
+    }
+  } catch {
+    // fallback 为空
+  }
+}
+
 const nextStatuses = computed(() => {
   if (!selectedOrder.value) return []
   return validTransitions[selectedOrder.value.status] || []
@@ -318,8 +339,44 @@ async function loadOrders() {
 }
 
 async function handleCreate() {
-  if (!createForm.value.order_type || !createForm.value.title) {
+  const f = createForm.value
+  if (!f.order_type || !f.title) {
     ElMessage.warning('请填写工单类型和标题')
+    return
+  }
+
+  // 固资号校验
+  if (f.asset_ids) {
+    const lines = f.asset_ids.split('\n').map(l => l.trim()).filter(l => l)
+    const invalidAssets = lines.filter(l => !/^TYSV[0-9A-Z]{6,}$/i.test(l))
+    if (invalidAssets.length > 0) {
+      ElMessage.error(`固资号格式错误（需 TYSV 开头）: ${invalidAssets.slice(0, 3).join(', ')}`)
+      return
+    }
+    // 数量校验
+    if (f.device_count && f.device_count !== lines.length) {
+      ElMessage.warning(`设备数量(${f.device_count})与固资号行数(${lines.length})不一致，已自动修正`)
+      f.device_count = lines.length
+    }
+  } else if (['host_deploy', 'ecm_export', 'migration'].includes(f.order_type)) {
+    ElMessage.warning('请填写固资号')
+    return
+  }
+
+  // 可用区校验（搬迁/投放必填）
+  if (['host_deploy', 'ecm_export'].includes(f.order_type) && !f.zone) {
+    ElMessage.warning('请选择目标可用区')
+    return
+  }
+  if (f.order_type === 'migration') {
+    if (!f.source_zone) { ElMessage.warning('请填写搬迁前可用区'); return }
+    if (!f.zone) { ElMessage.warning('请填写目的可用区'); return }
+    if (f.source_zone === f.zone) { ElMessage.error('来源和目的可用区不能相同'); return }
+  }
+
+  // 维修必填故障描述
+  if (f.order_type === 'repair' && !f.fault_desc) {
+    ElMessage.warning('请填写故障描述')
     return
   }
   creating.value = true
@@ -383,7 +440,7 @@ function formatTime(t: string) {
 }
 
 // ─── 生命周期 ───
-onMounted(() => { loadStats(); loadOrders() })
+onMounted(() => { loadStats(); loadOrders(); loadZones() })
 watch([filterStatus, filterType], () => loadOrders())
 </script>
 
