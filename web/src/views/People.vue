@@ -34,12 +34,12 @@
             <div class="card-body">
               <div v-for="c in result.primary" :key="c.id" class="contact-row primary">
                 <el-tag type="danger" size="small">主</el-tag>
-                <span class="name">{{ c.name }}</span>
+                <a class="name clickable" @click="openWecom(c.name)" :title="'点击打开企微聊天：' + c.name">{{ c.name }}</a>
                 <span class="role">{{ c.team }} · {{ c.role }}</span>
               </div>
               <div v-for="c in result.backup" :key="c.id" class="contact-row backup">
                 <el-tag type="warning" size="small">备</el-tag>
-                <span class="name">{{ c.name }}</span>
+                <a class="name clickable" @click="openWecom(c.name)" :title="'点击打开企微聊天：' + c.name">{{ c.name }}</a>
                 <span class="role">{{ c.team }}</span>
               </div>
             </div>
@@ -281,13 +281,17 @@ async function openArticle(art: ArticleInfo) {
 
 function openUrl(url: string) {
   if (!url || url === '#' || url.startsWith('#')) {
-    // 占位链接：提示用户需要配置
     import('element-plus').then(({ ElMessage }) => {
       ElMessage.info('该链接需在 .env 中配置真实内网地址后方可跳转')
     })
     return
   }
   window.open(url, '_blank')
+}
+
+function openWecom(username: string) {
+  // 企业微信 URL Scheme：直接打开与该用户的聊天窗口
+  window.location.href = `wxwork://message?username=${username}`
 }
 </script>
 
@@ -376,6 +380,16 @@ function openUrl(url: string) {
 .contact-row .name {
   font-weight: 600;
   font-size: 14px;
+}
+
+.contact-row .name.clickable {
+  color: var(--el-color-primary);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.contact-row .name.clickable:hover {
+  text-decoration: underline;
 }
 
 .contact-row .role {
