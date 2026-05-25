@@ -104,7 +104,7 @@
             <el-input v-model="createForm.vs_type" placeholder="如 CG3-10G_LOCALDISK / Y0-MI32-25G_LOCALDISK" />
           </el-form-item>
           <el-form-item label="目标可用区">
-            <el-select v-model="createForm.zone" placeholder="选择可用区" filterable style="width: 100%">
+            <el-select v-model="createForm.zone" placeholder="选择可用区" filterable style="width: 100%" @change="(v: string) => onZoneChange(v, 'zone')">
               <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
             </el-select>
           </el-form-item>
@@ -122,20 +122,20 @@
             <el-input v-model="createForm.related_demand" placeholder="如：优云、BIGO-补充资源" />
           </el-form-item>
           <el-form-item label="搬迁前可用区">
-            <el-select v-model="createForm.source_zone" placeholder="选择来源可用区" filterable style="width: 100%">
+            <el-select v-model="createForm.source_zone" placeholder="选择来源可用区" filterable style="width: 100%" @change="(v: string) => onZoneChange(v, 'source_zone')">
               <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
             </el-select>
           </el-form-item>
           <el-form-item label="搬迁前机房">
-            <el-input v-model="createForm.source_idc" placeholder="如：石家庄电信纺织基地OC3-160G-MY" />
+            <el-input v-model="createForm.source_idc" placeholder="选择可用区后自动填入" disabled />
           </el-form-item>
           <el-form-item label="目的可用区">
-            <el-select v-model="createForm.zone" placeholder="选择目的可用区" filterable style="width: 100%">
+            <el-select v-model="createForm.zone" placeholder="选择目的可用区" filterable style="width: 100%" @change="(v: string) => onZoneChange(v, 'zone')">
               <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
             </el-select>
           </el-form-item>
           <el-form-item label="目的机房">
-            <el-input v-model="createForm.target_idc" placeholder="如：池州电信长江路EIC1-60G-V" />
+            <el-input v-model="createForm.target_idc" placeholder="选择可用区后自动填入" disabled />
           </el-form-item>
           <el-form-item label="搬迁数量">
             <el-input-number v-model="createForm.device_count" :min="1" :max="100" />
@@ -313,16 +313,30 @@ const selectedOrder = ref<OrderInfo | null>(null)
 
 // 可用区下拉选项（从后端 API 加载）
 const zoneOptions = ref<string[]>([])
+const zoneIdcMapping = ref<Record<string, string>>({})
 
 async function loadZones() {
   try {
     const resp = await fetch('/api/v1/zones')
     if (resp.ok) {
       const data = await resp.json()
-      zoneOptions.value = Array.isArray(data) ? data : data.zones || []
+      zoneOptions.value = data.zones || []
+      zoneIdcMapping.value = data.mapping || {}
     }
-  } catch {
-    // fallback 为空
+  } catch {}
+}
+
+// zone 选择联动机房
+function onZoneChange(zone: string, field: 'zone' | 'source_zone') {
+  if (field === 'zone') {
+    createForm.value.zone = zone
+    // 自动填机房（搬迁目的 or 投放目标）
+    const idc = zoneIdcMapping.value[zone]
+    if (idc) createForm.value.target_idc = idc
+  } else {
+    createForm.value.source_zone = zone
+    const idc = zoneIdcMapping.value[zone]
+    if (idc) createForm.value.source_idc = idc
   }
 }
 

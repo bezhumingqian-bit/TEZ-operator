@@ -10,6 +10,8 @@ GET  /api/v1/zones/{zone}/hosts
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.deps import get_host_service
@@ -200,10 +202,12 @@ zone_router = APIRouter(prefix="/zones", tags=["zones"])
 )
 async def list_zones(
     service: HostService = Depends(get_host_service),
-) -> dict[str, list[str]]:
-    """返回 zone 列表。W3 mock 模式硬编码占位（zone_a~zone_e）。"""
-    zones = await service.list_zones()
-    return {"zones": zones}
+) -> dict[str, Any]:
+    """返回 zone 列表 + zone→机房映射。"""
+    from app.data.zone_mapping import ZONE_IDC_MAPPING
+
+    zones = sorted(ZONE_IDC_MAPPING.keys())
+    return {"zones": zones, "mapping": ZONE_IDC_MAPPING}
 
 
 @zone_router.get(
