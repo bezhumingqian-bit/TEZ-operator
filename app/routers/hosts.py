@@ -239,36 +239,15 @@ async def get_free_positions(
             "message": f"IDCRM 当前为 mock 模式，请切 browser 模式后查询真实数据（{idc}）",
         }
 
-    # 真实查询：通过 IDCRM 浏览器查空闲虚拟化机位
+    # 真实查询：通过 IDCRM Skill 查空闲虚拟化机位
     try:
-        from app.clients.idcrm_browser import IDCRMBrowserImpl
-        import asyncio
+        from app.skills.idcrm_position_skill import IDCRMPositionSkill
 
-        impl = IDCRMBrowserImpl()
-        # 构造查询 URL：按机房管理单元筛选
-        base = settings.idcrm_base_url.rstrip("/")
-        from urllib.parse import urlencode
-        url = f"{base}/db/positions?{urlencode({'idc': idc})}"
-
-        rows = await impl._fetch_rows(url, target_keyword="虚拟化")
-
-        # 从结果中筛选空闲机位
-        free_count = 0
-        total_count = len(rows)
-        for row in rows:
-            # 根据真实页面列序：COL_STATUS=7
-            status_cell = row[7] if len(row) > 7 else ""
-            if "空闲" in status_cell or "free" in status_cell.lower():
-                free_count += 1
-
-        return {
-            "zone": zone,
-            "idc": idc,
-            "free_count": free_count,
-            "total_positions": total_count,
-            "status": "ok",
-            "message": f"空闲虚拟化机位: {free_count} / 总机位: {total_count}",
-        }
+        skill = IDCRMPositionSkill()
+        result = await skill.query_free_positions(idc)
+        result["zone"] = zone
+        result["idc"] = idc
+        return result
     except Exception as exc:
         return {
             "zone": zone,
@@ -311,31 +290,20 @@ async def get_offline_devices(
         }
 
     try:
-        # Step 1: 从数全通查该机房的虚拟化机位，提取固资号
-        from app.clients.idcrm_browser import IDCRMBrowserImpl
-        from urllib.parse import urlencode
+        # Step 1: 用 IDCRM Skill 查空闲虚拟化机位 + 获取机位上的固资号
+        from app.skills.idcrm_position_skill import IDCRMPositionSkill
 
-        idcrm_impl = IDCRMBrowserImpl()
-        base = settings.idcrm_base_url.rstrip("/")
-        url = f"{base}/db/positions?{urlencode({'idc': idc})}"
-        rows = await idcrm_impl._fetch_rows(url, target_keyword="虚拟化")
+        skill = IDCRMPositionSkill()
+        pos_result = await skill.query_free_positions(idc)
 
-        # 从机位行里提取固资号（通常在某一列，先尝试全行文本匹配 TYSV）
-        import re
-        asset_ids_from_positions: list[str] = []
-        for row in rows:
-            row_text = " ".join(row)
-            found = re.findall(r"TYSV[0-9A-Z]{6,}", row_text, re.IGNORECASE)
-            asset_ids_from_positions.extend(found)
-
-        asset_ids_from_positions = list(set(asset_ids_from_positions))[:50]  # 去重，限50
+        asset_ids_from_positions = pos_result.get("occupied_assets", [])
 
         if not asset_ids_from_positions:
             return {
                 "zone": zone,
                 "idc": idc,
                 "devices": [],
-                "message": f"在数全通机位中未发现固资号（{idc}），可能页面结构有变",
+                "message": f"空闲机位上未发现设备（{idc} 有 {pos_result.get('free_count', 0)} 个空闲机位）",
             }
 
         # Step 2: 拿固资号去 TCUM 查模块状态
