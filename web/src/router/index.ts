@@ -21,7 +21,7 @@ const routes: RouteRecordRaw[] = [
     path: '/workorder',
     name: 'workorder',
     component: () => import('@/views/WorkOrder.vue'),
-    meta: { title: '工单流转', icon: 'Tickets', module: 2, milestone: 'M3' },
+    meta: { title: '工单流转', icon: 'Tickets', module: 2 },
   },
   {
     path: '/assistant',

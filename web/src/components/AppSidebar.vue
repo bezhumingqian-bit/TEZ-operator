@@ -57,7 +57,7 @@ const menus: MenuItem[] = [
   { path: '/hosts', title: '资源查询', icon: 'Search' },
   { path: '/assistant', title: '运维助手', icon: 'MagicStick' },
   { path: '/dashboard', title: '运维驾驶舱', icon: 'DataAnalysis', milestone: 'M4' },
-  { path: '/workorder', title: '工单流转', icon: 'Tickets', milestone: 'M3' },
+  { path: '/workorder', title: '工单流转', icon: 'Tickets' },
 ]
 
 const activeIndex = computed(() => route.path)
