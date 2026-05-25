@@ -55,8 +55,8 @@
     </el-table>
 
     <!-- 新建工单弹窗 -->
-    <el-dialog v-model="showCreateDialog" title="新建工单" width="600px" destroy-on-close>
-      <el-form :model="createForm" label-width="100px">
+    <el-dialog v-model="showCreateDialog" title="新建工单" width="650px" destroy-on-close>
+      <el-form :model="createForm" label-width="120px">
         <el-form-item label="工单类型" required>
           <el-select v-model="createForm.order_type" placeholder="选择类型" style="width: 100%">
             <el-option label="ECM导出转TEZ" value="ecm_export" />
@@ -68,21 +68,105 @@
         <el-form-item label="标题" required>
           <el-input v-model="createForm.title" placeholder="简述工单内容" />
         </el-form-item>
-        <el-form-item label="固资号/IP">
-          <el-input v-model="createForm.asset_ids" placeholder="多个用分号分隔" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="目标Zone">
-          <el-input v-model="createForm.zone" placeholder="如：池州边缘一区（电信）" />
-        </el-form-item>
-        <el-form-item label="优先级">
+        <el-form-item label="是否紧急">
           <el-radio-group v-model="createForm.priority">
             <el-radio :value="1">紧急</el-radio>
-            <el-radio :value="2">普通</el-radio>
+            <el-radio :value="2">普通（慢慢安排）</el-radio>
             <el-radio :value="3">低</el-radio>
           </el-radio-group>
         </el-form-item>
+
+        <!-- 投放类型字段 -->
+        <template v-if="createForm.order_type === 'host_deploy' || createForm.order_type === 'ecm_export'">
+          <el-form-item label="需求类型">
+            <el-select v-model="createForm.demand_type" placeholder="选择" style="width: 100%">
+              <el-option label="TEZ-投放计算母机" value="TEZ-投放计算母机" />
+              <el-option label="ECM导出转到搬迁模块" value="ECM导出转到搬迁模块" />
+              <el-option label="TEZ-投放裸金属" value="TEZ-投放裸金属" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="固资号" required>
+            <el-input v-model="createForm.asset_ids" type="textarea" :rows="4" placeholder="每行一个固资号" />
+          </el-form-item>
+          <el-form-item label="设备数量">
+            <el-input-number v-model="createForm.device_count" :min="1" :max="100" />
+          </el-form-item>
+          <el-form-item label="设备类型/VS_Type">
+            <el-input v-model="createForm.vs_type" placeholder="如 CG3-10G_LOCALDISK / Y0-MI32-25G_LOCALDISK" />
+          </el-form-item>
+          <el-form-item label="目标可用区">
+            <el-input v-model="createForm.zone" placeholder="如：重庆边缘一区" />
+          </el-form-item>
+          <el-form-item label="关联需求">
+            <el-input v-model="createForm.related_demand" placeholder="如：客户补充资源需求" />
+          </el-form-item>
+          <el-form-item label="预期交付时间">
+            <el-date-picker v-model="createForm.expected_date" type="date" placeholder="选择日期" style="width: 100%" />
+          </el-form-item>
+        </template>
+
+        <!-- 搬迁类型字段 -->
+        <template v-if="createForm.order_type === 'migration'">
+          <el-form-item label="相关需求">
+            <el-input v-model="createForm.related_demand" placeholder="如：优云、BIGO-补充资源" />
+          </el-form-item>
+          <el-form-item label="搬迁前可用区">
+            <el-input v-model="createForm.source_zone" placeholder="如：石家庄边缘二区" />
+          </el-form-item>
+          <el-form-item label="搬迁前机房">
+            <el-input v-model="createForm.source_idc" placeholder="如：石家庄电信纺织基地OC3-160G-MY" />
+          </el-form-item>
+          <el-form-item label="目的可用区">
+            <el-input v-model="createForm.zone" placeholder="如：池州边缘一区（电信）" />
+          </el-form-item>
+          <el-form-item label="目的机房">
+            <el-input v-model="createForm.target_idc" placeholder="如：池州电信长江路EIC1-60G-V" />
+          </el-form-item>
+          <el-form-item label="搬迁数量">
+            <el-input-number v-model="createForm.device_count" :min="1" :max="100" />
+          </el-form-item>
+          <el-form-item label="设备型号">
+            <el-input v-model="createForm.vs_type" placeholder="如：Y0-MI32-25G / CG3-10G / BMD2i" />
+          </el-form-item>
+          <el-form-item label="固资号明细" required>
+            <el-input v-model="createForm.asset_ids" type="textarea" :rows="4" placeholder="每行一个固资号" />
+          </el-form-item>
+          <el-form-item label="交付类型">
+            <el-radio-group v-model="createForm.delivery_type">
+              <el-radio value="TEZ">TEZ</el-radio>
+              <el-radio value="ECM">ECM</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="重装需求">
+            <el-select v-model="createForm.reinstall" placeholder="选择" style="width: 100%">
+              <el-option label="需要安装 tlinux2.2-kvm3.0（TEZ）" value="tlinux2.2-kvm3.0_kernel-for_qcloud_test" />
+              <el-option label="需要安装 tlinux release 2.2（ECM）" value="Tencent tlinux release 2.2 (tkernel3)" />
+              <el-option label="不需要重装" value="none" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="交付模块路径">
+            <el-select v-model="createForm.module_path" placeholder="选择" style="width: 100%">
+              <el-option label="[N][腾讯云边缘可用区]-[公有云]-[TEZ]-[线下资源][待上线]" value="[N][腾讯云边缘可用区] - [公有云] - [TEZ] - [线下资源][待上线]" />
+              <el-option label="[腾讯云][边缘计算]-[边缘计算]-[OC]-[母机NODE][compute_未上线]" value="[腾讯云][边缘计算]-[边缘计算]-[OC]-[母机NODE][compute_未上线]" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="预期交付时间">
+            <el-date-picker v-model="createForm.expected_date" type="date" placeholder="选择日期" style="width: 100%" />
+          </el-form-item>
+        </template>
+
+        <!-- 维修类型字段 -->
+        <template v-if="createForm.order_type === 'repair'">
+          <el-form-item label="固资号/IP" required>
+            <el-input v-model="createForm.asset_ids" placeholder="故障机器固资号或IP" />
+          </el-form-item>
+          <el-form-item label="故障描述" required>
+            <el-input v-model="createForm.fault_desc" type="textarea" :rows="3" placeholder="描述故障现象" />
+          </el-form-item>
+        </template>
+
         <el-form-item label="备注">
-          <el-input v-model="createForm.note" type="textarea" :rows="3" />
+          <el-input v-model="createForm.note" type="textarea" :rows="2" placeholder="其他说明（卡点/定制机位等）" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -184,7 +268,30 @@ const filterType = ref('')
 
 const showCreateDialog = ref(false)
 const creating = ref(false)
-const createForm = ref({ order_type: '', title: '', asset_ids: '', zone: '', priority: 2, note: '' })
+const createForm = ref({
+  order_type: '',
+  title: '',
+  priority: 2,
+  // 通用
+  asset_ids: '',
+  zone: '',
+  note: '',
+  // 投放
+  demand_type: '',
+  device_count: 1,
+  vs_type: '',
+  related_demand: '',
+  expected_date: '',
+  // 搬迁
+  source_zone: '',
+  source_idc: '',
+  target_idc: '',
+  delivery_type: 'TEZ',
+  reinstall: '',
+  module_path: '',
+  // 维修
+  fault_desc: '',
+})
 
 const showDetailDialog = ref(false)
 const selectedOrder = ref<OrderInfo | null>(null)
@@ -217,20 +324,33 @@ async function handleCreate() {
   }
   creating.value = true
   try {
+    const f = createForm.value
     await createOrder({
-      order_type: createForm.value.order_type,
-      title: createForm.value.title,
-      creator: 'current_user', // TODO: 接入真实登录用户
+      order_type: f.order_type,
+      title: f.title,
+      creator: 'current_user',
       detail: {
-        asset_ids: createForm.value.asset_ids,
-        zone: createForm.value.zone,
+        asset_ids: f.asset_ids,
+        zone: f.zone,
+        demand_type: f.demand_type,
+        device_count: f.device_count,
+        vs_type: f.vs_type,
+        related_demand: f.related_demand,
+        expected_date: f.expected_date,
+        source_zone: f.source_zone,
+        source_idc: f.source_idc,
+        target_idc: f.target_idc,
+        delivery_type: f.delivery_type,
+        reinstall: f.reinstall,
+        module_path: f.module_path,
+        fault_desc: f.fault_desc,
       },
-      note: createForm.value.note,
-      priority: createForm.value.priority,
+      note: f.note,
+      priority: f.priority,
     })
     ElMessage.success('工单创建成功')
     showCreateDialog.value = false
-    createForm.value = { order_type: '', title: '', asset_ids: '', zone: '', priority: 2, note: '' }
+    createForm.value = { order_type: '', title: '', priority: 2, asset_ids: '', zone: '', note: '', demand_type: '', device_count: 1, vs_type: '', related_demand: '', expected_date: '', source_zone: '', source_idc: '', target_idc: '', delivery_type: 'TEZ', reinstall: '', module_path: '', fault_desc: '' }
     await loadOrders()
     await loadStats()
   } finally { creating.value = false }
