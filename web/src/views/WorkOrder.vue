@@ -137,6 +137,19 @@
           <el-form-item label="目的机房">
             <el-input v-model="createForm.target_idc" placeholder="选择可用区后自动填入" disabled />
           </el-form-item>
+          <!-- 空闲机位提示 -->
+          <el-form-item v-if="freePositionInfo || checkingPositions" label="机位情况">
+            <div v-if="checkingPositions" class="position-check">
+              <el-icon class="is-loading"><Loading /></el-icon> 正在查询空闲机位...
+            </div>
+            <el-alert
+              v-else-if="freePositionInfo"
+              :title="freePositionInfo.message"
+              :type="freePositionInfo.free_count === null ? 'warning' : (freePositionInfo.free_count > 0 ? 'success' : 'error')"
+              show-icon
+              :closable="false"
+            />
+          </el-form-item>
           <el-form-item label="搬迁数量">
             <el-input-number v-model="createForm.device_count" :min="1" :max="100" />
           </el-form-item>
@@ -251,7 +264,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
-import { Plus, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Plus, CircleCheck, CircleClose, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
   createOrder, listOrders, getOrderStats, getOrder, transitionOrder, deleteOrder,
@@ -326,17 +339,36 @@ async function loadZones() {
   } catch {}
 }
 
-// zone 选择联动机房
+// zone 选择联动机房 + 查空闲机位
+const freePositionInfo = ref<{zone: string; idc: string; free_count: number | null; message: string} | null>(null)
+const checkingPositions = ref(false)
+
 function onZoneChange(zone: string, field: 'zone' | 'source_zone') {
   if (field === 'zone') {
     createForm.value.zone = zone
-    // 自动填机房（搬迁目的 or 投放目标）
     const idc = zoneIdcMapping.value[zone]
     if (idc) createForm.value.target_idc = idc
+    // 搬迁单选了目的可用区 → 自动查空闲机位
+    if (createForm.value.order_type === 'migration') {
+      checkFreePositions(zone)
+    }
   } else {
     createForm.value.source_zone = zone
     const idc = zoneIdcMapping.value[zone]
     if (idc) createForm.value.source_idc = idc
+  }
+}
+
+async function checkFreePositions(zone: string) {
+  checkingPositions.value = true
+  freePositionInfo.value = null
+  try {
+    const resp = await fetch(`/api/v1/zones/${encodeURIComponent(zone)}/free_positions`)
+    if (resp.ok) {
+      freePositionInfo.value = await resp.json()
+    }
+  } catch {} finally {
+    checkingPositions.value = false
   }
 }
 

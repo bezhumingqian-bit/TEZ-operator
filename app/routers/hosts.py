@@ -211,6 +211,36 @@ async def list_zones(
 
 
 @zone_router.get(
+    "/{zone}/free_positions",
+    summary="查询目标机房空闲虚拟化机位数",
+)
+async def get_free_positions(
+    zone: str,
+) -> dict[str, Any]:
+    """查目标机房是否有空闲虚拟化机位。
+
+    数据来源：数全通（IDCRM）机位列表
+    筛选条件：机位逻辑区域=虚拟化bonding + 机位状态=空闲
+    """
+    from app.data.zone_mapping import ZONE_IDC_MAPPING
+
+    idc = ZONE_IDC_MAPPING.get(zone)
+    if not idc:
+        return {"zone": zone, "idc": None, "free_count": None, "message": "未知可用区"}
+
+    # TODO: 接入真实 IDCRM 浏览器查询
+    # 当前返回框架占位，后续接真实 Playwright 查数全通
+    return {
+        "zone": zone,
+        "idc": idc,
+        "free_count": None,
+        "status": "pending",
+        "message": f"机位查询待接入数全通（{idc}），请手动到 idcrm 确认",
+        "idcrm_url": f"#idcrm/db/positions?idc={idc}",
+    }
+
+
+@zone_router.get(
     "/instances/stats",
     response_model=ZoneInstanceStatsResponse,
     summary="按区域统计线上实例资源",
