@@ -34,8 +34,8 @@
     </el-menu>
 
     <div class="app-sidebar__footer">
-      <div>5 大模块 · M1 仅资源查询</div>
-      <div class="app-sidebar__hint">其余模块 M2-M4 上线</div>
+      <div>M1 资源查询 · M2 运维助手</div>
+      <div class="app-sidebar__hint">M3 工单流 · M4 驾驶舱</div>
     </div>
   </aside>
 </template>
@@ -55,10 +55,9 @@ const route = useRoute()
 
 const menus: MenuItem[] = [
   { path: '/hosts', title: '资源查询', icon: 'Search' },
+  { path: '/assistant', title: '运维助手', icon: 'MagicStick' },
   { path: '/dashboard', title: '运维驾驶舱', icon: 'DataAnalysis', milestone: 'M4' },
   { path: '/workorder', title: '工单流转', icon: 'Tickets', milestone: 'M3' },
-  { path: '/people', title: '接口人路由器', icon: 'User', milestone: 'M2' },
-  { path: '/knowledge', title: '知识中枢', icon: 'Reading', milestone: 'M2' },
 ]
 
 const activeIndex = computed(() => route.path)

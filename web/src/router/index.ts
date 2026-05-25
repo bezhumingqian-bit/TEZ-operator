@@ -24,16 +24,19 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '工单流转', icon: 'Tickets', module: 2, milestone: 'M3' },
   },
   {
-    path: '/people',
-    name: 'people',
+    path: '/assistant',
+    name: 'assistant',
     component: () => import('@/views/People.vue'),
-    meta: { title: '接口人路由器', icon: 'User', module: 3, milestone: 'M2' },
+    meta: { title: '运维助手', icon: 'MagicStick', module: 3 },
+  },
+  {
+    // 兼容旧路径
+    path: '/people',
+    redirect: '/assistant',
   },
   {
     path: '/knowledge',
-    name: 'knowledge',
-    component: () => import('@/views/Knowledge.vue'),
-    meta: { title: '知识中枢', icon: 'Reading', module: 5, milestone: 'M2' },
+    redirect: '/assistant',
   },
   {
     path: '/:pathMatch(.*)*',

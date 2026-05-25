@@ -1,386 +1,534 @@
 <template>
-  <div class="people-page">
-    <!-- 顶部搜索区 -->
-    <el-card class="search-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <el-icon><User /></el-icon>
-          <span>接口人路由器</span>
-          <el-tag size="small" type="success">M2</el-tag>
-        </div>
-      </template>
+  <div class="assistant-page">
+    <!-- 搜索区 -->
+    <div class="search-section">
+      <h2 class="page-title">
+        <el-icon><Search /></el-icon>
+        运维助手
+      </h2>
+      <p class="page-desc">输入问题，3 秒得到答案：找谁、怎么做、去哪操作</p>
 
-      <div class="search-area">
-        <el-input
-          v-model="query"
-          placeholder="输入场景描述，如「母机故障」「搬迁服务器」「要机器」「IPv6」..."
-          size="large"
-          clearable
-          @keyup.enter="handleRoute"
-          class="search-input"
-        >
-          <template #prepend>这事找谁</template>
-          <template #append>
-            <el-button :icon="Search" @click="handleRoute" :loading="routeLoading" />
-          </template>
-        </el-input>
-
-        <div class="quick-tags">
-          <span class="tag-label">快捷：</span>
-          <el-tag
-            v-for="tag in quickTags"
-            :key="tag"
-            class="quick-tag"
-            effect="plain"
-            @click="quickSearch(tag)"
-          >
-            {{ tag }}
-          </el-tag>
-        </div>
-      </div>
-    </el-card>
-
-    <!-- 路由结果 -->
-    <div v-if="routeResults.length > 0" class="results-section">
-      <el-card
-        v-for="result in routeResults"
-        :key="result.category"
-        class="result-card"
-        shadow="hover"
+      <el-input
+        v-model="query"
+        placeholder="例：母机故障 / 搬迁 / 要机器 / 开区 / IPv6..."
+        size="large"
+        clearable
+        class="search-input"
+        @keyup.enter="handleSearch"
       >
-        <template #header>
-          <div class="result-header">
-            <el-icon><Folder /></el-icon>
-            <span class="category-name">{{ result.category }}</span>
-            <el-tag v-if="result.note" size="small" type="info">{{ result.note }}</el-tag>
-          </div>
+        <template #prefix><el-icon><Search /></el-icon></template>
+        <template #append>
+          <el-button @click="handleSearch" :loading="loading">搜索</el-button>
         </template>
-
-        <div class="contacts-grid">
-          <!-- 主负责人 -->
-          <div v-if="result.primary.length" class="contact-group">
-            <div class="group-label">
-              <el-tag type="danger" size="small">主负责人</el-tag>
-            </div>
-            <div class="contact-list">
-              <div v-for="c in result.primary" :key="c.id" class="contact-item primary">
-                <el-avatar :size="32" class="avatar">{{ c.name[0].toUpperCase() }}</el-avatar>
-                <div class="contact-info">
-                  <span class="contact-name">{{ c.name }}</span>
-                  <span class="contact-meta">{{ c.team }} · {{ c.role }}</span>
-                </div>
-                <el-tag :type="statusTagType(c.status)" size="small">{{ statusLabel(c.status) }}</el-tag>
-              </div>
-            </div>
-          </div>
-
-          <!-- 备份接口人 -->
-          <div v-if="result.backup.length" class="contact-group">
-            <div class="group-label">
-              <el-tag type="warning" size="small">备份</el-tag>
-            </div>
-            <div class="contact-list">
-              <div v-for="c in result.backup" :key="c.id" class="contact-item backup">
-                <el-avatar :size="28" class="avatar">{{ c.name[0].toUpperCase() }}</el-avatar>
-                <div class="contact-info">
-                  <span class="contact-name">{{ c.name }}</span>
-                  <span class="contact-meta">{{ c.team }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 升级路径 -->
-          <div v-if="result.escalation.length" class="contact-group">
-            <div class="group-label">
-              <el-tag type="info" size="small">升级路径</el-tag>
-            </div>
-            <div class="contact-list">
-              <div v-for="(c, idx) in result.escalation" :key="c.id" class="contact-item escalation">
-                <span class="level-badge">L{{ idx + 1 }}</span>
-                <span class="contact-name">{{ c.name }}</span>
-                <span class="contact-meta">{{ c.role }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </el-card>
+      </el-input>
     </div>
 
-    <!-- 无结果提示 -->
-    <el-empty v-else-if="searched && routeResults.length === 0" description="未匹配到相关接口人，试试换个关键词？" />
-
-    <!-- 分割线 -->
-    <el-divider v-if="routeResults.length > 0 || searched" />
-
-    <!-- 接口人通讯录 -->
-    <el-card class="directory-card" shadow="never">
-      <template #header>
-        <div class="card-header">
-          <el-icon><Notebook /></el-icon>
-          <span>通讯录</span>
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索姓名/团队/职责..."
-            size="small"
-            clearable
-            style="width: 240px; margin-left: auto"
-            @input="handleSearch"
-          >
-            <template #prefix><el-icon><Search /></el-icon></template>
-          </el-input>
+    <!-- 搜索结果区 -->
+    <div v-if="hasResults" class="results-section">
+      <!-- 接口人结果 -->
+      <div v-if="contactResults.length" class="result-block">
+        <h3 class="block-title"><el-icon><User /></el-icon> 找谁</h3>
+        <div class="contact-results">
+          <div v-for="result in contactResults" :key="result.category" class="contact-card">
+            <div class="card-header">{{ result.category }}</div>
+            <div class="card-body">
+              <div v-for="c in result.primary" :key="c.id" class="contact-row primary">
+                <el-tag type="danger" size="small">主</el-tag>
+                <span class="name">{{ c.name }}</span>
+                <span class="role">{{ c.team }} · {{ c.role }}</span>
+              </div>
+              <div v-for="c in result.backup" :key="c.id" class="contact-row backup">
+                <el-tag type="warning" size="small">备</el-tag>
+                <span class="name">{{ c.name }}</span>
+                <span class="role">{{ c.team }}</span>
+              </div>
+            </div>
+          </div>
         </div>
-      </template>
+      </div>
 
-      <el-table :data="displayContacts" stripe style="width: 100%" max-height="500">
-        <el-table-column prop="name" label="英文名" width="140" />
-        <el-table-column prop="team" label="团队" width="120" />
-        <el-table-column prop="role" label="职责" min-width="200" />
-        <el-table-column prop="status" label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small">
-              {{ statusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+      <!-- SOP/文章结果 -->
+      <div v-if="articleResults.length" class="result-block">
+        <h3 class="block-title"><el-icon><Document /></el-icon> 怎么做</h3>
+        <div class="article-results">
+          <el-card
+            v-for="art in articleResults"
+            :key="art.id"
+            shadow="hover"
+            class="article-card"
+            @click="openArticle(art)"
+          >
+            <div class="article-title">{{ art.title }}</div>
+            <div class="article-summary">{{ art.summary }}</div>
+            <el-tag v-if="art.tags" size="small" type="info">{{ art.tags?.split(',')[0] }}</el-tag>
+          </el-card>
+        </div>
+      </div>
+
+      <!-- 平台链接结果 -->
+      <div v-if="linkResults.length" class="result-block">
+        <h3 class="block-title"><el-icon><Link /></el-icon> 去哪操作</h3>
+        <div class="link-results">
+          <el-button
+            v-for="link in linkResults"
+            :key="link.id"
+            @click="openUrl(link.url)"
+            class="link-btn"
+          >
+            {{ link.name }}
+            <el-icon class="el-icon--right"><TopRight /></el-icon>
+          </el-button>
+        </div>
+      </div>
+
+      <!-- FAQ 结果 -->
+      <div v-if="faqResults.length" class="result-block">
+        <h3 class="block-title"><el-icon><QuestionFilled /></el-icon> 常见问答</h3>
+        <el-collapse>
+          <el-collapse-item v-for="faq in faqResults" :key="faq.id" :title="faq.question">
+            <div v-html="faq.answer" class="faq-answer"></div>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
+    </div>
+
+    <!-- 无结果 -->
+    <el-empty v-else-if="searched && !hasResults" description="没找到相关内容，试试换个关键词？" />
+
+    <!-- 快捷场景区（未搜索时展示）-->
+    <div v-if="!searched" class="scenes-section">
+      <h3 class="section-title">高频场景</h3>
+      <div class="scene-grid">
+        <div
+          v-for="scene in scenes"
+          :key="scene.title"
+          class="scene-card"
+          @click="enterScene(scene)"
+        >
+          <div class="scene-icon">{{ scene.icon }}</div>
+          <div class="scene-info">
+            <div class="scene-title">{{ scene.title }}</div>
+            <div class="scene-desc">{{ scene.desc }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 平台导航 -->
+      <h3 class="section-title" style="margin-top: 32px">平台导航</h3>
+      <div class="platform-grid">
+        <div v-for="group in platformGroups" :key="group.label" class="platform-group">
+          <div class="group-label">{{ group.label }}</div>
+          <div class="group-links">
+            <el-button
+              v-for="link in group.links"
+              :key="link.name"
+              size="small"
+              @click="openUrl(link.url)"
+              class="platform-btn"
+            >
+              {{ link.name }}
+              <el-icon v-if="link.importance >= 3" class="star"><Star /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 文章详情弹窗 -->
+    <el-dialog
+      v-model="articleDialogVisible"
+      :title="selectedArticle?.title || ''"
+      width="80%"
+      top="5vh"
+      destroy-on-close
+    >
+      <div v-loading="articleLoading" class="article-content">
+        <div v-if="articleHtml" v-html="articleHtml" class="markdown-body"></div>
+        <el-empty v-else-if="!articleLoading" description="暂无内容" />
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Search, User, Folder, Notebook } from '@element-plus/icons-vue'
-import {
-  routeContacts,
-  searchContacts,
-  listContacts,
-  type ContactInfo,
-  type RouteResult,
-} from '@/api/contacts'
+import { ref, computed } from 'vue'
+import { Search, User, Document, Link, TopRight, Star, QuestionFilled } from '@element-plus/icons-vue'
+import MarkdownIt from 'markdown-it'
+import { routeContacts, type RouteResult } from '@/api/contacts'
+import { searchKnowledge, getArticleContent, type ArticleInfo, type LinkInfo, type FAQInfo } from '@/api/knowledge'
+
+const md = new MarkdownIt({ html: true, breaks: true, linkify: true })
 
 const query = ref('')
-const routeLoading = ref(false)
-const routeResults = ref<RouteResult[]>([])
+const loading = ref(false)
 const searched = ref(false)
 
-const searchKeyword = ref('')
-const allContacts = ref<ContactInfo[]>([])
-const filteredContacts = ref<ContactInfo[]>([])
-const displayContacts = ref<ContactInfo[]>([])
+// 搜索结果
+const contactResults = ref<RouteResult[]>([])
+const articleResults = ref<ArticleInfo[]>([])
+const linkResults = ref<LinkInfo[]>([])
+const faqResults = ref<FAQInfo[]>([])
 
-const quickTags = ['母机故障', '搬迁', '要机器', 'IPv6', '机型改造', '配额', '机位扩容', '开区']
+const hasResults = computed(() =>
+  contactResults.value.length > 0 ||
+  articleResults.value.length > 0 ||
+  linkResults.value.length > 0 ||
+  faqResults.value.length > 0
+)
 
-// ─── 路由查询 ───
-async function handleRoute() {
-  if (!query.value.trim()) return
-  routeLoading.value = true
+// 文章弹窗
+const articleDialogVisible = ref(false)
+const selectedArticle = ref<ArticleInfo | null>(null)
+const articleHtml = ref('')
+const articleLoading = ref(false)
+
+// ─── 搜索 ───
+async function handleSearch() {
+  const q = query.value.trim()
+  if (!q) return
+  loading.value = true
   searched.value = true
+
   try {
-    const resp = await routeContacts(query.value.trim())
-    routeResults.value = resp.results.filter(r => r.primary.length > 0 || r.backup.length > 0)
-  } catch {
-    routeResults.value = []
+    // 并发请求接口人 + 知识
+    const [contactResp, knowledgeResp] = await Promise.allSettled([
+      routeContacts(q),
+      searchKnowledge(q),
+    ])
+
+    if (contactResp.status === 'fulfilled') {
+      contactResults.value = contactResp.value.results.filter(r => r.primary.length > 0 || r.backup.length > 0)
+    } else {
+      contactResults.value = []
+    }
+
+    if (knowledgeResp.status === 'fulfilled') {
+      articleResults.value = knowledgeResp.value.articles
+      linkResults.value = knowledgeResp.value.links
+      faqResults.value = knowledgeResp.value.faqs
+    } else {
+      articleResults.value = []
+      linkResults.value = []
+      faqResults.value = []
+    }
   } finally {
-    routeLoading.value = false
+    loading.value = false
   }
 }
 
-function quickSearch(tag: string) {
-  query.value = tag
-  handleRoute()
+// ─── 快捷场景 ───
+const scenes = [
+  { icon: '🔧', title: '母机故障', desc: '故障排查 → 值班运维 → 上升', keyword: '母机故障' },
+  { icon: '🚚', title: '搬迁服务器', desc: '出入库 → 提单 → 模块转移', keyword: '搬迁' },
+  { icon: '📦', title: '要机器', desc: 'CVM/异构/运管 → 云霄查空闲', keyword: '要机器' },
+  { icon: '🌐', title: '开新区', desc: '需求确认 → 开区流程 → 部署', keyword: '开区' },
+  { icon: '🔀', title: 'IPv6', desc: '母机支持 + VPC适配 + 网平实施', keyword: 'IPv6' },
+  { icon: '💰', title: '成本/报价', desc: '机型成本 + 报价规则', keyword: '成本' },
+  { icon: '⚙️', title: '机型改造', desc: '评估 → 执行 → 上线', keyword: '机型改造' },
+  { icon: '📐', title: '机位扩容', desc: '评估供应商 → 建设 → 交付', keyword: '机位扩容' },
+]
+
+function enterScene(scene: typeof scenes[0]) {
+  query.value = scene.keyword
+  handleSearch()
 }
 
-// ─── 通讯录搜索 ───
-async function handleSearch() {
-  const kw = searchKeyword.value.trim()
-  if (!kw) {
-    displayContacts.value = allContacts.value
+// ─── 平台导航 ───
+const platformGroups = [
+  {
+    label: '资源查询',
+    links: [
+      { name: 'CMDB', url: '#cmdb', importance: 3 },
+      { name: 'TCUM', url: '#tcum', importance: 3 },
+      { name: '数全通', url: '#idcrm', importance: 3 },
+      { name: '云霄平台', url: '#yunxiao', importance: 3 },
+    ],
+  },
+  {
+    label: '运营管理',
+    links: [
+      { name: 'ECM管理系统', url: '#ecm', importance: 3 },
+      { name: '磐石', url: '#panshi', importance: 2 },
+      { name: 'OBS成本', url: '#obs', importance: 1 },
+      { name: '安灯', url: '#andon', importance: 1 },
+    ],
+  },
+  {
+    label: '流程工具',
+    links: [
+      { name: '野鹤(白名单)', url: '#yehe', importance: 3 },
+      { name: 'QFlow(开区)', url: '#qflow', importance: 2 },
+      { name: 'QCC(机型)', url: '#qcc', importance: 2 },
+      { name: '地域系统', url: '#region', importance: 2 },
+    ],
+  },
+]
+
+// ─── 文章详情 ───
+async function openArticle(art: ArticleInfo) {
+  selectedArticle.value = art
+  articleDialogVisible.value = true
+  articleHtml.value = ''
+  articleLoading.value = true
+  try {
+    const resp = await getArticleContent(art.id)
+    articleHtml.value = md.render(resp.content)
+  } catch {
+    articleHtml.value = '<p style="color: #f56c6c">加载失败</p>'
+  } finally {
+    articleLoading.value = false
+  }
+}
+
+function openUrl(url: string) {
+  if (url.startsWith('#')) {
+    // 占位链接，提示用户
     return
   }
-  try {
-    const resp = await searchContacts(kw)
-    displayContacts.value = resp.contacts
-  } catch {
-    displayContacts.value = allContacts.value
-  }
+  window.open(url, '_blank')
 }
-
-// ─── 工具 ───
-function statusTagType(status: string) {
-  if (status === 'active') return 'success'
-  if (status === 'vacation') return 'warning'
-  return 'info'
-}
-
-function statusLabel(status: string) {
-  if (status === 'active') return '在岗'
-  if (status === 'vacation') return '休假'
-  return '离职'
-}
-
-// ─── 初始化 ───
-onMounted(async () => {
-  try {
-    allContacts.value = await listContacts()
-    displayContacts.value = allContacts.value
-  } catch {
-    // silent
-  }
-})
 </script>
 
 <style scoped>
-.people-page {
-  padding: 20px;
-  max-width: 1200px;
+.assistant-page {
+  padding: 24px;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
-.search-card {
+.search-section {
+  text-align: center;
+  padding: 32px 0 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.page-desc {
+  color: #909399;
   margin-bottom: 20px;
 }
 
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
+.search-input {
+  max-width: 700px;
+  margin: 0 auto;
 }
 
-.search-area {
+/* 搜索结果 */
+.results-section {
+  margin-top: 24px;
+}
+
+.result-block {
+  margin-bottom: 24px;
+}
+
+.block-title {
+  font-size: 16px;
+  font-weight: 600;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #303133;
+}
+
+.contact-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 
-.search-input {
-  width: 100%;
+.contact-card {
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.quick-tags {
+.contact-card .card-header {
+  background: #f5f7fa;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #606266;
+}
+
+.contact-card .card-body {
+  padding: 8px 12px;
+}
+
+.contact-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  padding: 4px 0;
 }
 
-.tag-label {
+.contact-row .name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.contact-row .role {
   color: #909399;
+  font-size: 12px;
+}
+
+.article-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.article-card {
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.article-card:hover {
+  transform: translateY(-2px);
+}
+
+.article-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.article-summary {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 6px;
+}
+
+.link-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.link-btn {
   font-size: 13px;
 }
 
-.quick-tag {
+.faq-answer {
+  line-height: 1.8;
+  color: #606266;
+}
+
+/* 快捷场景 */
+.scenes-section {
+  margin-top: 32px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #303133;
+}
+
+.scene-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.scene-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.quick-tag:hover {
-  transform: scale(1.05);
-  color: var(--el-color-primary);
+.scene-card:hover {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.1);
+  transform: translateY(-2px);
 }
 
-.results-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
+.scene-icon {
+  font-size: 28px;
 }
 
-.result-card {
-  border-left: 3px solid var(--el-color-primary);
-}
-
-.result-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.category-name {
+.scene-title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
 }
 
-.contacts-grid {
+.scene-desc {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+
+/* 平台导航 */
+.platform-grid {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.contact-group {
+.platform-group {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.group-label {
-  margin-bottom: 4px;
-}
-
-.contact-list {
-  display: flex;
-  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 12px;
 }
 
-.contact-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: #f5f7fa;
-  min-width: 200px;
-}
-
-.contact-item.primary {
-  background: #fef0f0;
-  border: 1px solid #fde2e2;
-}
-
-.contact-item.backup {
-  background: #fdf6ec;
-  border: 1px solid #faecd8;
-}
-
-.contact-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.contact-name {
+.group-label {
+  min-width: 80px;
   font-weight: 600;
+  font-size: 13px;
+  color: #606266;
+  padding-top: 6px;
+}
+
+.group-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.platform-btn .star {
+  color: #e6a23c;
+  margin-left: 4px;
+}
+
+/* 文章弹窗 */
+.article-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 0 8px;
+}
+
+.markdown-body {
   font-size: 14px;
+  line-height: 1.8;
+  color: #303133;
 }
 
-.contact-meta {
-  font-size: 12px;
-  color: #909399;
-}
-
-.avatar {
-  background: var(--el-color-primary);
-  color: white;
-  font-size: 14px;
-}
-
-.level-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #909399;
-  color: white;
-  font-size: 11px;
-  font-weight: bold;
-}
-
-.directory-card {
-  margin-top: 20px;
-}
+.markdown-body :deep(h1) { font-size: 22px; margin: 24px 0 12px; border-bottom: 1px solid #ebeef5; padding-bottom: 8px; }
+.markdown-body :deep(h2) { font-size: 18px; margin: 20px 0 10px; }
+.markdown-body :deep(h3) { font-size: 15px; margin: 16px 0 8px; }
+.markdown-body :deep(table) { border-collapse: collapse; width: 100%; margin: 12px 0; }
+.markdown-body :deep(th), .markdown-body :deep(td) { border: 1px solid #dcdfe6; padding: 8px 12px; text-align: left; }
+.markdown-body :deep(th) { background: #f5f7fa; font-weight: 600; }
+.markdown-body :deep(code) { background: #f5f7fa; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+.markdown-body :deep(pre) { background: #f5f7fa; padding: 12px 16px; border-radius: 6px; overflow-x: auto; }
+.markdown-body :deep(pre code) { background: none; padding: 0; }
+.markdown-body :deep(blockquote) { border-left: 4px solid #409eff; padding: 8px 16px; margin: 12px 0; background: #ecf5ff; color: #606266; }
+.markdown-body :deep(ul), .markdown-body :deep(ol) { padding-left: 20px; }
+.markdown-body :deep(li) { margin: 4px 0; }
+.markdown-body :deep(hr) { border: none; border-top: 1px solid #ebeef5; margin: 20px 0; }
+.markdown-body :deep(strong) { color: #303133; }
 </style>
