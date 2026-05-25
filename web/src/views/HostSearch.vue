@@ -243,6 +243,74 @@ TYSV00000002
             <el-empty v-else description="选择一个 Zone 查询" />
           </div>
         </el-tab-pane>
+
+        <!-- ─────────── 节点资源概况 ─────────── -->
+        <el-tab-pane label="节点资源概况" name="node_overview">
+          <div class="host-search__bar">
+            <el-select
+              v-model="nodeZoneSelected"
+              filterable
+              size="large"
+              placeholder="选择可用区"
+              style="width: 360px"
+            >
+              <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
+            </el-select>
+            <el-button
+              type="primary"
+              size="large"
+              :loading="nodeLoading"
+              :disabled="!nodeZoneSelected"
+              @click="onNodeOverview"
+            >
+              查询资源概况
+            </el-button>
+          </div>
+
+          <div class="host-search__result">
+            <el-skeleton v-if="nodeLoading" :rows="6" animated />
+            <template v-else-if="nodeOverviewData">
+              <!-- 空闲机位 -->
+              <el-card shadow="never" class="node-section">
+                <template #header><b>空闲虚拟化机位</b></template>
+                <el-alert
+                  :title="nodeOverviewData.positions.message"
+                  :type="nodeOverviewData.positions.free_count === null ? 'warning' : (nodeOverviewData.positions.free_count > 0 ? 'success' : 'error')"
+                  show-icon
+                  :closable="false"
+                />
+                <div v-if="nodeOverviewData.positions.idc" class="node-info">
+                  机房：{{ nodeOverviewData.positions.idc }}
+                </div>
+              </el-card>
+
+              <!-- 未上线设备 -->
+              <el-card shadow="never" class="node-section" style="margin-top: 16px">
+                <template #header>
+                  <b>未上线设备</b>
+                  <el-tag size="small" type="warning" style="margin-left: 8px">
+                    {{ nodeOverviewData.offline_devices.length }} 台
+                  </el-tag>
+                </template>
+                <el-table v-if="nodeOverviewData.offline_devices.length" :data="nodeOverviewData.offline_devices" stripe size="small">
+                  <el-table-column prop="asset_id" label="固资号" width="140" />
+                  <el-table-column prop="ip" label="IP" width="130" />
+                  <el-table-column prop="machine_type" label="机型" width="130" />
+                  <el-table-column prop="module_status" label="模块状态" width="120">
+                    <template #default="{ row }">
+                      <el-tag size="small" :type="row.module_status === '待上线' ? 'warning' : 'info'">
+                        {{ row.module_status }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="reason" label="未上线原因" min-width="200" />
+                </el-table>
+                <el-empty v-else description="该节点没有未上线设备" />
+              </el-card>
+            </template>
+            <el-empty v-else description="选择可用区后查询资源概况" />
+          </div>
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -423,6 +491,37 @@ async function onBatchTableExport(assetIds: string[]) {
     ElMessage.warning(formatExportError(error))
   }
 }
+
+// ─── 节点资源概况 ───
+interface NodeOverviewData {
+  positions: { zone: string; idc: string | null; free_count: number | null; message: string }
+  offline_devices: { asset_id: string; ip: string; machine_type: string; module_status: string; reason: string }[]
+}
+
+const nodeZoneSelected = ref('')
+const nodeLoading = ref(false)
+const nodeOverviewData = ref<NodeOverviewData | null>(null)
+
+async function onNodeOverview() {
+  if (!nodeZoneSelected.value) return
+  nodeLoading.value = true
+  nodeOverviewData.value = null
+  try {
+    // 并发查空闲机位 + 未上线设备
+    const [posResp, devResp] = await Promise.all([
+      fetch(`/api/v1/zones/${encodeURIComponent(nodeZoneSelected.value)}/free_positions`).then(r => r.json()),
+      fetch(`/api/v1/zones/${encodeURIComponent(nodeZoneSelected.value)}/offline_devices`).then(r => r.json()),
+    ])
+    nodeOverviewData.value = {
+      positions: posResp,
+      offline_devices: devResp.devices || [],
+    }
+  } catch {
+    ElMessage.error('查询失败')
+  } finally {
+    nodeLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -551,5 +650,15 @@ async function onBatchTableExport(assetIds: string[]) {
   .host-search__batch {
     grid-template-columns: 1fr;
   }
+}
+
+.node-section {
+  margin-bottom: 0;
+}
+
+.node-info {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #606266;
 }
 </style>

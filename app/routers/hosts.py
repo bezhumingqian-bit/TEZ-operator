@@ -228,15 +228,39 @@ async def get_free_positions(
     if not idc:
         return {"zone": zone, "idc": None, "free_count": None, "message": "未知可用区"}
 
-    # TODO: 接入真实 IDCRM 浏览器查询
-    # 当前返回框架占位，后续接真实 Playwright 查数全通
     return {
         "zone": zone,
         "idc": idc,
         "free_count": None,
         "status": "pending",
-        "message": f"机位查询待接入数全通（{idc}），请手动到 idcrm 确认",
-        "idcrm_url": f"#idcrm/db/positions?idc={idc}",
+        "message": f"机位查询待接入数全通（{idc}），请手动到 IDCRM 确认",
+    }
+
+
+@zone_router.get(
+    "/{zone}/offline_devices",
+    summary="查询节点未上线设备清单",
+)
+async def get_offline_devices(
+    zone: str,
+) -> dict[str, Any]:
+    """查询某节点下未上线的设备。
+
+    数据来源：CMDB 模块路径包含 [待上线]/[上线中]/[搬迁中] 的设备。
+    """
+    from app.data.zone_mapping import ZONE_IDC_MAPPING
+
+    idc = ZONE_IDC_MAPPING.get(zone)
+    if not idc:
+        return {"zone": zone, "devices": [], "message": "未知可用区"}
+
+    # TODO: 接入真实 CMDB 查询未上线设备
+    # 当前返回框架占位
+    return {
+        "zone": zone,
+        "idc": idc,
+        "devices": [],
+        "message": f"未上线设备查询待接入 CMDB（模块含[待上线]/[上线中]/[搬迁中]），当前无数据",
     }
 
 
