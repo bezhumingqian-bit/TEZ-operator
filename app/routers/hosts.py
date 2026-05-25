@@ -255,13 +255,41 @@ async def get_offline_devices(
         return {"zone": zone, "devices": [], "message": "未知可用区"}
 
     # TODO: 接入真实 CMDB 查询未上线设备
-    # 当前返回框架占位
     return {
         "zone": zone,
         "idc": idc,
         "devices": [],
         "message": f"未上线设备查询待接入 CMDB（模块含[待上线]/[上线中]/[搬迁中]），当前无数据",
     }
+
+
+@router.post(
+    "/lookup",
+    summary="批量查固资号基本信息（轻量，用于表单回填）",
+)
+async def lookup_assets(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """输入固资号列表，返回每个固资号的设备型号和可用区。
+
+    数据来源：本地全量母机缓存（从 OnePage 导入）。
+    """
+    from app.data.asset_cache import ASSET_CACHE
+
+    asset_ids = payload.get("asset_ids", [])
+    if isinstance(asset_ids, str):
+        asset_ids = [a.strip() for a in asset_ids.replace("\n", ",").split(",") if a.strip()]
+
+    results = {}
+    for aid in asset_ids[:100]:
+        aid_upper = aid.strip().upper()
+        if aid_upper in ASSET_CACHE:
+            results[aid_upper] = ASSET_CACHE[aid_upper]
+        else:
+            results[aid_upper] = None
+
+    found = sum(1 for v in results.values() if v)
+    return {"results": results, "found": found, "total": len(results)}
 
 
 @zone_router.get(

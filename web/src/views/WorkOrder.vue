@@ -95,7 +95,14 @@
             </el-select>
           </el-form-item>
           <el-form-item label="固资号" required>
-            <el-input v-model="createForm.asset_ids" type="textarea" :rows="4" placeholder="每行一个固资号" />
+            <el-input v-model="createForm.asset_ids" type="textarea" :rows="4" placeholder="每行一个固资号" @blur="onAssetIdsBlur" />
+          </el-form-item>
+          <el-form-item v-if="assetLookupInfo" label="设备识别">
+            <div class="asset-lookup-info">
+              <el-tag v-for="(info, aid) in assetLookupInfo" :key="aid" :type="info ? 'success' : 'danger'" size="small" class="asset-tag">
+                {{ aid }}: {{ info ? info.machine_type : '未识别' }}
+              </el-tag>
+            </div>
           </el-form-item>
           <el-form-item label="设备数量">
             <el-input-number v-model="createForm.device_count" :min="1" :max="100" />
@@ -498,6 +505,37 @@ async function handleDelete(row: OrderInfo) {
   } catch {}
 }
 
+// ─── 固资号自动查设备型号 ───
+const assetLookupInfo = ref<Record<string, {ip: string; machine_type: string; zone: string} | null> | null>(null)
+
+async function onAssetIdsBlur() {
+  const raw = createForm.value.asset_ids.trim()
+  if (!raw) { assetLookupInfo.value = null; return }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => /^TYSV/i.test(l))
+  if (!lines.length) { assetLookupInfo.value = null; return }
+
+  try {
+    const resp = await fetch('/api/v1/hosts/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asset_ids: lines }),
+    })
+    if (resp.ok) {
+      const data = await resp.json()
+      assetLookupInfo.value = data.results
+      // 自动回填设备型号（取第一个有效的）
+      const types = Object.values(data.results).filter((v: any) => v?.machine_type).map((v: any) => v.machine_type)
+      if (types.length && !createForm.value.vs_type) {
+        const unique = [...new Set(types)]
+        createForm.value.vs_type = unique.join(' / ')
+      }
+      // 自动修正数量
+      createForm.value.device_count = lines.length
+    }
+  } catch {}
+}
+
 function formatTime(t: string) {
   if (!t) return '-'
   return t.replace('T', ' ').slice(0, 16)
@@ -527,4 +565,7 @@ watch([filterStatus, filterType], () => loadOrders())
 .order-detail .section { margin-top: 20px; }
 .order-detail .section h4 { margin-bottom: 8px; font-size: 14px; color: #606266; }
 .check-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+
+.asset-lookup-info { display: flex; flex-wrap: wrap; gap: 6px; }
+.asset-tag { font-family: monospace; }
 </style>
