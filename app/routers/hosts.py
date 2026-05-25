@@ -288,21 +288,123 @@ async def get_offline_devices(
 ) -> dict[str, Any]:
     """查询某节点下未上线的设备。
 
-    数据来源：CMDB 模块路径包含 [待上线]/[上线中]/[搬迁中] 的设备。
+    SOP：
+    1. 数全通查虚拟化机位 → 取出机位上的固资号
+    2. 拿固资号去 TCUM 查模块状态
+    3. 模块不含"现网运营"的就是未上线设备
+    4. 根据模块路径判断未上线原因
     """
     from app.data.zone_mapping import ZONE_IDC_MAPPING
+    from app.config import get_settings
 
     idc = ZONE_IDC_MAPPING.get(zone)
     if not idc:
         return {"zone": zone, "devices": [], "message": "未知可用区"}
 
-    # TODO: 接入真实 CMDB 查询未上线设备
-    return {
-        "zone": zone,
-        "idc": idc,
-        "devices": [],
-        "message": f"未上线设备查询待接入 CMDB（模块含[待上线]/[上线中]/[搬迁中]），当前无数据",
-    }
+    settings = get_settings()
+    if settings.idcrm_mode != "browser" or settings.tcum_mode != "browser":
+        return {
+            "zone": zone,
+            "idc": idc,
+            "devices": [],
+            "message": "需要 IDCRM+TCUM 均为 browser 模式才能查询未上线设备",
+        }
+
+    try:
+        # Step 1: 从数全通查该机房的虚拟化机位，提取固资号
+        from app.clients.idcrm_browser import IDCRMBrowserImpl
+        from urllib.parse import urlencode
+
+        idcrm_impl = IDCRMBrowserImpl()
+        base = settings.idcrm_base_url.rstrip("/")
+        url = f"{base}/db/positions?{urlencode({'idc': idc})}"
+        rows = await idcrm_impl._fetch_rows(url, target_keyword="虚拟化")
+
+        # 从机位行里提取固资号（通常在某一列，先尝试全行文本匹配 TYSV）
+        import re
+        asset_ids_from_positions: list[str] = []
+        for row in rows:
+            row_text = " ".join(row)
+            found = re.findall(r"TYSV[0-9A-Z]{6,}", row_text, re.IGNORECASE)
+            asset_ids_from_positions.extend(found)
+
+        asset_ids_from_positions = list(set(asset_ids_from_positions))[:50]  # 去重，限50
+
+        if not asset_ids_from_positions:
+            return {
+                "zone": zone,
+                "idc": idc,
+                "devices": [],
+                "message": f"在数全通机位中未发现固资号（{idc}），可能页面结构有变",
+            }
+
+        # Step 2: 拿固资号去 TCUM 查模块状态
+        from app.clients.tcum_browser import TCUMBrowserImpl
+
+        tcum_impl = TCUMBrowserImpl()
+        devices = []
+
+        for aid in asset_ids_from_positions[:20]:  # 限20台避免太慢
+            try:
+                info = await tcum_impl.get_by_asset(aid)
+                if not info:
+                    devices.append({
+                        "asset_id": aid, "ip": "", "machine_type": "",
+                        "module_status": "未找到", "reason": "TCUM 未查到该固资号",
+                    })
+                    continue
+
+                module = info.get("module", "") or ""
+                status = info.get("status") or ""
+
+                # 判断是否未上线
+                if "现网运营" in module and status == "online":
+                    continue  # 已上线，跳过
+
+                # 判断未上线原因
+                reason = "未知"
+                if "待上线" in module:
+                    reason = "模块状态：待上线"
+                elif "上线中" in module:
+                    reason = "模块状态：上线中（等待投放）"
+                elif "搬迁中" in module:
+                    reason = "模块状态：搬迁中"
+                elif "待搬迁" in module:
+                    reason = "模块状态：待搬迁"
+                elif "compute_未上线" in module:
+                    reason = "ECM 计算母机未上线"
+                elif status == "maintenance":
+                    reason = "设备状态：维护中"
+                elif status == "offline":
+                    reason = "设备状态：离线/故障"
+
+                devices.append({
+                    "asset_id": aid,
+                    "ip": info.get("ip", ""),
+                    "machine_type": info.get("machine_type", ""),
+                    "module_status": module.split("]")[-1].strip("[]") if "]" in module else module[:20],
+                    "reason": reason,
+                })
+            except Exception:
+                devices.append({
+                    "asset_id": aid, "ip": "", "machine_type": "",
+                    "module_status": "查询失败", "reason": "TCUM 查询异常",
+                })
+
+        return {
+            "zone": zone,
+            "idc": idc,
+            "devices": devices,
+            "total_positions_assets": len(asset_ids_from_positions),
+            "message": f"从机位中提取 {len(asset_ids_from_positions)} 个固资号，{len(devices)} 台未上线",
+        }
+    except Exception as exc:
+        return {
+            "zone": zone,
+            "idc": idc,
+            "devices": [],
+            "message": f"查询失败: {str(exc)[:100]}",
+        }
 
 
 @router.post(
