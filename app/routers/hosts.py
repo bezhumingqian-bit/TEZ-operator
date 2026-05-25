@@ -223,18 +223,60 @@ async def get_free_positions(
     筛选条件：机位逻辑区域=虚拟化bonding + 机位状态=空闲
     """
     from app.data.zone_mapping import ZONE_IDC_MAPPING
+    from app.config import get_settings
 
     idc = ZONE_IDC_MAPPING.get(zone)
     if not idc:
         return {"zone": zone, "idc": None, "free_count": None, "message": "未知可用区"}
 
-    return {
-        "zone": zone,
-        "idc": idc,
-        "free_count": None,
-        "status": "pending",
-        "message": f"机位查询待接入数全通（{idc}），请手动到 IDCRM 确认",
-    }
+    settings = get_settings()
+    if settings.idcrm_mode != "browser":
+        return {
+            "zone": zone,
+            "idc": idc,
+            "free_count": None,
+            "status": "mock",
+            "message": f"IDCRM 当前为 mock 模式，请切 browser 模式后查询真实数据（{idc}）",
+        }
+
+    # 真实查询：通过 IDCRM 浏览器查空闲虚拟化机位
+    try:
+        from app.clients.idcrm_browser import IDCRMBrowserImpl
+        import asyncio
+
+        impl = IDCRMBrowserImpl()
+        # 构造查询 URL：按机房管理单元筛选
+        base = settings.idcrm_base_url.rstrip("/")
+        from urllib.parse import urlencode
+        url = f"{base}/db/positions?{urlencode({'idc': idc})}"
+
+        rows = await impl._fetch_rows(url, target_keyword="虚拟化")
+
+        # 从结果中筛选空闲机位
+        free_count = 0
+        total_count = len(rows)
+        for row in rows:
+            # 根据真实页面列序：COL_STATUS=7
+            status_cell = row[7] if len(row) > 7 else ""
+            if "空闲" in status_cell or "free" in status_cell.lower():
+                free_count += 1
+
+        return {
+            "zone": zone,
+            "idc": idc,
+            "free_count": free_count,
+            "total_positions": total_count,
+            "status": "ok",
+            "message": f"空闲虚拟化机位: {free_count} / 总机位: {total_count}",
+        }
+    except Exception as exc:
+        return {
+            "zone": zone,
+            "idc": idc,
+            "free_count": None,
+            "status": "error",
+            "message": f"查询失败: {str(exc)[:100]}",
+        }
 
 
 @zone_router.get(
