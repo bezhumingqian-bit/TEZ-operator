@@ -52,6 +52,15 @@
       <el-table-column prop="created_at" label="创建时间" width="160">
         <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
       </el-table-column>
+      <el-table-column label="操作" width="80" fixed="right">
+        <template #default="{ row }">
+          <el-popconfirm title="确定删除该工单？" @confirm="handleDelete(row)">
+            <template #reference>
+              <el-button type="danger" link size="small" @click.stop>删除</el-button>
+            </template>
+          </el-popconfirm>
+        </template>
+      </el-table-column>
     </el-table>
 
     <!-- 新建工单弹窗 -->
@@ -245,7 +254,7 @@ import { ref, watch, onMounted, computed } from 'vue'
 import { Plus, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import {
-  createOrder, listOrders, getOrderStats, getOrder, transitionOrder,
+  createOrder, listOrders, getOrderStats, getOrder, transitionOrder, deleteOrder,
   type OrderInfo, type StatsResponse
 } from '@/api/workorders'
 
@@ -429,6 +438,15 @@ async function handleTransition(toStatus: string) {
       comment: undefined,
     })
     ElMessage.success(`已流转为: ${statusLabel[toStatus]}`)
+    await loadOrders()
+    await loadStats()
+  } catch {}
+}
+
+async function handleDelete(row: OrderInfo) {
+  try {
+    await deleteOrder(row.id)
+    ElMessage.success('工单已删除')
     await loadOrders()
     await loadStats()
   } catch {}

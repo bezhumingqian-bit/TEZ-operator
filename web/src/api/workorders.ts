@@ -103,3 +103,8 @@ export async function transitionOrder(orderId: number, body: {
   const { data } = await apiClient.post<OrderInfo>(`/api/v1/workorders/${orderId}/transition`, body)
   return data
 }
+
+/** 删除工单 */
+export async function deleteOrder(orderId: number): Promise<void> {
+  await apiClient.delete(`/api/v1/workorders/${orderId}`)
+}

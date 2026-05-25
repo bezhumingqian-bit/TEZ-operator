@@ -180,3 +180,15 @@ async def transition_order(
     await service.session.commit()
     order = await service.get_order(order_id)
     return order
+
+
+@router.delete("/{order_id}", status_code=204, summary="删除工单")
+async def delete_order(
+    order_id: int,
+    service: WorkOrderService = Depends(_get_service),
+) -> None:
+    order = await service.get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="工单不存在")
+    await service.session.delete(order)
+    await service.session.commit()
