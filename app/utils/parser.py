@@ -27,7 +27,19 @@ _ZONE_REAL_RE = re.compile(r"^[a-z]{2}-[a-z0-9]+(?:-[a-z0-9]+)+-\d+$")
 
 def _is_zone(s: str) -> bool:
     low = s.lower()
-    return bool(_ZONE_PLACEHOLDER_RE.match(low) or _ZONE_REAL_RE.match(low))
+    if _ZONE_PLACEHOLDER_RE.match(low) or _ZONE_REAL_RE.match(low):
+        return True
+    # 支持真实中文可用区名（如"东莞边缘一区"）
+    try:
+        from app.data.zone_mapping import ZONE_IDC_MAPPING
+        if s in ZONE_IDC_MAPPING:
+            return True
+    except Exception:
+        pass
+    # 模糊匹配：含"边缘"+"区"的大概率是zone
+    if "边缘" in s and "区" in s:
+        return True
+    return False
 
 
 # 兼容旧调用（保留对外 ZONE_RE 名称，但语义改为合并匹配器）

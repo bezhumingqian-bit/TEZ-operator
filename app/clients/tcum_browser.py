@@ -69,6 +69,137 @@ class TCUMBrowserImpl:
         # 只取第一条（PoC 表明同 asset_id 只会有 1 行）
         return self._parse_row(rows[0])
 
+    async def batch_search(self, asset_ids: list[str]) -> list[dict[str, Any]]:
+        """批量查询多个固资号（用;拼接一次搜索），并勾选'机器状态'展示列。
+
+        Returns:
+            list of parsed row dicts, 每条包含 asset_id/ip/machine_type/status 等字段。
+        """
+        if not asset_ids:
+            return []
+
+        # 用分号拼接所有固资号
+        search_key = ";".join(asset_ids)
+        url = self._build_search_url(search_key)
+        timeout_ms = self._settings.browser_page_timeout_ms
+
+        async with BrowserSession.page() as page:
+            try:
+                await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
+            except Exception:
+                pass
+
+            await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
+            await self._try_finish_sso_flow(page)
+
+            if is_login_url(page.url):
+                raise BrowserAuthExpired("TCUM 登录态失效，请重新扫码登录")
+
+            # 勾选"机器状态"展示列
+            await self._enable_machine_status_column(page)
+
+            await asyncio.sleep(2)
+
+            # 设置每页50条（TCUM 最大50条/页）
+            # 然后翻页获取全部
+            all_rows: list[list[str]] = []
+            max_pages = 10
+
+            for page_num in range(max_pages):
+                # 提取当前页
+                rows: list[list[str]] = []
+                for selector in self.SELECTOR_FALLBACKS:
+                    try:
+                        rows = await page.eval_on_selector_all(
+                            selector,
+                            """rows => rows.slice(0, 100).map(r =>
+                                Array.from(r.cells || r.children || []).slice(0, 16).map(
+                                    c => (c.innerText || '').trim()
+                                )
+                            )""",
+                        )
+                    except Exception:
+                        continue
+                    if rows:
+                        break
+
+                cleaned = [r for r in rows if any(c for c in r)]
+                if not cleaned:
+                    break
+                all_rows.extend(cleaned)
+
+                # 检查是否有下一页
+                try:
+                    next_btn = page.locator(".tea-pagination__btn--next, .ant-pagination-next").first
+                    if await next_btn.count() == 0:
+                        break
+                    is_disabled = await next_btn.evaluate(
+                        "el => el.disabled || el.classList.contains('disabled') || el.classList.contains('tea-pagination__btn--disabled')"
+                    )
+                    if is_disabled:
+                        break
+                    await next_btn.click(timeout=3000)
+                    await asyncio.sleep(2)
+                    log.debug("tcum_browser.batch_next_page", page=page_num + 2)
+                except Exception:
+                    break
+
+            log.info("tcum_browser.batch_search_done", total_rows=len(all_rows), asset_count=len(asset_ids))
+
+            # 解析每行
+            results = []
+            for row in all_rows:
+                parsed = self._parse_row(row)
+                if parsed.get("asset_id"):
+                    results.append(parsed)
+            return results
+
+    async def _enable_machine_status_column(self, page) -> None:
+        """在 TCUM 结果页点击设置齿轮 → 勾选'机器状态' → 确定。"""
+        try:
+            # 点击齿轮/设置按钮
+            gear_btn = page.locator("svg[data-icon='setting'], .tea-icon-setting, button:has-text('设置')").first
+            # 备选：右上角的齿轮图标
+            if await gear_btn.count() == 0:
+                gear_btn = page.locator("[class*='setting'], [class*='gear']").first
+            if await gear_btn.count() == 0:
+                # 再试试通过位置找
+                gear_btn = page.locator(".tc-15-table-panel-head .tc-15-bubble-icon, .tea-icon-cog").first
+
+            if await gear_btn.count() > 0:
+                await gear_btn.click(timeout=3000)
+                await asyncio.sleep(1)
+
+                # 勾选"机器状态" checkbox
+                status_cb = page.locator("text=机器状态").first
+                if await status_cb.count() > 0:
+                    # 检查是否已经勾选
+                    is_checked = await page.evaluate('''() => {
+                        const labels = document.querySelectorAll('label, .ant-checkbox-wrapper, .tea-checkbox');
+                        for (const l of labels) {
+                            if (l.innerText.includes('机器状态')) {
+                                const input = l.querySelector('input[type=checkbox]');
+                                return input ? input.checked : false;
+                            }
+                        }
+                        return false;
+                    }''')
+                    if not is_checked:
+                        await status_cb.click(timeout=2000)
+                        await asyncio.sleep(0.5)
+                        log.info("tcum_browser.machine_status_checked")
+
+                # 点确定
+                confirm_btn = page.locator("button:has-text('确定'), button:has-text('确认')").first
+                if await confirm_btn.count() > 0:
+                    await confirm_btn.click(timeout=3000)
+                    await asyncio.sleep(2)
+                    log.info("tcum_browser.settings_confirmed")
+            else:
+                log.debug("tcum_browser.gear_btn_not_found")
+        except Exception as exc:
+            log.warning("tcum_browser.enable_status_column_error", error=str(exc))
+
     async def search_by_ip(self, ip: str) -> dict[str, Any] | None:
         if not ip:
             return None

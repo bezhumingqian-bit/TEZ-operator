@@ -115,7 +115,13 @@ class HostService:
     # ─────────────────── public ───────────────────
 
     async def get_host(self, asset_id: str) -> HostInfo | None:
-        """按固资号查询单台机的全貌。"""
+        """按固资号查询单台机的全貌。
+
+        数据源优先级：
+        1. 内存缓存（热数据秒级返回）
+        2. 本地数据库 host_cache 表（7天有效期）
+        3. 云端拉取（TCUM + CMDB + IDCRM）→ 写回本地库
+        """
 
         if not asset_id:
             return None
@@ -125,6 +131,14 @@ class HostService:
         if cached:
             log.debug("host.cache_hit", asset_id=asset_id)
             return self._dict_to_host(cached, from_cache=True)
+
+        # 查本地数据库
+        db_result = await self._get_from_db(asset_id)
+        if db_result:
+            log.debug("host.db_hit", asset_id=asset_id)
+            # 回写内存缓存
+            await self.cache.set(key, db_result.model_dump(**CACHE_DUMP_KW))
+            return db_result
 
         # 并发拉 CMDB + TCUM
         cmdb_task = self.cmdb.get_by_asset(asset_id)
@@ -152,6 +166,10 @@ class HostService:
 
         merged = self._merge(asset_id.upper(), cmdb_dict, tcum_dict, idc_dict, errors)
         await self.cache.set(key, merged.model_dump(**CACHE_DUMP_KW))
+
+        # 写入本地数据库持久化
+        await self._save_to_db(merged)
+
         return merged
 
     async def get_host_by_ip(self, ip: str) -> HostInfo | None:
@@ -223,20 +241,15 @@ class HostService:
         return hosts
 
     async def list_zones(self) -> list[str]:
-        """返回当前可用的 zone 列表。
-
-        当前实现：
-        - mock 模式（W3）→ 从 ``MOCK_ZONES`` 返回固定占位
-        - W4 真实 CMDB 接通后改为从 ``self.cmdb.list_zones()`` 拉
-        - 缓存 10 分钟（与 zone hosts 一致）
-        """
+        """返回当前可用的 zone 列表（从 zone_mapping 获取真实可用区）。"""
 
         cached = await self.cache.get(CACHE_KEY_ZONES_LIST)
         if cached:
             return list(cached)
 
-        # TODO(W4): 改为 self.cmdb.list_zones()
-        zones = list(MOCK_ZONES)
+        from app.data.zone_mapping import ZONE_IDC_MAPPING
+        zones = sorted(ZONE_IDC_MAPPING.keys())
+
         await self.cache.set(
             CACHE_KEY_ZONES_LIST,
             zones,
@@ -245,7 +258,10 @@ class HostService:
         return zones
 
     async def get_zone_instance_stats(self, zones: list[str]) -> list[ZoneInstanceStat]:
-        """查询一个或多个区域的线上实例资源统计。"""
+        """查询一个或多个区域的线上实例资源统计。
+
+        注意：此功能依赖 CMDB OpenAPI，当前如为 mock 模式则返回空统计。
+        """
 
         normalized = [z.strip() for z in zones if z and z.strip()]
         if not normalized:
@@ -261,7 +277,10 @@ class HostService:
 
             try:
                 raw = await self.cmdb.get_instance_stats_by_zone(zone)
-                stat = ZoneInstanceStat(**raw)
+                if not raw or not isinstance(raw, dict):
+                    stat = self._fallback_instance_stat(zone)
+                else:
+                    stat = ZoneInstanceStat(**raw)
             except Exception as exc:  # noqa: BLE001
                 log.warning("zone.instance_stats_failed", zone=zone, error=str(exc))
                 stat = self._fallback_instance_stat(zone)
@@ -352,6 +371,100 @@ class HostService:
         await self.cmdb.close()
         await self.tcum.close()
         await self.idcrm.close()
+
+    # ─────────────────── 本地数据库持久化 ───────────────────
+
+    DB_EXPIRE_DAYS = 7  # 本地库数据有效期
+
+    async def _get_from_db(self, asset_id: str) -> HostInfo | None:
+        """从本地 host_cache 数据库表查找设备信息（7天有效期）。"""
+        from datetime import timedelta
+
+        from sqlalchemy import select, text
+        from app.deps import _get_session_factory
+        from app.models.host import HostCache
+
+        try:
+            factory = _get_session_factory()
+            async with factory() as session:
+                stmt = select(HostCache).where(HostCache.asset_id == asset_id.upper())
+                result = await session.execute(stmt)
+                row = result.scalar_one_or_none()
+                if not row:
+                    return None
+
+                # 检查过期
+                if row.last_sync_at:
+                    if (datetime.now() - row.last_sync_at) > timedelta(days=self.DB_EXPIRE_DAYS):
+                        log.debug("host.db_expired", asset_id=asset_id)
+                        return None
+
+                # 构造 HostInfo
+                return HostInfo(
+                    asset_id=row.asset_id,
+                    ip=row.ip,
+                    zone=row.zone,
+                    machine_type=row.machine_type,
+                    status=_normalize_status(row.status),
+                    idc=row.idc,
+                    cabinet=row.cabinet,
+                    position=row.position,
+                    module=row.module,
+                    _meta=HostMeta(
+                        from_cache=True,
+                        data_sources=["local_db"],
+                        last_sync_at=row.last_sync_at,
+                    ),
+                )
+        except Exception as exc:
+            log.debug("host.db_read_error", asset_id=asset_id, error=str(exc))
+            return None
+
+    async def _save_to_db(self, host: HostInfo) -> None:
+        """把查询结果持久化到 host_cache 数据库表。"""
+        from sqlalchemy import text
+        from app.deps import _get_session_factory
+        from app.models.host import HostCache
+
+        if not host.asset_id:
+            return
+
+        try:
+            factory = _get_session_factory()
+            async with factory() as session:
+                # Upsert
+                existing = await session.get(HostCache, host.asset_id)
+                now = datetime.now()
+
+                if existing:
+                    existing.ip = host.ip
+                    existing.zone = host.zone
+                    existing.machine_type = host.machine_type
+                    existing.status = host.status
+                    existing.idc = host.idc
+                    existing.cabinet = host.cabinet
+                    existing.position = host.position
+                    existing.module = host.module
+                    existing.last_sync_at = now
+                else:
+                    row = HostCache(
+                        asset_id=host.asset_id,
+                        ip=host.ip,
+                        zone=host.zone,
+                        machine_type=host.machine_type,
+                        status=host.status,
+                        idc=host.idc,
+                        cabinet=host.cabinet,
+                        position=host.position,
+                        module=host.module,
+                        last_sync_at=now,
+                    )
+                    session.add(row)
+
+                await session.commit()
+                log.debug("host.db_saved", asset_id=host.asset_id)
+        except Exception as exc:
+            log.debug("host.db_write_error", asset_id=host.asset_id, error=str(exc))
 
     # ─────────────────── 内部 ───────────────────
 

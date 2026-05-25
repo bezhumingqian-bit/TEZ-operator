@@ -141,106 +141,67 @@ TYSV00000002
           </div>
         </el-tab-pane>
 
-        <!-- ─────────── 按 Zone 列表 ─────────── -->
-        <el-tab-pane label="按 Zone 列表" name="zone">
+        <!-- ─────────── 可用区信息 ─────────── -->
+        <el-tab-pane label="可用区信息" name="zone">
           <el-alert
             class="host-search__zone-alert"
             type="info"
             :closable="false"
             show-icon
-            title="常用：先查区域线上实例资源总量，再下钻查看母机列表"
+            title="多选可用区查看详细信息（Region、机房、架构等），方便去星云查询"
           />
           <div class="host-search__bar">
             <el-select
-              v-model="zoneSelected"
+              v-model="zoneInfoSelected"
               filterable
-              allow-create
-              default-first-option
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
               size="large"
-              placeholder="选择或输入 Zone（来自后端，失败时使用占位列表）"
-              style="width: 360px"
+              placeholder="搜索并多选可用区"
+              style="width: 500px"
             >
               <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
             </el-select>
             <el-button
-              type="success"
-              size="large"
-              :loading="zoneStatsLoading"
-              :disabled="!zoneSelected"
-              @click="onZoneStats"
-            >
-              查线上实例数
-            </el-button>
-            <el-button
               type="primary"
               size="large"
-              :loading="zoneLoading"
-              :icon="Search"
-              :disabled="!zoneSelected"
-              @click="onZoneSearch"
+              :loading="zoneInfoLoading"
+              :disabled="!zoneInfoSelected.length"
+              @click="onZoneInfoQuery"
             >
-              查母机列表
+              查询信息
             </el-button>
-          </div>
-          <div class="host-search__hint">
-            Zone 列表来自后端，失败时使用占位列表 <code>zone_a</code> / <code>zone_b</code> /
-            <code>zone_c</code>。
           </div>
 
           <div class="host-search__result">
-            <el-skeleton v-if="zoneLoading || zoneStatsLoading" :rows="6" animated />
-            <template v-else-if="zoneStatsResp">
-              <div class="host-search__stats-summary">
-                <el-statistic title="区域数" :value="zoneStatsResp.total_zones" />
-                <el-statistic title="母机数" :value="zoneStatsResp.total_hosts" />
-                <el-statistic title="实例总数" :value="zoneStatsResp.total_instances" />
-                <el-statistic title="线上实例" :value="zoneStatsResp.online_instances" />
-              </div>
-              <el-table :data="zoneStatsResp.items" border stripe class="host-search__stats-table">
-                <el-table-column prop="zone" label="Zone" min-width="120" />
-                <el-table-column prop="host_count" label="母机数" width="90" />
-                <el-table-column prop="total_instances" label="实例总数" width="110" />
-                <el-table-column prop="online_instances" label="线上实例" width="110" />
-                <el-table-column prop="offline_instances" label="离线" width="90" />
-                <el-table-column prop="maintenance_instances" label="维护中" width="90" />
-                <el-table-column label="机型分布" min-width="180">
+            <el-skeleton v-if="zoneInfoLoading" :rows="4" animated />
+            <template v-else-if="zoneInfoData && zoneInfoData.length">
+              <el-table :data="zoneInfoData" border stripe size="small" style="margin-top: 12px">
+                <el-table-column prop="zone" label="可用区" min-width="180" />
+                <el-table-column prop="nebula_region" label="星云地域" width="140">
                   <template #default="{ row }">
-                    <el-tag
-                      v-for="(count, name) in row.by_machine_type"
-                      :key="name"
-                      class="host-search__mini-tag"
-                      effect="plain"
-                    >
-                      {{ name }}: {{ count }}
-                    </el-tag>
+                    <el-tag v-if="row.nebula_region" size="small" type="primary">{{ row.nebula_region }}</el-tag>
+                    <span v-else style="color: #999">未上线</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="客户分布" min-width="180">
+                <el-table-column prop="city" label="城市" width="80" />
+                <el-table-column prop="isp" label="运营商" width="70" />
+                <el-table-column prop="idc" label="机房(IDC)" min-width="220" />
+                <el-table-column prop="arch" label="架构" width="60">
                   <template #default="{ row }">
-                    <el-tag
-                      v-for="(count, name) in row.by_customer"
-                      :key="name"
-                      class="host-search__mini-tag"
-                      type="success"
-                      effect="plain"
-                    >
-                      {{ name }}: {{ count }}
-                    </el-tag>
+                    <el-tag :type="row.arch === '25G' ? 'success' : 'info'" size="small">{{ row.arch }}</el-tag>
                   </template>
                 </el-table-column>
+                <el-table-column prop="status" label="状态" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.status === '已开区' ? 'success' : row.status === '已下线' ? 'danger' : 'warning'" size="small">{{ row.status }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="models" label="支持机型" min-width="180" />
               </el-table>
             </template>
-            <template v-else-if="zoneResp">
-              <el-alert
-                :title="`Zone ${zoneResp.zone} 共 ${zoneResp.total} 台母机`"
-                type="success"
-                :closable="false"
-                show-icon
-                class="host-search__zone-alert"
-              />
-              <HostTable :rows="zoneResp.items" @export="onTableExport" />
-            </template>
-            <el-empty v-else description="选择一个 Zone 查询" />
+            <el-empty v-else description="选择可用区后查询信息" />
           </div>
         </el-tab-pane>
 
@@ -265,11 +226,29 @@ TYSV00000002
             >
               查询资源概况
             </el-button>
+            <el-button
+              size="large"
+              :loading="nodeRefreshing"
+              :disabled="!nodeZoneSelected"
+              @click="onNodeForceRefresh"
+            >
+              🔄 强制刷新
+            </el-button>
           </div>
 
           <div class="host-search__result">
-            <el-skeleton v-if="nodeLoading" :rows="6" animated />
+            <el-skeleton v-if="nodeLoading || nodeRefreshing" :rows="6" animated />
             <template v-else-if="nodeOverviewData">
+              <!-- 数据来源提示 -->
+              <el-alert
+                v-if="nodeOverviewData.from_cache"
+                :title="`本地缓存数据（上次同步: ${nodeOverviewData.last_sync_at || '未知'}）`"
+                type="info"
+                show-icon
+                :closable="false"
+                style="margin-bottom: 12px"
+              />
+
               <!-- 空闲机位 -->
               <el-card shadow="never" class="node-section">
                 <template #header><b>空闲虚拟化机位</b></template>
@@ -284,6 +263,22 @@ TYSV00000002
                 </div>
               </el-card>
 
+              <!-- 已上线设备 -->
+              <el-card v-if="nodeOverviewData.online_devices && nodeOverviewData.online_devices.length" shadow="never" class="node-section" style="margin-top: 16px">
+                <template #header>
+                  <b>已上线设备</b>
+                  <el-tag size="small" type="success" style="margin-left: 8px">
+                    {{ nodeOverviewData.online_devices.length }} 台
+                  </el-tag>
+                </template>
+                <el-table :data="nodeOverviewData.online_devices" stripe size="small">
+                  <el-table-column prop="asset_id" label="固资号" width="140" />
+                  <el-table-column prop="ip" label="IP" width="130" />
+                  <el-table-column prop="machine_type" label="机型" width="130" />
+                  <el-table-column prop="module" label="模块" min-width="200" />
+                </el-table>
+              </el-card>
+
               <!-- 未上线设备 -->
               <el-card shadow="never" class="node-section" style="margin-top: 16px">
                 <template #header>
@@ -296,13 +291,7 @@ TYSV00000002
                   <el-table-column prop="asset_id" label="固资号" width="140" />
                   <el-table-column prop="ip" label="IP" width="130" />
                   <el-table-column prop="machine_type" label="机型" width="130" />
-                  <el-table-column prop="module_status" label="模块状态" width="120">
-                    <template #default="{ row }">
-                      <el-tag size="small" :type="row.module_status === '待上线' ? 'warning' : 'info'">
-                        {{ row.module_status }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
+                  <el-table-column prop="module" label="模块" width="200" />
                   <el-table-column prop="reason" label="未上线原因" min-width="200" />
                 </el-table>
                 <el-empty v-else description="该节点没有未上线设备" />
@@ -412,12 +401,26 @@ async function onBatchSearch() {
   }
 }
 
-// ─── Zone ───
+// ─── 可用区信息 ───
 const zoneOptions = ref<string[]>([...fallbackZoneOptions])
-const zoneSelected = ref<string>('')
-const zoneLoading = ref(false)
-const zoneStatsLoading = ref(false)
-const zoneResp = ref<ZoneHostsResponse | null>(null)
+const zoneInfoSelected = ref<string[]>([])
+const zoneInfoLoading = ref(false)
+const zoneInfoData = ref<any[] | null>(null)
+
+async function onZoneInfoQuery() {
+  if (!zoneInfoSelected.value.length) return
+  zoneInfoLoading.value = true
+  zoneInfoData.value = null
+  try {
+    const zonesParam = zoneInfoSelected.value.join(',')
+    const resp = await fetch(`/api/v1/zones/info?zones=${encodeURIComponent(zonesParam)}`).then(r => r.json())
+    zoneInfoData.value = resp.items || []
+  } catch {
+    ElMessage.error('查询可用区信息失败')
+  } finally {
+    zoneInfoLoading.value = false
+  }
+}
 const zoneStatsResp = ref<ZoneInstanceStatsResponse | null>(null)
 
 async function loadZoneOptions() {
@@ -426,31 +429,6 @@ async function loadZoneOptions() {
     zoneOptions.value = zones.length ? zones : [...fallbackZoneOptions]
   } catch {
     zoneOptions.value = [...fallbackZoneOptions]
-    ElMessage.warning('Zone 列表来自后端，失败时使用占位列表')
-  }
-}
-
-async function onZoneStats() {
-  if (!zoneSelected.value) return
-  zoneStatsLoading.value = true
-  zoneStatsResp.value = null
-  zoneResp.value = null
-  try {
-    zoneStatsResp.value = await getZoneInstanceStats([zoneSelected.value])
-  } finally {
-    zoneStatsLoading.value = false
-  }
-}
-
-async function onZoneSearch() {
-  if (!zoneSelected.value) return
-  zoneLoading.value = true
-  zoneResp.value = null
-  zoneStatsResp.value = null
-  try {
-    zoneResp.value = await listZoneHosts(zoneSelected.value)
-  } finally {
-    zoneLoading.value = false
   }
 }
 
@@ -494,32 +472,63 @@ async function onBatchTableExport(assetIds: string[]) {
 
 // ─── 节点资源概况 ───
 interface NodeOverviewData {
-  positions: { zone: string; idc: string | null; free_count: number | null; message: string }
-  offline_devices: { asset_id: string; ip: string; machine_type: string; module_status: string; reason: string }[]
+  positions: { zone: string; idc: string | null; free_count: number | null; total_positions?: number; message: string }
+  offline_devices: { asset_id: string; ip: string; machine_type: string; module?: string; reason: string }[]
+  online_devices: { asset_id: string; ip: string; machine_type: string; module?: string }[]
+  from_cache?: boolean
+  last_sync_at?: string
 }
 
 const nodeZoneSelected = ref('')
 const nodeLoading = ref(false)
+const nodeRefreshing = ref(false)
 const nodeOverviewData = ref<NodeOverviewData | null>(null)
+
+async function fetchNodeOverview(forceRefresh = false) {
+  const zone = nodeZoneSelected.value
+  if (!zone) return
+
+  const url = `/api/v1/zones/${encodeURIComponent(zone)}/overview${forceRefresh ? '?force_refresh=true' : ''}`
+  const resp = await fetch(url).then(r => r.json())
+
+  nodeOverviewData.value = {
+    positions: {
+      zone: resp.zone,
+      idc: resp.idc,
+      free_count: resp.free_count,
+      total_positions: resp.total_positions,
+      message: resp.message || '',
+    },
+    offline_devices: resp.offline_devices || [],
+    online_devices: resp.online_devices || [],
+    from_cache: resp.from_cache,
+    last_sync_at: resp.last_sync_at,
+  }
+}
 
 async function onNodeOverview() {
   if (!nodeZoneSelected.value) return
   nodeLoading.value = true
   nodeOverviewData.value = null
   try {
-    // 并发查空闲机位 + 未上线设备
-    const [posResp, devResp] = await Promise.all([
-      fetch(`/api/v1/zones/${encodeURIComponent(nodeZoneSelected.value)}/free_positions`).then(r => r.json()),
-      fetch(`/api/v1/zones/${encodeURIComponent(nodeZoneSelected.value)}/offline_devices`).then(r => r.json()),
-    ])
-    nodeOverviewData.value = {
-      positions: posResp,
-      offline_devices: devResp.devices || [],
-    }
+    await fetchNodeOverview(false)
   } catch {
     ElMessage.error('查询失败')
   } finally {
     nodeLoading.value = false
+  }
+}
+
+async function onNodeForceRefresh() {
+  if (!nodeZoneSelected.value) return
+  nodeRefreshing.value = true
+  try {
+    await fetchNodeOverview(true)
+    ElMessage.success('数据已从云端刷新')
+  } catch {
+    ElMessage.error('刷新失败')
+  } finally {
+    nodeRefreshing.value = false
   }
 }
 </script>

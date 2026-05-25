@@ -13,8 +13,9 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.deps import get_host_service
+from app.deps import get_db_session, get_host_service
 from app.schemas.host import (
     BatchSearchItem,
     BatchSearchRequest,
@@ -211,6 +212,34 @@ async def list_zones(
 
 
 @zone_router.get(
+    "/info",
+    summary="查询可用区详细信息（支持多选）",
+)
+async def get_zone_info(
+    zones: str = Query("", description="逗号分隔的可用区名，为空时返回全部"),
+) -> dict[str, Any]:
+    """返回可用区的详细信息（region、机房、架构、状态、机型等）。
+
+    支持多选，方便用户批量查看信息后去星云操作。
+    """
+    from app.data.zone_mapping import ZONE_DETAIL_MAP, ZONE_INFO
+
+    if not zones.strip():
+        # 返回全部
+        return {"total": len(ZONE_INFO), "items": ZONE_INFO}
+
+    selected = [z.strip() for z in zones.split(",") if z.strip()]
+    items = [ZONE_DETAIL_MAP[z] for z in selected if z in ZONE_DETAIL_MAP]
+    not_found = [z for z in selected if z not in ZONE_DETAIL_MAP]
+
+    return {
+        "total": len(items),
+        "items": items,
+        "not_found": not_found if not_found else None,
+    }
+
+
+@zone_router.get(
     "/{zone}/free_positions",
     summary="查询目标机房空闲虚拟化机位数",
 )
@@ -290,45 +319,65 @@ async def get_offline_devices(
         }
 
     try:
-        # Step 1: 用 IDCRM Skill 查空闲虚拟化机位 + 获取机位上的固资号
+        # Step 1: 用 IDCRM Skill 查全量虚拟化机位 + 获取所有设备固资号
         from app.skills.idcrm_position_skill import IDCRMPositionSkill
 
         skill = IDCRMPositionSkill()
         pos_result = await skill.query_free_positions(idc)
 
-        asset_ids_from_positions = pos_result.get("occupied_assets", [])
+        # 新版返回 all_assets（全量固资号）
+        asset_ids_from_positions = pos_result.get("all_assets", []) or pos_result.get("occupied_assets", [])
 
         if not asset_ids_from_positions:
             return {
                 "zone": zone,
                 "idc": idc,
+                "free_count": pos_result.get("free_count", 0),
+                "total_positions": pos_result.get("total_positions", 0),
                 "devices": [],
-                "message": f"空闲机位上未发现设备（{idc} 有 {pos_result.get('free_count', 0)} 个空闲机位）",
+                "message": f"机位上未发现设备（{idc} 虚拟化机位: {pos_result.get('total_positions', 0)}, 空闲: {pos_result.get('free_count', 0)}）",
             }
 
-        # Step 2: 拿固资号去 TCUM 查模块状态
+        # Step 2: 批量查 TCUM（用;拼接一次查完）
         from app.clients.tcum_browser import TCUMBrowserImpl
 
         tcum_impl = TCUMBrowserImpl()
-        devices = []
+        all_devices = await tcum_impl.batch_search(asset_ids_from_positions[:100])
 
-        for aid in asset_ids_from_positions[:20]:  # 限20台避免太慢
-            try:
-                info = await tcum_impl.get_by_asset(aid)
-                if not info:
-                    devices.append({
-                        "asset_id": aid, "ip": "", "machine_type": "",
-                        "module_status": "未找到", "reason": "TCUM 未查到该固资号",
-                    })
-                    continue
+        # Step 3: 按模块过滤 TEZ 设备 + 分类
+        # TEZ 模块特征：[N][腾讯云边缘可用区]
+        # ECM 模块特征：[腾讯云][边缘计算]
+        TEZ_MODULE_KEYWORDS = ["腾讯云边缘可用区", "TEZ"]
 
-                module = info.get("module", "") or ""
-                status = info.get("status") or ""
+        online_devices = []  # 已上线（运营中）
+        offline_devices = []  # 未上线
+        non_tez_devices = []  # 非 TEZ 设备
 
-                # 判断是否未上线
-                if "现网运营" in module and status == "online":
-                    continue  # 已上线，跳过
+        for dev in all_devices:
+            module = dev.get("module", "") or ""
+            status_raw = dev.get("status", "") or ""
 
+            # 判断是否 TEZ 模块
+            is_tez = any(kw in module for kw in TEZ_MODULE_KEYWORDS)
+            if not is_tez:
+                non_tez_devices.append({
+                    "asset_id": dev.get("asset_id", ""),
+                    "ip": dev.get("ip", ""),
+                    "machine_type": dev.get("machine_type", ""),
+                    "module": module[:50],
+                    "status": status_raw,
+                })
+                continue
+
+            # TEZ 设备：按运营状态分类
+            if status_raw == "online":
+                online_devices.append({
+                    "asset_id": dev.get("asset_id", ""),
+                    "ip": dev.get("ip", ""),
+                    "machine_type": dev.get("machine_type", ""),
+                    "module": module[:50],
+                })
+            else:
                 # 判断未上线原因
                 reason = "未知"
                 if "待上线" in module:
@@ -341,30 +390,37 @@ async def get_offline_devices(
                     reason = "模块状态：待搬迁"
                 elif "compute_未上线" in module:
                     reason = "ECM 计算母机未上线"
-                elif status == "maintenance":
+                elif status_raw == "maintenance":
                     reason = "设备状态：维护中"
-                elif status == "offline":
+                elif status_raw == "offline":
                     reason = "设备状态：离线/故障"
 
-                devices.append({
-                    "asset_id": aid,
-                    "ip": info.get("ip", ""),
-                    "machine_type": info.get("machine_type", ""),
-                    "module_status": module.split("]")[-1].strip("[]") if "]" in module else module[:20],
+                offline_devices.append({
+                    "asset_id": dev.get("asset_id", ""),
+                    "ip": dev.get("ip", ""),
+                    "machine_type": dev.get("machine_type", ""),
+                    "module": module[:50],
                     "reason": reason,
-                })
-            except Exception:
-                devices.append({
-                    "asset_id": aid, "ip": "", "machine_type": "",
-                    "module_status": "查询失败", "reason": "TCUM 查询异常",
                 })
 
         return {
             "zone": zone,
             "idc": idc,
-            "devices": devices,
-            "total_positions_assets": len(asset_ids_from_positions),
-            "message": f"从机位中提取 {len(asset_ids_from_positions)} 个固资号，{len(devices)} 台未上线",
+            "total_positions": pos_result.get("total_positions", 0),
+            "free_count": pos_result.get("free_count", 0),
+            "used_count": pos_result.get("used_count", 0),
+            "total_assets": len(asset_ids_from_positions),
+            "online_devices": online_devices,
+            "online_count": len(online_devices),
+            "offline_devices": offline_devices,
+            "offline_count": len(offline_devices),
+            "non_tez_count": len(non_tez_devices),
+            "message": (
+                f"虚拟化机位: {pos_result.get('total_positions', 0)}"
+                f"（空闲{pos_result.get('free_count', 0)}/已用{pos_result.get('used_count', 0)}），"
+                f"TEZ设备: 已上线{len(online_devices)}台, 未上线{len(offline_devices)}台, "
+                f"非TEZ设备{len(non_tez_devices)}台"
+            ),
         }
     except Exception as exc:
         return {
@@ -373,6 +429,27 @@ async def get_offline_devices(
             "devices": [],
             "message": f"查询失败: {str(exc)[:100]}",
         }
+
+
+@zone_router.get(
+    "/{zone}/overview",
+    summary="节点资源概况（本地数据库优先，7天过期自动刷新）",
+)
+async def get_zone_overview(
+    zone: str,
+    force_refresh: bool = False,
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """获取可用区资源概况（本地数据库模式）。
+
+    - 默认读本地数据库（毫秒级响应）
+    - 数据超过7天自动触发后台同步
+    - force_refresh=true 手动强制刷新
+    """
+    from app.services.zone_resource_service import ZoneResourceService
+
+    svc = ZoneResourceService(session)
+    return await svc.get_zone_overview(zone, force_refresh=force_refresh)
 
 
 @router.post(
