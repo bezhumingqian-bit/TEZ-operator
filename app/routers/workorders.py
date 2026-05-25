@@ -73,8 +73,24 @@ class OrderInfo(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OrderBrief(BaseModel):
+    """列表用简版（不含 logs）。"""
+    id: int
+    order_no: str
+    order_type: str
+    title: str
+    status: str
+    creator: str
+    assignee: str | None = None
+    priority: int
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class OrderListResponse(BaseModel):
-    items: list[OrderInfo]
+    items: list[OrderBrief]
     total: int
 
 

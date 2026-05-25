@@ -6,7 +6,7 @@
       </div>
       <div class="app-header__title">{{ store.appName }}</div>
       <el-tag size="small" type="info" effect="plain" class="app-header__env"
-        >内部使用 · v0.3-alpha</el-tag
+        >内部使用 · v1.2.0</el-tag
       >
     </div>
     <div class="app-header__right">
