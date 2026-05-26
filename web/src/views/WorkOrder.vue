@@ -85,9 +85,14 @@
         <template v-if="createForm.order_type === 'host_deploy'">
           <el-form-item label="需求类型">
             <el-select v-model="createForm.demand_type" placeholder="选择" style="width: 100%">
-              <el-option label="TEZ-投放计算母机" value="TEZ-投放计算母机" />
               <el-option label="ECM导出转到搬迁模块" value="ECM导出转到搬迁模块" />
+              <el-option label="ECM-投放计算母机" value="ECM-投放计算母机" />
+              <el-option label="TEZ-投放计算母机" value="TEZ-投放计算母机" />
+              <el-option label="ECM-重装计算母机" value="ECM-重装计算母机" />
+              <el-option label="TEZ-投放支撑母机" value="TEZ-投放支撑母机" />
+              <el-option label="TEZ-重装支撑母机" value="TEZ-重装支撑母机" />
               <el-option label="TEZ-投放裸金属" value="TEZ-投放裸金属" />
+              <el-option label="TEZ-下架导出" value="TEZ-下架导出" />
             </el-select>
           </el-form-item>
           <el-form-item label="固资号" required>
