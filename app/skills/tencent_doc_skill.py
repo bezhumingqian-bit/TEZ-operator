@@ -235,18 +235,22 @@ class TencentDocSkill:
             row_match = re.search(r"(\d+)", target_cell)
             actual_row = int(row_match.group(1)) if row_match else 0
 
-            # 6. 逐列输入数据（用 insert_text 直接插入，避免中文/特殊字符被截断）
+            # 6. 逐列输入数据（通过 Formula Bar 输入，支持中文字符）
+            #    流程：点击 formula bar → type 文本 → Tab（确认并跳到下一列）
             for i, value in enumerate(row_data):
-                if i > 0:
-                    await page.keyboard.press("Tab")
-                    await asyncio.sleep(0.5)
-
                 if value:
-                    await page.keyboard.insert_text(str(value))
+                    await formula_bar.click(timeout=3000)
                     await asyncio.sleep(0.3)
+                    await page.keyboard.type(str(value), delay=20)
+                    await asyncio.sleep(0.3)
+                # Tab 确认输入并跳到下一列（空值也需要Tab跳过该列）
+                await page.keyboard.press("Tab")
+                await asyncio.sleep(0.3)
 
-            # 7. Enter 确认（腾讯文档自动保存）
-            await page.keyboard.press("Enter")
+            await asyncio.sleep(1)
+
+            # 7. 无需 Enter（最后一个 Tab 已确认）
+            # 腾讯文档自动保存
             await asyncio.sleep(2)
 
             # 8. 验证：用 Cmd+End → Home 回到最后有数据行的A列
