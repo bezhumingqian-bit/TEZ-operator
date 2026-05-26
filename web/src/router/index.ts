@@ -24,6 +24,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '工单流转', icon: 'Tickets', module: 2 },
   },
   {
+    path: '/cost',
+    name: 'cost',
+    component: () => import('@/views/Cost.vue'),
+    meta: { title: '成本一览', icon: 'Coin', module: 2 },
+  },
+  {
     path: '/assistant',
     name: 'assistant',
     component: () => import('@/views/People.vue'),

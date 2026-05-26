@@ -546,7 +546,7 @@ async function handleCreate() {
       note: f.note,
       priority: f.priority,
     })
-    ElMessage.success('工单创建成功')
+    ElMessage.success('工单创建成功，正在后台同步到OnePage')
     showCreateDialog.value = false
     createForm.value = { order_type: '', title: '', priority: 2, asset_ids: '', zone: '', note: '', demand_type: '', device_count: 1, vs_type: '', related_demand: '', expected_date: '', source_zone: '', source_idc: '', target_idc: '', delivery_type: 'TEZ', reinstall: '', module_path: '', fault_desc: '' }
     await loadOrders()

@@ -103,14 +103,19 @@ class WorkOrderService:
         self.session.add(log_entry)
         await self.session.flush()
 
-        # 创建即同步到 OnePage 腾讯文档
+        # 创建即同步到 OnePage 腾讯文档（异步后台任务，不阻塞请求）
         if order.order_type in ("migration", "ecm_export", "host_deploy"):
-            try:
-                await self._push_to_onepage(order)
-            except Exception as exc:
-                log.warning("workorder.onepage_push_failed", order_id=order.id, error=str(exc))
+            import asyncio
+            asyncio.create_task(self._push_to_onepage_safe(order))
 
         return order
+
+    async def _push_to_onepage_safe(self, order: WorkOrder) -> None:
+        """后台安全推送（异常不影响主流程）。"""
+        try:
+            await self._push_to_onepage(order)
+        except Exception as exc:
+            log.warning("workorder.onepage_push_failed", order_id=order.id, error=str(exc))
 
     # ─── 状态流转 ───
 

@@ -138,6 +138,9 @@ def create_app() -> FastAPI:
     app.include_router(knowledge_router.router, prefix="/api/v1")
     app.include_router(workorders_router.router, prefix="/api/v1")
 
+    from app.routers import cost as cost_router
+    app.include_router(cost_router.router)
+
     return app
 
 
