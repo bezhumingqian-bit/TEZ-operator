@@ -103,6 +103,13 @@ class WorkOrderService:
         self.session.add(log_entry)
         await self.session.flush()
 
+        # 创建即同步到 OnePage 腾讯文档
+        if order.order_type in ("migration", "ecm_export", "host_deploy"):
+            try:
+                await self._push_to_onepage(order)
+            except Exception as exc:
+                log.warning("workorder.onepage_push_failed", order_id=order.id, error=str(exc))
+
         return order
 
     # ─── 状态流转 ───
@@ -147,14 +154,7 @@ class WorkOrderService:
         self.session.add(log_entry)
         await self.session.flush()
 
-        # 工单进入 processing 状态时，推送到 OnePage 腾讯文档
-        if to_status == "processing" and order.order_type in (
-            "migration", "ecm_export", "host_deploy",
-        ):
-            try:
-                await self._push_to_onepage(order)
-            except Exception as exc:
-                log.warning("workorder.onepage_push_failed", order_id=order.id, error=str(exc))
+        return order
 
         return order
 
@@ -172,13 +172,13 @@ class WorkOrderService:
                 "requirement": order.title,
                 "urgent": "是" if order.priority >= 3 else "否",
                 "expected_date": detail.get("expected_date", ""),
-                "from_zone": detail.get("from_zone", ""),
-                "from_idc": detail.get("from_idc", ""),
-                "to_idc": detail.get("to_idc", ""),
-                "to_zone": detail.get("to_zone", ""),
-                "quantity": str(detail.get("quantity", "")),
-                "device_model": detail.get("device_model", ""),
-                "assets": detail.get("assets", ""),
+                "from_zone": detail.get("source_zone", ""),
+                "from_idc": detail.get("source_idc", ""),
+                "to_idc": detail.get("target_idc", ""),
+                "to_zone": detail.get("zone", ""),
+                "quantity": str(detail.get("device_count", "")),
+                "device_model": detail.get("vs_type", ""),
+                "assets": detail.get("asset_ids", ""),
                 "delivery_type": detail.get("delivery_type", "TEZ"),
                 "reinstall": "",  # 由 Skill 根据 delivery_type 自动填充
                 "target_module": "",  # 由 Skill 根据 delivery_type 自动填充
@@ -190,9 +190,9 @@ class WorkOrderService:
             data = {
                 "date": today,
                 "urgent": "是" if order.priority >= 3 else "否",
-                "type": detail.get("requirement_type", order.order_type),
-                "assets": detail.get("assets", ""),
-                "quantity": str(detail.get("quantity", "")),
+                "type": detail.get("demand_type", order.order_type),
+                "assets": detail.get("asset_ids", ""),
+                "quantity": str(detail.get("device_count", "")),
                 "reinstall": detail.get("reinstall", ""),
                 "vs_type": detail.get("vs_type", ""),
                 "requirement": order.title,
