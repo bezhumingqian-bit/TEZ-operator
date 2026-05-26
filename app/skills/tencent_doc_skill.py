@@ -148,7 +148,17 @@ class TencentDocSkill:
     async def _append_row(
         self, sheet_name: str, target_row: int, row_data: list[str]
     ) -> dict[str, Any]:
-        """核心方法：打开文档 → 切换Sheet → 跳转到目标行 → 逐列写入数据。"""
+        """核心方法：打开文档 → 切换Sheet → 定位到最后一行下方空行 → 逐列写入数据。
+
+        操作流程（已校准 2026-05-26）：
+        1. 打开文档
+        2. 切换到目标 Sheet
+        3. Cmd+End 跳到最后有数据的单元格
+        4. Home 回到该行 A 列
+        5. ArrowDown 到下一空行
+        6. 逐列输入数据（Tab 跳转下一列）
+        7. Enter 确认
+        """
         timeout_ms = self._settings.browser_page_timeout_ms
 
         async with BrowserSession.page() as page:
@@ -167,74 +177,99 @@ class TencentDocSkill:
             if not switched:
                 return {"success": False, "message": f"无法切换到 Sheet: {sheet_name}"}
 
-            # 3. 跳转到目标单元格（A列目标行）
-            navigated = await self._navigate_to_cell(page, f"A{target_row}")
-            if not navigated:
-                return {"success": False, "message": f"无法跳转到单元格 A{target_row}"}
+            name_box = page.locator("input.bar-label")
+            formula_bar = page.locator(".formula-bar").first
 
-            # 4. 验证目标行是否为空（避免覆盖已有数据）
-            cell_value = await self._read_formula_bar(page)
-            if cell_value.strip():
-                # 目标行有数据，需要找到真正的空行
-                log.warning(
-                    "tencent_doc.target_row_not_empty",
-                    row=target_row,
-                    value=cell_value[:20],
-                )
-                # 尝试往后找空行（最多找50行）
-                found_empty = False
-                for offset in range(1, 51):
-                    check_row = target_row + offset
-                    await self._navigate_to_cell(page, f"A{check_row}")
-                    val = await self._read_formula_bar(page)
-                    if not val.strip():
-                        target_row = check_row
-                        found_empty = True
-                        log.info("tencent_doc.found_empty_row", row=target_row)
-                        break
+            # 3. Cmd+End 跳到最后有数据的单元格
+            await page.keyboard.press("Meta+End")
+            await asyncio.sleep(2)
+            last_cell = await name_box.input_value()
+            log.info("tencent_doc.last_cell", cell=last_cell)
 
-                if not found_empty:
-                    return {
-                        "success": False,
-                        "message": f"在 {sheet_name} 中未找到空行（检查了 {target_row}-{target_row+50} 行）",
-                    }
+            # 4. Home 回到该行 A 列
+            await page.keyboard.press("Home")
+            await asyncio.sleep(1)
+            target_cell = await name_box.input_value()
 
-            # 5. 逐列输入数据
+            # 5. 检查当前行 A 列是否为空
+            cell_value = (await formula_bar.inner_text()).strip()
+
+            if cell_value:
+                # A列有数据，需要到下一行
+                await page.keyboard.press("ArrowDown")
+                await asyncio.sleep(1)
+                new_cell = await name_box.input_value()
+                cell_value = (await formula_bar.inner_text()).strip()
+
+                if cell_value:
+                    # 下一行也有数据，继续往下找空行
+                    found_empty = False
+                    for _ in range(20):
+                        prev_cell = await name_box.input_value()
+                        await page.keyboard.press("ArrowDown")
+                        await asyncio.sleep(0.5)
+                        new_cell = await name_box.input_value()
+                        if new_cell == prev_cell:
+                            # 到了表格末尾，无法继续
+                            break
+                        cell_value = (await formula_bar.inner_text()).strip()
+                        if not cell_value:
+                            found_empty = True
+                            break
+
+                    if not found_empty:
+                        return {"success": False, "message": "未找到空行，请手动在表格底部添加空行"}
+
+                target_cell = await name_box.input_value()
+
+            log.info("tencent_doc.write_target", cell=target_cell)
+
+            # 提取行号
+            import re
+            row_match = re.search(r"(\d+)", target_cell)
+            actual_row = int(row_match.group(1)) if row_match else 0
+
+            # 6. 逐列输入数据
             for i, value in enumerate(row_data):
                 if i > 0:
-                    # Tab 跳转到下一列
                     await page.keyboard.press("Tab")
-                    await asyncio.sleep(self.WAIT_AFTER_INPUT)
+                    await asyncio.sleep(0.5)  # Tab 后多等待一下避免丢字符
 
                 if value:
                     await page.keyboard.type(str(value), delay=30)
-                    await asyncio.sleep(self.WAIT_AFTER_INPUT)
+                    await asyncio.sleep(0.3)
 
-            # 6. 按 Enter 确认（腾讯文档会自动保存）
+            # 7. Enter 确认（腾讯文档自动保存）
             await page.keyboard.press("Enter")
+            await asyncio.sleep(2)
+
+            # 8. 验证：用 Cmd+End → Home 回到最后有数据行的A列
+            await page.keyboard.press("Meta+End")
             await asyncio.sleep(1)
+            await page.keyboard.press("Home")
+            await asyncio.sleep(0.5)
+            verify_cell = await name_box.input_value()
+            verify_value = (await formula_bar.inner_text()).strip()
 
-            # 7. 验证写入结果
-            await self._navigate_to_cell(page, f"A{target_row}")
-            verify_value = await self._read_formula_bar(page)
-
-            if verify_value.strip():
+            if verify_value:
                 log.info(
                     "tencent_doc.write_success",
                     sheet=sheet_name,
-                    row=target_row,
+                    row=actual_row,
+                    cell=verify_cell,
                     first_col=verify_value[:20],
                 )
                 return {
                     "success": True,
-                    "message": f"已成功写入 {sheet_name} 第 {target_row} 行",
-                    "row": target_row,
-                    "verified_value": verify_value.strip()[:30],
+                    "message": f"已成功写入 {sheet_name} 第 {actual_row} 行",
+                    "row": actual_row,
+                    "cell": verify_cell,
+                    "verified_value": verify_value[:30],
                 }
             else:
                 return {
                     "success": False,
-                    "message": f"写入验证失败：{sheet_name} 第 {target_row} 行仍为空",
+                    "message": f"写入验证失败：{sheet_name} 第 {actual_row} 行仍为空",
                 }
 
     async def _switch_sheet(self, page, sheet_name: str) -> bool:
@@ -253,7 +288,12 @@ class TencentDocSkill:
             return False
 
     async def _navigate_to_cell(self, page, cell_address: str) -> bool:
-        """通过 Name Box 跳转到指定单元格。"""
+        """通过 Name Box 跳转到指定单元格。
+
+        关键：Name Box 输入地址后按 Enter 跳转，
+        然后按 Escape 关闭 Name Box 焦点，再按 F2 进入当前单元格编辑模式。
+        这确保后续 type() 输入的内容进入单元格而非 Name Box。
+        """
         try:
             name_box = page.locator("input.bar-label")
             await name_box.click(timeout=2000)
@@ -261,9 +301,6 @@ class TencentDocSkill:
             await name_box.fill(cell_address)
             await name_box.press("Enter")
             await asyncio.sleep(self.WAIT_AFTER_NAVIGATE)
-            # 按 Escape 确保焦点从 Name Box 回到单元格
-            await page.keyboard.press("Escape")
-            await asyncio.sleep(0.2)
             log.debug("tencent_doc.navigate", cell=cell_address)
             return True
         except Exception as exc:
