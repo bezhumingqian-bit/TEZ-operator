@@ -21,10 +21,8 @@
         <el-option label="已驳回" value="rejected" />
       </el-select>
       <el-select v-model="filterType" placeholder="类型筛选" clearable size="default" style="width: 140px">
-        <el-option label="ECM导出" value="ecm_export" />
-        <el-option label="母机投放" value="host_deploy" />
+        <el-option label="投放" value="host_deploy" />
         <el-option label="搬迁" value="migration" />
-        <el-option label="维修" value="repair" />
       </el-select>
     </div>
 
@@ -68,10 +66,8 @@
       <el-form :model="createForm" label-width="120px">
         <el-form-item label="工单类型" required>
           <el-select v-model="createForm.order_type" placeholder="选择类型" style="width: 100%">
-            <el-option label="ECM导出转TEZ" value="ecm_export" />
-            <el-option label="母机投放" value="host_deploy" />
+            <el-option label="投放" value="host_deploy" />
             <el-option label="搬迁" value="migration" />
-            <el-option label="维修" value="repair" />
           </el-select>
         </el-form-item>
         <el-form-item label="标题" required>
@@ -86,7 +82,7 @@
         </el-form-item>
 
         <!-- 投放类型字段 -->
-        <template v-if="createForm.order_type === 'host_deploy' || createForm.order_type === 'ecm_export'">
+        <template v-if="createForm.order_type === 'host_deploy'">
           <el-form-item label="需求类型">
             <el-select v-model="createForm.demand_type" placeholder="选择" style="width: 100%">
               <el-option label="TEZ-投放计算母机" value="TEZ-投放计算母机" />
@@ -190,16 +186,6 @@
           </el-form-item>
         </template>
 
-        <!-- 维修类型字段 -->
-        <template v-if="createForm.order_type === 'repair'">
-          <el-form-item label="固资号/IP" required>
-            <el-input v-model="createForm.asset_ids" placeholder="故障机器固资号或IP" />
-          </el-form-item>
-          <el-form-item label="故障描述" required>
-            <el-input v-model="createForm.fault_desc" type="textarea" :rows="3" placeholder="描述故障现象" />
-          </el-form-item>
-        </template>
-
         <el-form-item label="备注">
           <el-input v-model="createForm.note" type="textarea" :rows="2" placeholder="其他说明（卡点/定制机位等）" />
         </el-form-item>
@@ -279,8 +265,8 @@ import {
 } from '@/api/workorders'
 
 // ─── 常量映射 ───
-const typeLabel: Record<string, string> = { ecm_export: 'ECM导出', host_deploy: '母机投放', migration: '搬迁', repair: '维修' }
-const typeTagMap: Record<string, string> = { ecm_export: '', host_deploy: 'success', migration: 'warning', repair: 'danger' }
+const typeLabel: Record<string, string> = { host_deploy: '投放', migration: '搬迁' }
+const typeTagMap: Record<string, string> = { host_deploy: 'success', migration: 'warning' }
 const statusLabel: Record<string, string> = { submitted: '已提交', pending: '待受理', processing: '处理中', verifying: '待验证', completed: '已完成', rejected: '已驳回' }
 const statusTagMap: Record<string, string> = { submitted: 'info', pending: 'warning', processing: '', verifying: 'warning', completed: 'success', rejected: 'danger' }
 const priorityLabel: Record<number, string> = { 1: '紧急', 2: '普通', 3: '低' }
@@ -420,13 +406,13 @@ async function handleCreate() {
       ElMessage.warning(`设备数量(${f.device_count})与固资号行数(${lines.length})不一致，已自动修正`)
       f.device_count = lines.length
     }
-  } else if (['host_deploy', 'ecm_export', 'migration'].includes(f.order_type)) {
+  } else if (['host_deploy', 'migration'].includes(f.order_type)) {
     ElMessage.warning('请填写固资号')
     return
   }
 
   // 可用区校验（搬迁/投放必填）
-  if (['host_deploy', 'ecm_export'].includes(f.order_type) && !f.zone) {
+  if (f.order_type === 'host_deploy' && !f.zone) {
     ElMessage.warning('请选择目标可用区')
     return
   }
@@ -436,11 +422,6 @@ async function handleCreate() {
     if (f.source_zone === f.zone) { ElMessage.error('来源和目的可用区不能相同'); return }
   }
 
-  // 维修必填故障描述
-  if (f.order_type === 'repair' && !f.fault_desc) {
-    ElMessage.warning('请填写故障描述')
-    return
-  }
   creating.value = true
   try {
     const f = createForm.value
