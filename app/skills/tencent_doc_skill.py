@@ -81,11 +81,14 @@ class TencentDocSkill:
             if data.get("delivery_type", "") == "TEZ":
                 reinstall_text = "需要安装【tlinux2.2-kvm3.0_kernel-for_qcloud_test】操作系统"
 
-        # N列（搬迁到位交付模块）：TEZ类型固定值
+        # N列（搬迁到位交付模块）：TEZ类型固定值（含单元格内换行）
         target_module = data.get("target_module", "")
         if not target_module and data.get("delivery_type", "") == "TEZ":
             target_module = (
-                "[N][腾讯云边缘可用区] - [公有云] - [TEZ] - [线下资源][待上线]"
+                "[N][腾讯云边缘可用区] - [公有云] - [TEZ] - [线下资源][待上线]\n"
+                "主备负责人:nalexzhao;cecixxzhang\n"
+                "运维部门:腾讯云宿主机部\n"
+                "业务部门:互联网业务系统"
             )
 
         # 构造行数据（按Tab列顺序）
@@ -250,11 +253,21 @@ class TencentDocSkill:
 
             # 6. 逐列输入数据（通过 Formula Bar 输入，支持中文字符）
             #    流程：点击 formula bar → type 文本 → Tab（确认并跳到下一列）
+            #    换行：文本中的 \n 用 Alt+Enter 实现单元格内换行
             for i, value in enumerate(row_data):
                 if value:
                     await formula_bar.click(timeout=3000)
                     await asyncio.sleep(0.3)
-                    await page.keyboard.type(str(value), delay=20)
+                    # 处理单元格内换行
+                    parts = str(value).split("\n")
+                    for j, part in enumerate(parts):
+                        if j > 0:
+                            # Alt+Enter = 单元格内换行
+                            await page.keyboard.press("Alt+Enter")
+                            await asyncio.sleep(0.2)
+                        if part:
+                            await page.keyboard.type(part, delay=20)
+                            await asyncio.sleep(0.2)
                     await asyncio.sleep(0.3)
                 # Tab 确认输入并跳到下一列（空值也需要Tab跳过该列）
                 await page.keyboard.press("Tab")
