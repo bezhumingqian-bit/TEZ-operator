@@ -104,18 +104,28 @@ class WorkOrderService:
         await self.session.flush()
 
         # 创建即同步到 OnePage 腾讯文档（异步后台任务，不阻塞请求）
+        # 重要：提前快照 detail/order_type/title 等字段，避免异步任务执行时
+        # session 已关闭导致 ORM 属性访问异常
         if order.order_type in ("migration", "ecm_export", "host_deploy"):
             import asyncio
-            asyncio.create_task(self._push_to_onepage_safe(order))
+            push_snapshot = {
+                "order_id": order.id,
+                "order_no": order.order_no,
+                "order_type": order.order_type,
+                "title": order.title,
+                "priority": order.priority,
+                "detail": dict(order.detail) if order.detail else {},
+            }
+            asyncio.create_task(self._push_to_onepage_safe(push_snapshot))
 
         return order
 
-    async def _push_to_onepage_safe(self, order: WorkOrder) -> None:
+    async def _push_to_onepage_safe(self, snapshot: dict) -> None:
         """后台安全推送（异常不影响主流程）。"""
         try:
-            await self._push_to_onepage(order)
+            await self._push_to_onepage(snapshot)
         except Exception as exc:
-            log.warning("workorder.onepage_push_failed", order_id=order.id, error=str(exc))
+            log.warning("workorder.onepage_push_failed", order_id=snapshot.get("order_id"), error=str(exc))
 
     # ─── 状态流转 ───
 
@@ -161,21 +171,26 @@ class WorkOrderService:
 
         return order
 
-        return order
+    async def _push_to_onepage(self, snapshot: dict) -> None:
+        """将工单数据推送到 OnePage 腾讯文档。
 
-    async def _push_to_onepage(self, order: WorkOrder) -> None:
-        """将工单数据推送到 OnePage 腾讯文档。"""
+        接收快照 dict 而非 ORM 对象，确保异步执行时数据可靠。
+        """
         from app.skills.tencent_doc_skill import TencentDocSkill
 
         skill = TencentDocSkill()
-        detail = order.detail or {}
+        detail = snapshot.get("detail", {})
+        order_type = snapshot["order_type"]
+        title = snapshot["title"]
+        priority = snapshot["priority"]
+        order_no = snapshot["order_no"]
         today = datetime.now().strftime("%Y/%m/%d")
 
-        if order.order_type == "migration":
+        if order_type == "migration":
             data = {
                 "date": today,
-                "requirement": order.title,
-                "urgent": "是" if order.priority >= 3 else "否",
+                "requirement": title,
+                "urgent": "是" if priority >= 3 else "否",
                 "expected_date": detail.get("expected_date", ""),
                 "from_zone": detail.get("source_zone", ""),
                 "from_idc": detail.get("source_idc", ""),
@@ -187,30 +202,34 @@ class WorkOrderService:
                 "delivery_type": detail.get("delivery_type", "TEZ"),
                 "reinstall": "",  # 由 Skill 根据 delivery_type 自动填充
                 "target_module": "",  # 由 Skill 根据 delivery_type 自动填充
-                "remark": f"工单 {order.order_no}",
+                "remark": f"工单 {order_no}",
             }
             result = await skill.append_migration_record(data)
         else:
             # ecm_export / host_deploy → 投放记录
             data = {
                 "date": today,
-                "urgent": "是" if order.priority >= 3 else "否",
-                "type": detail.get("demand_type", order.order_type),
+                "urgent": "是" if priority >= 3 else "否",
+                "type": detail.get("demand_type") or order_type,
                 "assets": detail.get("asset_ids", ""),
                 "quantity": str(detail.get("device_count", "")),
                 "reinstall": detail.get("reinstall", ""),
                 "vs_type": detail.get("vs_type", ""),
-                "requirement": order.title,
+                "requirement": title,
                 "migration_ref": detail.get("migration_ref", ""),
                 "zone": detail.get("zone", ""),
-                "remark": f"工单 {order.order_no}",
+                "remark": f"工单 {order_no}",
             }
             result = await skill.append_deployment_record(data)
 
-        if result.get("success"):
-            log.info("workorder.onepage_pushed", order_no=order.order_no, result=result)
-        else:
-            log.warning("workorder.onepage_push_failed", order_no=order.order_no, result=result)
+        log.info(
+            "workorder.onepage_push_result",
+            order_no=order_no,
+            success=result.get("success"),
+            data_snapshot={k: v[:20] if isinstance(v, str) and len(v) > 20 else v for k, v in data.items()},
+        )
+        if not result.get("success"):
+            log.warning("workorder.onepage_push_failed", order_no=order_no, result=result)
 
     # ─── 查询 ───
 
