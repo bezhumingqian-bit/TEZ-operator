@@ -147,7 +147,64 @@ class WorkOrderService:
         self.session.add(log_entry)
         await self.session.flush()
 
+        # 工单进入 processing 状态时，推送到 OnePage 腾讯文档
+        if to_status == "processing" and order.order_type in (
+            "migration", "ecm_export", "host_deploy",
+        ):
+            try:
+                await self._push_to_onepage(order)
+            except Exception as exc:
+                log.warning("workorder.onepage_push_failed", order_id=order.id, error=str(exc))
+
         return order
+
+    async def _push_to_onepage(self, order: WorkOrder) -> None:
+        """将工单数据推送到 OnePage 腾讯文档。"""
+        from app.skills.tencent_doc_skill import TencentDocSkill
+
+        skill = TencentDocSkill()
+        detail = order.detail or {}
+        today = datetime.now().strftime("%Y/%m/%d")
+
+        if order.order_type == "migration":
+            data = {
+                "date": today,
+                "requirement": order.title,
+                "urgent": "是" if order.priority >= 3 else "否",
+                "expected_date": detail.get("expected_date", ""),
+                "from_zone": detail.get("from_zone", ""),
+                "from_idc": detail.get("from_idc", ""),
+                "to_zone": detail.get("to_zone", ""),
+                "quantity": str(detail.get("quantity", "")),
+                "device_model": detail.get("device_model", ""),
+                "assets": detail.get("assets", ""),
+                "delivery_type": detail.get("delivery_type", "TEZ"),
+                "reinstall": detail.get("reinstall", "否"),
+                "target_module": detail.get("target_module", ""),
+                "remark": f"工单 {order.order_no}",
+            }
+            result = await skill.append_migration_record(data)
+        else:
+            # ecm_export / host_deploy → 投放记录
+            data = {
+                "date": today,
+                "urgent": "是" if order.priority >= 3 else "否",
+                "type": detail.get("requirement_type", order.order_type),
+                "assets": detail.get("assets", ""),
+                "quantity": str(detail.get("quantity", "")),
+                "reinstall": detail.get("reinstall", ""),
+                "vs_type": detail.get("vs_type", ""),
+                "requirement": order.title,
+                "migration_ref": detail.get("migration_ref", ""),
+                "zone": detail.get("zone", ""),
+                "remark": f"工单 {order.order_no}",
+            }
+            result = await skill.append_deployment_record(data)
+
+        if result.get("success"):
+            log.info("workorder.onepage_pushed", order_no=order.order_no, result=result)
+        else:
+            log.warning("workorder.onepage_push_failed", order_no=order.order_no, result=result)
 
     # ─── 查询 ───
 

@@ -235,14 +235,14 @@ class TencentDocSkill:
             row_match = re.search(r"(\d+)", target_cell)
             actual_row = int(row_match.group(1)) if row_match else 0
 
-            # 6. 逐列输入数据
+            # 6. 逐列输入数据（用 insert_text 直接插入，避免中文/特殊字符被截断）
             for i, value in enumerate(row_data):
                 if i > 0:
                     await page.keyboard.press("Tab")
-                    await asyncio.sleep(0.5)  # Tab 后多等待一下避免丢字符
+                    await asyncio.sleep(0.5)
 
                 if value:
-                    await page.keyboard.type(str(value), delay=30)
+                    await page.keyboard.insert_text(str(value))
                     await asyncio.sleep(0.3)
 
             # 7. Enter 确认（腾讯文档自动保存）
