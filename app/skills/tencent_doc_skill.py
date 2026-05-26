@@ -257,21 +257,21 @@ class TencentDocSkill:
             for i, value in enumerate(row_data):
                 if value:
                     await formula_bar.click(timeout=3000)
-                    await asyncio.sleep(0.3)
+                    await asyncio.sleep(0.5)  # 等待 formula bar 完全激活
                     # 处理单元格内换行
                     parts = str(value).split("\n")
                     for j, part in enumerate(parts):
                         if j > 0:
                             # Alt+Enter = 单元格内换行
                             await page.keyboard.press("Alt+Enter")
-                            await asyncio.sleep(0.2)
+                            await asyncio.sleep(0.3)
                         if part:
                             await page.keyboard.type(part, delay=20)
-                            await asyncio.sleep(0.2)
-                    await asyncio.sleep(0.3)
+                            await asyncio.sleep(0.3)
+                    await asyncio.sleep(0.5)
                 # Tab 确认输入并跳到下一列（空值也需要Tab跳过该列）
                 await page.keyboard.press("Tab")
-                await asyncio.sleep(0.3)
+                await asyncio.sleep(0.5)
 
             await asyncio.sleep(1)
 
