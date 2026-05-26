@@ -182,6 +182,22 @@ async def transition_order(
     return order
 
 
+@router.patch("/{order_id}/detail", response_model=OrderInfo, summary="更新工单详情")
+async def update_order_detail(
+    order_id: int,
+    payload: dict,
+    service: WorkOrderService = Depends(_get_service),
+) -> OrderInfo:
+    order = await service.get_order(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="工单不存在")
+    order.detail = payload.get("detail", order.detail)
+    await service.session.flush()
+    await service.session.commit()
+    order = await service.get_order(order_id)
+    return order
+
+
 @router.delete("/{order_id}", status_code=204, summary="删除工单")
 async def delete_order(
     order_id: int,

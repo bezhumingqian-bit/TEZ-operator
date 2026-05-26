@@ -211,6 +211,73 @@
           <el-descriptions-item label="标题" :span="2">{{ selectedOrder.title }}</el-descriptions-item>
         </el-descriptions>
 
+        <!-- 工单详情字段 -->
+        <div v-if="selectedOrder.detail && Object.keys(selectedOrder.detail).length" class="section">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <h4>工单内容</h4>
+            <el-button v-if="!editingDetail" size="small" @click="startEditDetail">编辑</el-button>
+            <div v-else>
+              <el-button size="small" type="primary" @click="saveDetail" :loading="savingDetail">保存</el-button>
+              <el-button size="small" @click="editingDetail = false">取消</el-button>
+            </div>
+          </div>
+
+          <!-- 只读展示 -->
+          <el-descriptions v-if="!editingDetail" :column="2" border size="small" style="margin-top:8px">
+            <el-descriptions-item v-if="selectedOrder.detail.demand_type" label="需求类型">{{ selectedOrder.detail.demand_type }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.asset_ids" label="固资号">
+              <pre style="margin:0;white-space:pre-wrap;font-size:12px">{{ selectedOrder.detail.asset_ids }}</pre>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.device_count" label="设备数量">{{ selectedOrder.detail.device_count }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.vs_type" label="设备类型">{{ selectedOrder.detail.vs_type }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.zone" label="目标可用区">{{ selectedOrder.detail.zone }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.source_zone" label="搬迁前可用区">{{ selectedOrder.detail.source_zone }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.source_idc" label="搬迁前机房">{{ selectedOrder.detail.source_idc }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.target_idc" label="目的机房">{{ selectedOrder.detail.target_idc }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.delivery_type" label="交付类型">{{ selectedOrder.detail.delivery_type }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.expected_date" label="预期交付">{{ selectedOrder.detail.expected_date }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.related_demand" label="关联需求">{{ selectedOrder.detail.related_demand }}</el-descriptions-item>
+            <el-descriptions-item v-if="selectedOrder.detail.reinstall" label="重装需求">{{ selectedOrder.detail.reinstall }}</el-descriptions-item>
+          </el-descriptions>
+
+          <!-- 编辑表单 -->
+          <el-form v-else label-width="100px" size="small" style="margin-top:8px">
+            <el-form-item v-if="selectedOrder.order_type === 'host_deploy'" label="需求类型">
+              <el-input v-model="editDetail.demand_type" />
+            </el-form-item>
+            <el-form-item label="固资号">
+              <el-input v-model="editDetail.asset_ids" type="textarea" :rows="3" />
+            </el-form-item>
+            <el-form-item label="设备数量">
+              <el-input-number v-model="editDetail.device_count" :min="1" />
+            </el-form-item>
+            <el-form-item label="设备类型">
+              <el-input v-model="editDetail.vs_type" />
+            </el-form-item>
+            <el-form-item label="目标可用区">
+              <el-input v-model="editDetail.zone" />
+            </el-form-item>
+            <el-form-item v-if="selectedOrder.order_type === 'migration'" label="搬迁前可用区">
+              <el-input v-model="editDetail.source_zone" />
+            </el-form-item>
+            <el-form-item v-if="selectedOrder.order_type === 'migration'" label="搬迁前机房">
+              <el-input v-model="editDetail.source_idc" />
+            </el-form-item>
+            <el-form-item v-if="selectedOrder.order_type === 'migration'" label="目的机房">
+              <el-input v-model="editDetail.target_idc" />
+            </el-form-item>
+            <el-form-item label="交付类型">
+              <el-input v-model="editDetail.delivery_type" />
+            </el-form-item>
+            <el-form-item label="预期交付">
+              <el-input v-model="editDetail.expected_date" placeholder="如 2026/6/5" />
+            </el-form-item>
+            <el-form-item label="关联需求">
+              <el-input v-model="editDetail.related_demand" />
+            </el-form-item>
+          </el-form>
+        </div>
+
         <!-- 前置校验 -->
         <div v-if="selectedOrder.pre_checks && Object.keys(selectedOrder.pre_checks).length" class="section">
           <h4>前置校验</h4>
@@ -316,6 +383,37 @@ const createForm = ref({
 
 const showDetailDialog = ref(false)
 const selectedOrder = ref<OrderInfo | null>(null)
+const editingDetail = ref(false)
+const savingDetail = ref(false)
+const editDetail = ref<Record<string, any>>({})
+
+function startEditDetail() {
+  editDetail.value = { ...(selectedOrder.value?.detail || {}) }
+  editingDetail.value = true
+}
+
+async function saveDetail() {
+  if (!selectedOrder.value) return
+  savingDetail.value = true
+  try {
+    const resp = await fetch(`/api/v1/workorders/${selectedOrder.value.id}/detail`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ detail: editDetail.value })
+    })
+    if (resp.ok) {
+      selectedOrder.value.detail = { ...editDetail.value }
+      editingDetail.value = false
+      ElMessage.success('保存成功')
+    } else {
+      ElMessage.error('保存失败')
+    }
+  } catch {
+    ElMessage.error('保存失败')
+  } finally {
+    savingDetail.value = false
+  }
+}
 
 // 可用区下拉选项（从后端 API 加载）
 const zoneOptions = ref<string[]>([])
