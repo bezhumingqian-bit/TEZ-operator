@@ -111,6 +111,13 @@
           <el-form-item label="设备类型/VS_Type">
             <el-input v-model="createForm.vs_type" placeholder="如 CG3-10G_LOCALDISK / Y0-MI32-25G_LOCALDISK" />
           </el-form-item>
+          <el-form-item label="投放流程重装">
+            <el-select v-model="createForm.reinstall" placeholder="选择" style="width: 100%">
+              <el-option label="需要（已确认有带外）" value="需要（已确认有带外）" />
+              <el-option label="不需要 已经重装过" value="不需要 已经重装过" />
+              <el-option label="需要（无带外需要线下重装）" value="需要（无带外需要线下重装）" />
+            </el-select>
+          </el-form-item>
           <el-form-item label="目标可用区">
             <el-select v-model="createForm.zone" placeholder="选择可用区" filterable style="width: 100%" @change="(v: string) => onZoneChange(v, 'zone')">
               <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
@@ -171,6 +178,7 @@
             <el-radio-group v-model="createForm.delivery_type">
               <el-radio value="TEZ">TEZ</el-radio>
               <el-radio value="ECM">ECM</el-radio>
+              <el-radio value="TEZ裸金属">TEZ裸金属</el-radio>
             </el-radio-group>
           </el-form-item>
           <el-form-item label="重装需求">
