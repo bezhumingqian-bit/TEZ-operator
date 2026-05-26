@@ -67,40 +67,31 @@ class TencentDocSkill:
     async def append_migration_record(self, data: dict[str, str]) -> dict[str, Any]:
         """向搬迁记录 Sheet 追加一行数据。
 
-        data 字段（按列顺序）：
-        - date: 日期（如 2026/5/25）
-        - requirement: 相关需求
-        - urgent: 是否紧急（是/否）
-        - expected_date: 预期交付时间
-        - from_zone: 搬迁前可用区
-        - from_idc: 搬迁前机房管理单元
-        - to_idc: 目的机房管理单元
-        - to_zone: 目的可用区
-        - quantity: 搬迁数量
-        - device_model: 设备型号
-        - assets: 设备明细（固资号）
-        - delivery_type: 交付类型
-        - reinstall: 重装需求
-        - target_module: 搬迁到位交付模块
-        - remark: 备注
+        列顺序（Tab跳转）：
+        A: 日期 | B: 相关需求 | C: 是否紧急 | D: 预期交付时间
+        E: 搬迁前可用区 | F: 搬迁前机房管理单元
+        G: 目的机房管理单元（VLOOKUP公式自动填，跳过）
+        H: 目的可用区 | I: 搬迁数量 | J: 设备型号
+        K: 设备明细（固资号）| L: 交付类型 | M: 重装需求
+        N: 搬迁到位交付模块 | O: 备注
         """
-        # 构造行数据（按列顺序）
+        # 构造行数据（按Tab列顺序，G列留空让公式自动填）
         row_data = [
-            data.get("date", ""),
-            data.get("requirement", ""),
-            data.get("urgent", "否"),
-            data.get("expected_date", ""),
-            data.get("from_zone", ""),
-            data.get("from_idc", ""),
-            data.get("to_idc", ""),
-            data.get("to_zone", ""),
-            data.get("quantity", ""),
-            data.get("device_model", ""),
-            data.get("assets", ""),
-            data.get("delivery_type", ""),
-            data.get("reinstall", ""),
-            data.get("target_module", ""),
-            data.get("remark", ""),
+            data.get("date", ""),              # A: 日期
+            data.get("requirement", ""),        # B: 相关需求
+            data.get("urgent", "否"),           # C: 是否紧急
+            data.get("expected_date", ""),      # D: 预期交付时间
+            data.get("from_zone", ""),          # E: 搬迁前可用区
+            data.get("from_idc", ""),           # F: 搬迁前机房管理单元
+            "",                                 # G: 目的机房管理单元（VLOOKUP，跳过）
+            data.get("to_zone", ""),            # H: 目的可用区
+            data.get("quantity", ""),           # I: 搬迁数量
+            data.get("device_model", ""),       # J: 设备型号
+            data.get("assets", ""),             # K: 设备明细（固资号）
+            data.get("delivery_type", ""),      # L: 交付类型
+            data.get("reinstall", ""),          # M: 重装需求
+            data.get("target_module", ""),      # N: 搬迁到位交付模块
+            data.get("remark", ""),             # O: 备注
         ]
 
         return await self._append_row(
@@ -190,37 +181,52 @@ class TencentDocSkill:
             await page.keyboard.press("Home")
             await asyncio.sleep(1)
             target_cell = await name_box.input_value()
+            log.info("tencent_doc.last_data_row", cell=target_cell)
 
-            # 5. 检查当前行 A 列是否为空
+            # 5. 检查当前行 A 列是否有数据（等待 formula bar 充分加载）
+            await asyncio.sleep(1)  # 额外等待确保 formula bar 更新
             cell_value = (await formula_bar.inner_text()).strip()
+            # 多次读取确认（避免 formula bar 延迟加载导致误判）
+            for _ in range(3):
+                await asyncio.sleep(0.5)
+                check = (await formula_bar.inner_text()).strip()
+                if check:
+                    cell_value = check
+                    break
 
             if cell_value:
-                # A列有数据，需要到下一行
+                # A列有数据 → 必须到下一行
+                prev_cell = target_cell
                 await page.keyboard.press("ArrowDown")
                 await asyncio.sleep(1)
                 new_cell = await name_box.input_value()
-                cell_value = (await formula_bar.inner_text()).strip()
 
-                if cell_value:
-                    # 下一行也有数据，继续往下找空行
-                    found_empty = False
-                    for _ in range(20):
-                        prev_cell = await name_box.input_value()
-                        await page.keyboard.press("ArrowDown")
-                        await asyncio.sleep(0.5)
-                        new_cell = await name_box.input_value()
-                        if new_cell == prev_cell:
-                            # 到了表格末尾，无法继续
-                            break
-                        cell_value = (await formula_bar.inner_text()).strip()
-                        if not cell_value:
-                            found_empty = True
-                            break
-
-                    if not found_empty:
-                        return {"success": False, "message": "未找到空行，请手动在表格底部添加空行"}
+                if new_cell == prev_cell:
+                    # ArrowDown 没移动——到了表格末尾
+                    # 用 Option+Shift+= 在当前行上方插入新行
+                    # 插入后原数据下移，光标跟着走，需要 ArrowUp 回到新空行
+                    await page.keyboard.press("Alt+Shift+Equal")
+                    await asyncio.sleep(1)
+                    await page.keyboard.press("ArrowUp")
+                    await asyncio.sleep(0.5)
+                    await page.keyboard.press("Home")
+                    await asyncio.sleep(0.5)
+                else:
+                    # 成功移到了下一行
+                    pass
 
                 target_cell = await name_box.input_value()
+            # else: A列为空（可能是格式残留行），直接在此行写入
+
+            # 最终安全检查：确认目标行 A 列确实为空
+            await asyncio.sleep(0.5)
+            final_check = (await formula_bar.inner_text()).strip()
+            if final_check:
+                log.error("tencent_doc.safety_abort", cell=target_cell, value=final_check[:20])
+                return {
+                    "success": False,
+                    "message": f"安全中止：目标行 {target_cell} A列有数据 [{final_check[:20]}]，拒绝覆盖",
+                }
 
             log.info("tencent_doc.write_target", cell=target_cell)
 
