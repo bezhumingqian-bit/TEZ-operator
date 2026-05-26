@@ -35,6 +35,7 @@ class BrowserSession:
     _ctx: BrowserContext | None = None
     _playwright = None  # type: ignore[var-annotated]
     _lock = asyncio.Lock()
+    _operation_lock = asyncio.Lock()  # 防止并发页面操作冲突
 
     # ──────────────── 启动 / 关闭 ────────────────
 
@@ -95,16 +96,21 @@ class BrowserSession:
     @classmethod
     @asynccontextmanager
     async def page(cls) -> AsyncIterator:
-        """打开一个新 page，使用完自动关闭。"""
-        ctx = await cls._ensure()
-        page = await ctx.new_page()
-        try:
-            yield page
-        finally:
+        """打开一个新 page，使用完自动关闭。
+
+        使用 _operation_lock 确保同一时间只有一个页面操作，
+        防止并发 Playwright 操作导致冲突。
+        """
+        async with cls._operation_lock:
+            ctx = await cls._ensure()
+            page = await ctx.new_page()
             try:
-                await page.close()
-            except Exception:  # pragma: no cover  # noqa: BLE001
-                pass
+                yield page
+            finally:
+                try:
+                    await page.close()
+                except Exception:  # pragma: no cover  # noqa: BLE001
+                    pass
 
     # ──────────────── 登录态有效性 ────────────────
 

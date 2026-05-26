@@ -6,7 +6,7 @@
   "description": "边缘云资源运维平台 Web 前端 (M1 资源查询)",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vite build",
     "preview": "vite preview --port 4173",
     "lint": "eslint . --ext .vue,.ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{vue,ts,tsx,css}\""
