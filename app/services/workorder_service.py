@@ -174,13 +174,14 @@ class WorkOrderService:
                 "expected_date": detail.get("expected_date", ""),
                 "from_zone": detail.get("from_zone", ""),
                 "from_idc": detail.get("from_idc", ""),
+                "to_idc": detail.get("to_idc", ""),
                 "to_zone": detail.get("to_zone", ""),
                 "quantity": str(detail.get("quantity", "")),
                 "device_model": detail.get("device_model", ""),
                 "assets": detail.get("assets", ""),
                 "delivery_type": detail.get("delivery_type", "TEZ"),
-                "reinstall": detail.get("reinstall", "否"),
-                "target_module": detail.get("target_module", ""),
+                "reinstall": "",  # 由 Skill 根据 delivery_type 自动填充
+                "target_module": "",  # 由 Skill 根据 delivery_type 自动填充
                 "remark": f"工单 {order.order_no}",
             }
             result = await skill.append_migration_record(data)

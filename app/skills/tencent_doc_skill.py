@@ -75,7 +75,20 @@ class TencentDocSkill:
         K: 设备明细（固资号）| L: 交付类型 | M: 重装需求
         N: 搬迁到位交付模块 | O: 备注
         """
-        # 构造行数据（按Tab列顺序，G列留空让公式自动填）
+        # M列（重装需求）：TEZ类型固定值
+        reinstall_text = data.get("reinstall", "")
+        if not reinstall_text or reinstall_text == "否":
+            if data.get("delivery_type", "") == "TEZ":
+                reinstall_text = "需要安装【tlinux2.2-kvm3.0_kernel-for_qcloud_test】操作系统"
+
+        # N列（搬迁到位交付模块）：TEZ类型固定值
+        target_module = data.get("target_module", "")
+        if not target_module and data.get("delivery_type", "") == "TEZ":
+            target_module = (
+                "[N][腾讯云边缘可用区] - [公有云] - [TEZ] - [线下资源][待上线]"
+            )
+
+        # 构造行数据（按Tab列顺序）
         row_data = [
             data.get("date", ""),              # A: 日期
             data.get("requirement", ""),        # B: 相关需求
@@ -83,14 +96,14 @@ class TencentDocSkill:
             data.get("expected_date", ""),      # D: 预期交付时间
             data.get("from_zone", ""),          # E: 搬迁前可用区
             data.get("from_idc", ""),           # F: 搬迁前机房管理单元
-            "",                                 # G: 目的机房管理单元（VLOOKUP，跳过）
+            data.get("to_idc", ""),             # G: 目的机房管理单元（直接传入）
             data.get("to_zone", ""),            # H: 目的可用区
             data.get("quantity", ""),           # I: 搬迁数量
             data.get("device_model", ""),       # J: 设备型号
             data.get("assets", ""),             # K: 设备明细（固资号）
-            data.get("delivery_type", ""),      # L: 交付类型
-            data.get("reinstall", ""),          # M: 重装需求
-            data.get("target_module", ""),      # N: 搬迁到位交付模块
+            data.get("delivery_type", "TEZ"),   # L: 交付类型
+            reinstall_text,                     # M: 重装需求
+            target_module,                      # N: 搬迁到位交付模块
             data.get("remark", ""),             # O: 备注
         ]
 
