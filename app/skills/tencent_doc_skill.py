@@ -55,7 +55,17 @@
 
 数据验证列（下拉单选）：
 - 投放记录: [2]=需求类型(8选项), [5]=投放流程重装(3选项)
-- 搬迁记录: [2]=是否紧急, [11]=交付类型
+- 搬迁记录: [2]=是否紧急, [11]=交付类型(3选项)
+
+投放记录-需求类型选项（截图确认 2026-05-27）：
+  ECM导出转到搬迁模块 | ECM-投放计算母机 | TEZ-投放计算母机
+  ECM-重装计算母机 | TEZ-投放支撑母机 | TEZ-重装支撑母机
+
+投放记录-投放流程重装选项：
+  需要（已确认有带外）| 不需要 已经重装过 | 需要（无带外需要线下重装）
+
+搬迁记录-交付类型选项：
+  ECM | TEZ | TEZ裸金属
 """
 
 from __future__ import annotations
@@ -379,33 +389,40 @@ class TencentDocSkill:
     async def _select_dropdown_option(self, page, value: str) -> bool:
         """对数据验证列（下拉单选），选择匹配的选项。
 
-        腾讯文档架构：Canvas 渲染 + DOM 浮层。
-        - 单元格在 Canvas 上绘制，不是 DOM 元素
-        - 选中单元格后，下拉箭头以 DOM 覆盖层出现在单元格右侧
-        - 点击箭头后，下拉菜单以 DOM 浮层（绝对定位、高 z-index）弹出
-        - 双击单元格会生成 #alloy-simple-text-editor textarea
+        腾讯文档下拉面板结构（来自实际截图 2026-05-27）：
+        ┌─────────────────────┐
+        │ 搜索选项             │  ← 搜索输入框
+        │                     │
+        │ 单选                 │  ← 类型标签
+        │                     │
+        │ [选项A]  [选项B]     │  ← 彩色 pill 按钮（可点击）
+        │ [选项C]  ...        │
+        └─────────────────────┘
 
-        策略优先级：
-        1. 尝试找到并点击下拉箭头 DOM → 点击匹配选项
-        2. 双击单元格激活 alloy-simple-text-editor → 直接输入匹配文本 → Tab 确认
+        触发方式：选中单元格后右侧出现 ▼ 箭头，点击箭头打开面板。
+
+        策略：
+        1. 点击 ▼ 箭头（DOM 元素）打开下拉面板
+        2. 确认面板已打开（通过"单选"文字判断）
+        3. 在面板中 get_by_text 点击匹配选项
+        4. 降级：F2 进入编辑器直接输入
         """
         try:
-            # ─── 策略1：找下拉箭头并点击 ───
-            arrow_found = await self._try_click_dropdown_arrow(page)
-            if arrow_found:
-                await asyncio.sleep(1)  # 等下拉菜单 DOM 出现
+            # ─── 步骤1：打开下拉面板 ───
+            panel_opened = await self._open_dropdown_panel(page)
 
-                # 在页面所有可见浮层中查找匹配选项
-                selected = await self._try_click_dropdown_item(page, value)
+            if panel_opened:
+                # ─── 步骤2：点击匹配选项 ───
+                selected = await self._click_panel_option(page, value)
                 if selected:
+                    await asyncio.sleep(0.5)
                     return True
-
-                # 箭头点了但没找到选项，关闭下拉
+                # 没选中，关闭面板
                 await page.keyboard.press("Escape")
                 await asyncio.sleep(0.3)
 
-            # ─── 策略2：双击单元格 → alloy-simple-text-editor 输入 ───
-            log.info("tencent_doc.dropdown_strategy2", value=value[:20])
+            # ─── 降级：F2 + alloy-simple-text-editor ───
+            log.info("tencent_doc.dropdown_fallback_editor", value=value[:20])
             return await self._try_editor_input(page, value)
 
         except Exception as exc:
@@ -417,119 +434,150 @@ class TencentDocSkill:
             await asyncio.sleep(0.3)
             return False
 
-    async def _try_click_dropdown_arrow(self, page) -> bool:
-        """尝试找到并点击数据验证的下拉箭头。
+    async def _open_dropdown_panel(self, page) -> bool:
+        """打开数据验证下拉面板。
 
-        选中单元格后，下拉箭头可能是以下 DOM 元素之一。
+        方法：找到 ▼ 箭头并点击，或用其他方式触发。
+        验证：面板打开后应能看到 "单选" 文字。
         """
+        # 方法1：直接找 ▼ 箭头 DOM 元素
+        # ▼ 可能是 SVG、button、div 等，尝试多种选择器
         arrow_selectors = [
-            "[class*='dv-arrow']",
-            "[class*='dropdown-arrow']",
-            "[class*='validation-arrow']",
-            "[class*='cell-dropdown']",
-            "[class*='select-arrow']",
-            # 腾讯文档特有的 SVG 图标
-            ".spreadsheet-cell-dropdown",
-            ".cell-editor-dropdown",
+            # 可能的箭头/下拉触发器选择器
+            "[class*='arrow']",
+            "[class*='trigger']",
+            "[class*='dropdown'] svg",
+            "[class*='select-icon']",
+            "[class*='cell-drop']",
+            "[class*='dv-trigger']",
+            "[class*='validation']",
         ]
+
         for selector in arrow_selectors:
             try:
-                arrow = page.locator(selector).first
-                if await arrow.count() > 0 and await arrow.is_visible():
-                    await arrow.click(timeout=2000)
-                    log.info("tencent_doc.arrow_clicked", selector=selector)
-                    return True
+                arrows = page.locator(selector)
+                count = await arrows.count()
+                for idx in range(count):
+                    arrow = arrows.nth(idx)
+                    if await arrow.is_visible():
+                        await arrow.click(timeout=1500)
+                        await asyncio.sleep(0.8)
+                        # 验证面板是否打开
+                        if await self._is_panel_open(page):
+                            log.info("tencent_doc.panel_opened", selector=selector)
+                            return True
             except Exception:
                 continue
 
-        # 没有找到专用箭头，尝试在 name_box 位置附近找最近新出现的可点击元素
-        log.info("tencent_doc.arrow_not_found_trying_alt_down")
-        # 备选：尝试 Option+ArrowDown (Mac) / Alt+ArrowDown
-        await page.keyboard.press("Alt+ArrowDown")
+        # 方法2：直接单击当前选中单元格区域（可能触发下拉）
+        # 因为单元格在 Canvas 上，尝试点击 name_box 中显示的单元格位置
+        # 这不太可靠，跳过
+
+        # 方法3：按 Space（某些下拉可以用空格触发）
+        await page.keyboard.press("Space")
         await asyncio.sleep(0.8)
-        # 检查是否有新的浮层出现
-        has_popup = await self._check_dropdown_visible(page)
-        return has_popup
+        if await self._is_panel_open(page):
+            log.info("tencent_doc.panel_opened_by_space")
+            return True
+        # Space 可能输入了空格，按 Escape 取消
+        await page.keyboard.press("Escape")
+        await asyncio.sleep(0.3)
 
-    async def _check_dropdown_visible(self, page) -> bool:
-        """检查页面是否有可见的下拉菜单浮层。"""
-        popup_selectors = [
-            "[class*='dropdown']",
-            "[class*='dv-list']",
-            "[class*='select-option']",
-            "[class*='popup']",
-            "[class*='popover']",
-            "div[style*='position: absolute'][style*='z-index']",
-        ]
-        for selector in popup_selectors:
-            try:
-                el = page.locator(selector).first
-                if await el.count() > 0 and await el.is_visible():
-                    # 确认这个元素包含可点击的文本选项
-                    text = await el.inner_text()
-                    if text and len(text.strip()) > 0:
-                        return True
-            except Exception:
-                continue
+        # 方法4：F2 进入编辑模式（可能自动弹出下拉）
+        await page.keyboard.press("F2")
+        await asyncio.sleep(0.8)
+        if await self._is_panel_open(page):
+            log.info("tencent_doc.panel_opened_by_f2")
+            return True
+
+        log.warning("tencent_doc.panel_open_failed")
         return False
 
-    async def _try_click_dropdown_item(self, page, value: str) -> bool:
-        """在已打开的下拉菜单中，点击匹配的选项。"""
-        # 策略：在页面中找到 visible 的、包含目标文本的可点击元素
-        # 排除 formula bar 和 sheet tab 等固定 UI
+    async def _is_panel_open(self, page) -> bool:
+        """检查下拉面板是否已打开。
 
+        标志：页面中可见 "单选" 文字（下拉面板的类型标签）。
+        """
         try:
-            # 精确匹配（推荐）
+            # "单选" 是下拉面板中的固定标签文字
+            label = page.get_by_text("单选", exact=True)
+            if await label.count() > 0:
+                for i in range(await label.count()):
+                    if await label.nth(i).is_visible():
+                        return True
+        except Exception:
+            pass
+        return False
+
+    async def _click_panel_option(self, page, value: str) -> bool:
+        """在已打开的下拉面板中，点击匹配的选项 pill。"""
+        try:
+            # 精确文本匹配
             option = page.get_by_text(value, exact=True)
-            all_matches = await option.count()
-            for idx in range(all_matches):
+            count = await option.count()
+            for idx in range(count):
                 el = option.nth(idx)
                 if await el.is_visible():
-                    # 确认不是 tab bar 或 formula bar 内的文本
+                    # 排除非面板元素（如 sheet tab、formula bar）
+                    # 面板选项通常不是 input/textarea
                     tag = await el.evaluate("el => el.tagName")
-                    if tag.lower() not in ("input", "textarea"):
-                        await el.click(timeout=2000)
-                        await asyncio.sleep(0.5)
-                        log.info("tencent_doc.dropdown_item_clicked", value=value[:20])
-                        return True
-        except Exception as exc:
-            log.debug("tencent_doc.dropdown_item_click_failed", error=str(exc))
+                    if tag.lower() in ("input", "textarea"):
+                        continue
+                    await el.click(timeout=2000)
+                    log.info("tencent_doc.option_clicked", value=value[:20])
+                    return True
 
+            # 尝试部分匹配（选项文字可能有首尾空格）
+            option_partial = page.get_by_text(value)
+            count = await option_partial.count()
+            for idx in range(count):
+                el = option_partial.nth(idx)
+                if await el.is_visible():
+                    tag = await el.evaluate("el => el.tagName")
+                    if tag.lower() in ("input", "textarea"):
+                        continue
+                    text = (await el.inner_text()).strip()
+                    if text == value:
+                        await el.click(timeout=2000)
+                        log.info("tencent_doc.option_clicked_partial", value=value[:20])
+                        return True
+
+            log.warning("tencent_doc.option_not_found", value=value[:20])
+        except Exception as exc:
+            log.error("tencent_doc.option_click_error", value=value[:20], error=str(exc))
         return False
 
     async def _try_editor_input(self, page, value: str) -> bool:
-        """策略2：双击单元格激活 alloy-simple-text-editor，直接输入文本。
+        """降级策略：F2 进入编辑 → alloy-simple-text-editor 输入文本。
 
-        腾讯文档双击单元格后会生成一个 textarea#alloy-simple-text-editor，
-        在其中输入精确匹配数据验证选项的文本，Tab 确认时应通过验证。
+        腾讯文档双击/F2 后生成 textarea#alloy-simple-text-editor，
+        输入精确匹配数据验证选项的文本，Tab 确认时应通过验证。
         """
         try:
-            # 当前单元格已选中，按 F2 或双击进入编辑模式
-            # F2 进入编辑模式（与双击等效，但更可靠因为不需要坐标）
-            await page.keyboard.press("F2")
-            await asyncio.sleep(0.8)
+            # 确保进入编辑模式（如果还没有的话）
+            editor = page.locator("#alloy-simple-text-editor")
+            if not (await editor.count() > 0 and await editor.is_visible()):
+                await page.keyboard.press("F2")
+                await asyncio.sleep(0.8)
 
-            # 查找 alloy-simple-text-editor
             editor = page.locator("#alloy-simple-text-editor")
             if await editor.count() > 0 and await editor.is_visible():
-                # 清空并输入匹配文本
                 await editor.fill("")
                 await asyncio.sleep(0.2)
                 await editor.fill(value)
                 await asyncio.sleep(0.5)
                 log.info("tencent_doc.editor_input_done", value=value[:20])
-                # 不在这里按 Tab/Enter，让外层循环的 Tab 来确认
+                # 外层循环会按 Tab 确认
                 return True
 
-            # editor 没出现，尝试直接 keyboard.type（可能对纯 ASCII 有效）
-            log.info("tencent_doc.editor_not_found_trying_type")
+            # editor 没出现，用 keyboard.type 作为最后手段
+            log.info("tencent_doc.editor_not_found_typing")
             await page.keyboard.type(value, delay=30)
             await asyncio.sleep(0.5)
             return True
 
         except Exception as exc:
             log.error("tencent_doc.editor_input_failed", value=value[:20], error=str(exc))
-            # 按 Escape 取消编辑模式
             await page.keyboard.press("Escape")
             await asyncio.sleep(0.3)
             return False
