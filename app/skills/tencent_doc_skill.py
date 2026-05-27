@@ -252,8 +252,17 @@ class TencentDocSkill:
             actual_row = int(row_match.group(1)) if row_match else 0
 
             # 6. 逐列输入数据（通过 Formula Bar 输入，支持中文字符）
-            #    流程：点击 formula bar → type 文本 → Tab（确认并跳到下一列）
+            #    普通列：formula bar click → type → Tab（确认并跳下一列）
+            #    下拉验证列：formula bar click → type → Enter（确认并下移）→ ArrowUp（回原行）→ Tab
             #    换行：文本中的 \n 用 Alt+Enter 实现单元格内换行
+            #
+            #    数据验证列索引（下拉单选，Tab 会被下拉框拦截）：
+            #    - 投放记录: [2]=需求类型, [5]=投放流程重装
+            #    - 搬迁记录: [2]=是否紧急, [11]=交付类型
+            dropdown_indices = (
+                {2, 5} if sheet_name == SHEET_DEPLOYMENT else {2, 11}
+            )
+
             for i, value in enumerate(row_data):
                 if value:
                     await formula_bar.click(timeout=3000)
@@ -269,7 +278,15 @@ class TencentDocSkill:
                             await page.keyboard.type(part, delay=20)
                             await asyncio.sleep(0.3)
                     await asyncio.sleep(0.5)
-                # Tab 确认输入并跳到下一列（空值也需要Tab跳过该列）
+
+                    if i in dropdown_indices:
+                        # 数据验证列：Enter 确认（关闭下拉框）→ 光标下移 → ArrowUp 回原行
+                        await page.keyboard.press("Enter")
+                        await asyncio.sleep(0.5)
+                        await page.keyboard.press("ArrowUp")
+                        await asyncio.sleep(0.3)
+
+                # Tab 跳到下一列（空值也需要Tab跳过该列）
                 await page.keyboard.press("Tab")
                 await asyncio.sleep(0.5)
 
