@@ -272,13 +272,16 @@ class TencentDocSkill:
                     # 方法1：点击底部"添加"按钮
                     added = await self._add_rows_at_bottom(page)
                     if added:
-                        # 添加后重新 ArrowDown
-                        await page.keyboard.press("ArrowDown")
-                        await asyncio.sleep(0.5)
+                        # 添加后用 Name Box 跳到紧接数据末尾的下一行
+                        next_row = last_row + 1
+                        await name_box.click(timeout=2000)
+                        await asyncio.sleep(0.3)
+                        await name_box.fill(f"A{next_row}")
+                        await name_box.press("Enter")
+                        await asyncio.sleep(1)
                         target_cell = await name_box.input_value()
                     else:
                         # 方法2：Alt+Shift+= 插入行（在当前行上方）
-                        # 插入后数据下移，光标位置是新空行
                         await page.keyboard.press("Alt+Shift+Equal")
                         await asyncio.sleep(1)
                         target_cell = await name_box.input_value()
