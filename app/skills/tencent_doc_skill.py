@@ -313,13 +313,17 @@ class TencentDocSkill:
                         if not selected:
                             # 降级：尝试 formula bar 方式
                             log.warning("tencent_doc.dropdown_fallback", col=i, value=str(value)[:20])
-                            await formula_bar.click(timeout=3000)
+                            await self._dismiss_overlays(page)
+                            await formula_bar.click(timeout=5000, force=True)
                             await asyncio.sleep(0.5)
                             await page.keyboard.type(str(value), delay=20)
                             await asyncio.sleep(0.5)
+                        # 下拉选择后可能有覆盖层残留，先清理
+                        await self._dismiss_overlays(page)
                     else:
                         # 普通列：formula bar 输入
-                        await formula_bar.click(timeout=3000)
+                        await self._dismiss_overlays(page)
+                        await formula_bar.click(timeout=5000, force=True)
                         await asyncio.sleep(0.5)
                         # 处理单元格内换行
                         parts = str(value).split("\n")
@@ -370,6 +374,26 @@ class TencentDocSkill:
                     "success": False,
                     "message": f"写入验证失败：{sheet_name} 第 {actual_row} 行仍为空",
                 }
+
+    async def _dismiss_overlays(self, page) -> None:
+        """关闭可能遮挡 formula bar 的覆盖层/弹窗。
+
+        已知会遮挡的元素：
+        - #doc-sharebox-container > .content-dialog-container
+        注意：不能用 Escape，会取消单元格的输入值！直接用 JS 隐藏。
+        """
+        try:
+            # 隐藏 sharebox dialog（通过 JS 直接隐藏，不影响单元格状态）
+            await page.evaluate("""() => {
+                const sharebox = document.querySelector('#doc-sharebox-container');
+                if (sharebox) sharebox.style.display = 'none';
+                // 其他可能的遮挡层
+                const dialogs = document.querySelectorAll('.content-dialog-container');
+                dialogs.forEach(d => { if (d.offsetParent !== null) d.style.display = 'none'; });
+            }""")
+            await asyncio.sleep(0.3)
+        except Exception:
+            pass
 
     async def _switch_sheet(self, page, sheet_name: str) -> bool:
         """切换到指定的 Sheet tab。"""
@@ -440,10 +464,15 @@ class TencentDocSkill:
         方法：找到 ▼ 箭头并点击，或用其他方式触发。
         验证：面板打开后应能看到 "单选" 文字。
         """
+        # 先确保焦点回到表格（从 formula bar 脱离）
+        # Escape 退出可能残留的编辑/formula bar 状态
+        await page.keyboard.press("Escape")
+        await asyncio.sleep(0.3)
+        # 再按一下方向键确保在目标单元格（Escape 不会移动光标）
+        # 但 Escape 可能取消了 Tab 的移动？不会，Tab 已经确认了。
+
         # 方法1：直接找 ▼ 箭头 DOM 元素
-        # ▼ 可能是 SVG、button、div 等，尝试多种选择器
         arrow_selectors = [
-            # 可能的箭头/下拉触发器选择器
             "[class*='arrow']",
             "[class*='trigger']",
             "[class*='dropdown'] svg",
