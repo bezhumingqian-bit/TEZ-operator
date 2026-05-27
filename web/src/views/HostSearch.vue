@@ -312,6 +312,23 @@ TYSV00000002
                 </el-table>
                 <el-empty v-else description="该节点没有未上线设备" />
               </el-card>
+
+              <!-- 非TEZ设备（ECM等其他业务占用机位） -->
+              <el-card v-if="nodeOverviewData.non_tez_devices && nodeOverviewData.non_tez_devices.length" shadow="never" class="node-section" style="margin-top: 16px">
+                <template #header>
+                  <b>非TEZ设备</b>
+                  <el-tag size="small" type="info" style="margin-left: 8px">
+                    {{ nodeOverviewData.non_tez_devices.length }} 台
+                  </el-tag>
+                  <span style="color:#909399; font-size:12px; margin-left:8px">（ECM等其他业务占用机位）</span>
+                </template>
+                <el-table :data="nodeOverviewData.non_tez_devices" stripe size="small">
+                  <el-table-column prop="asset_id" label="固资号" width="140" />
+                  <el-table-column prop="ip" label="IP" width="130" />
+                  <el-table-column prop="machine_type" label="机型" width="130" />
+                  <el-table-column prop="module" label="模块" min-width="250" />
+                </el-table>
+              </el-card>
             </template>
             <el-empty v-else description="选择可用区后查询资源概况" />
           </div>
@@ -491,6 +508,7 @@ interface NodeOverviewData {
   positions: { zone: string; idc: string | null; free_count: number | null; total_positions?: number; message: string }
   offline_devices: { asset_id: string; ip: string; machine_type: string; module?: string; reason: string }[]
   online_devices: { asset_id: string; ip: string; machine_type: string; module?: string }[]
+  non_tez_devices?: { asset_id: string; ip: string; machine_type: string; module?: string }[]
   non_tez_count?: number
   from_cache?: boolean
   last_sync_at?: string
@@ -531,6 +549,7 @@ async function fetchNodeOverview(forceRefresh = false) {
       },
       offline_devices: resp.offline_devices || [],
       online_devices: resp.online_devices || [],
+      non_tez_devices: resp.non_tez_devices || [],
       non_tez_count: resp.non_tez_count || 0,
       from_cache: resp.from_cache,
       last_sync_at: resp.last_sync_at,

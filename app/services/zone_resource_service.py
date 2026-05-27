@@ -310,6 +310,7 @@ class ZoneResourceService:
 
         online = [d for d in devices if d.category == "online"]
         offline = [d for d in devices if d.category == "offline"]
+        non_tez = [d for d in devices if d.category == "non_tez"]
 
         return {
             "zone": snapshot.zone,
@@ -328,7 +329,11 @@ class ZoneResourceService:
                 for d in offline
             ],
             "offline_count": len(offline),
-            "non_tez_count": snapshot.non_tez_count,
+            "non_tez_devices": [
+                {"asset_id": d.asset_id, "ip": d.ip, "machine_type": d.machine_type, "module": d.module}
+                for d in non_tez
+            ],
+            "non_tez_count": len(non_tez),
             "last_sync_at": snapshot.last_sync_at.isoformat() if snapshot.last_sync_at else None,
             "from_cache": from_cache,
             "message": (
