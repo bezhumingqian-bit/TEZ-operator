@@ -144,6 +144,9 @@ class ZoneResourceService:
 
                 TEZ_KEYWORDS = ["腾讯云边缘可用区", "TEZ", "边缘计算"]
 
+                # 判断设备是否处于过渡状态的模块关键词
+                TRANSITIONAL_KEYWORDS = ["待上线", "上线中", "搬迁", "待搬迁", "buffer", "未上线"]
+
                 for dev in devices:
                     module = dev.get("module", "") or ""
                     status = dev.get("status", "") or ""
@@ -151,12 +154,16 @@ class ZoneResourceService:
 
                     if not is_tez:
                         non_tez_devices.append(dev)
-                    elif status == "online":
-                        online_devices.append(dev)
-                    else:
-                        # 判断原因
+                        continue
+
+                    # 先看模块路径：有过渡状态关键词 → 未上线（不管 TCUM 状态）
+                    module_lower = module.lower()
+                    is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
+
+                    if is_transitional:
+                        # 判断具体原因
                         reason = "未知"
-                        if "待上线" in module:
+                        if "待上线" in module or "未上线" in module:
                             reason = "模块状态：待上线"
                         elif "上线中" in module:
                             reason = "模块状态：上线中"
@@ -164,12 +171,21 @@ class ZoneResourceService:
                             reason = "模块状态：搬迁中"
                         elif "待搬迁" in module:
                             reason = "模块状态：待搬迁"
-                        elif "buffer" in module.lower():
+                        elif "buffer" in module_lower:
                             reason = "模块状态：buffer（待分配）"
-                        elif status == "maintenance":
+                        dev["reason"] = reason
+                        offline_devices.append(dev)
+                    elif status == "online":
+                        online_devices.append(dev)
+                    else:
+                        # TCUM 状态非 online 且模块无过渡关键词
+                        reason = "未知"
+                        if status == "maintenance":
                             reason = "设备状态：维护中"
                         elif status == "offline":
                             reason = "设备状态：离线/故障"
+                        else:
+                            reason = f"设备状态：{status or '未知'}"
                         dev["reason"] = reason
                         offline_devices.append(dev)
 
