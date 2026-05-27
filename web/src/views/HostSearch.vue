@@ -237,7 +237,13 @@ TYSV00000002
           </div>
 
           <div class="host-search__result">
-            <el-skeleton v-if="nodeLoading || nodeRefreshing" :rows="6" animated />
+            <!-- 等待登录提示（可取消） -->
+            <div v-if="nodeWaitingLogin" style="text-align:center; padding: 40px 0;">
+              <el-icon class="is-loading" :size="32" style="margin-bottom:12px"><Loading /></el-icon>
+              <p style="color:#606266; margin-bottom:16px">等待浏览器登录验证中，请在弹出的浏览器窗口完成扫码...</p>
+              <el-button @click="cancelNodeQuery">取消查询</el-button>
+            </div>
+            <el-skeleton v-else-if="nodeLoading || nodeRefreshing" :rows="6" animated />
             <template v-else-if="nodeOverviewData">
               <!-- 数据来源提示 -->
               <el-alert
@@ -307,7 +313,7 @@ TYSV00000002
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import HostCard from '@/components/HostCard.vue'
 import HostTable from '@/components/HostTable.vue'
@@ -483,27 +489,56 @@ const nodeZoneSelected = ref('')
 const nodeLoading = ref(false)
 const nodeRefreshing = ref(false)
 const nodeOverviewData = ref<NodeOverviewData | null>(null)
+const nodeWaitingLogin = ref(false)
+let nodeAbortController: AbortController | null = null
 
 async function fetchNodeOverview(forceRefresh = false) {
   const zone = nodeZoneSelected.value
   if (!zone) return
 
-  const url = `/api/v1/zones/${encodeURIComponent(zone)}/overview${forceRefresh ? '?force_refresh=true' : ''}`
-  const resp = await fetch(url).then(r => r.json())
+  nodeAbortController = new AbortController()
+  const signal = nodeAbortController.signal
 
-  nodeOverviewData.value = {
-    positions: {
-      zone: resp.zone,
-      idc: resp.idc,
-      free_count: resp.free_count,
-      total_positions: resp.total_positions,
-      message: resp.message || '',
-    },
-    offline_devices: resp.offline_devices || [],
-    online_devices: resp.online_devices || [],
-    from_cache: resp.from_cache,
-    last_sync_at: resp.last_sync_at,
+  // 5秒后如果还没返回，提示"等待登录中"
+  const loginHintTimer = setTimeout(() => {
+    if (nodeLoading.value || nodeRefreshing.value) {
+      nodeWaitingLogin.value = true
+    }
+  }, 5000)
+
+  try {
+    const url = `/api/v1/zones/${encodeURIComponent(zone)}/overview${forceRefresh ? '?force_refresh=true' : ''}`
+    const resp = await fetch(url, { signal }).then(r => r.json())
+
+    nodeOverviewData.value = {
+      positions: {
+        zone: resp.zone,
+        idc: resp.idc,
+        free_count: resp.free_count,
+        total_positions: resp.total_positions,
+        message: resp.message || '',
+      },
+      offline_devices: resp.offline_devices || [],
+      online_devices: resp.online_devices || [],
+      from_cache: resp.from_cache,
+      last_sync_at: resp.last_sync_at,
+    }
+  } finally {
+    clearTimeout(loginHintTimer)
+    nodeWaitingLogin.value = false
+    nodeAbortController = null
   }
+}
+
+function cancelNodeQuery() {
+  if (nodeAbortController) {
+    nodeAbortController.abort()
+    nodeAbortController = null
+  }
+  nodeLoading.value = false
+  nodeRefreshing.value = false
+  nodeWaitingLogin.value = false
+  ElMessage.info('已取消查询')
 }
 
 async function onNodeOverview() {
@@ -512,10 +547,11 @@ async function onNodeOverview() {
   nodeOverviewData.value = null
   try {
     await fetchNodeOverview(false)
-  } catch {
-    ElMessage.error('查询失败')
+  } catch (e: any) {
+    if (e?.name !== 'AbortError') ElMessage.error('查询失败')
   } finally {
     nodeLoading.value = false
+    nodeWaitingLogin.value = false
   }
 }
 
@@ -525,10 +561,11 @@ async function onNodeForceRefresh() {
   try {
     await fetchNodeOverview(true)
     ElMessage.success('数据已从云端刷新')
-  } catch {
-    ElMessage.error('刷新失败')
+  } catch (e: any) {
+    if (e?.name !== 'AbortError') ElMessage.error('刷新失败')
   } finally {
     nodeRefreshing.value = false
+    nodeWaitingLogin.value = false
   }
 }
 </script>

@@ -452,6 +452,20 @@ async def get_zone_overview(
     return await svc.get_zone_overview(zone, force_refresh=force_refresh)
 
 
+@router.get("/browser/status", summary="浏览器登录态检查")
+async def get_browser_status() -> dict:
+    """检查 Playwright 浏览器的登录态是否有效。
+
+    前端可用此接口判断是否需要等待用户扫码登录。
+    """
+    from app.clients.browser_session import BrowserSession
+
+    return {
+        "login_valid": BrowserSession.is_login_valid(),
+        "profile_exists": BrowserSession.profile_exists(),
+    }
+
+
 @router.post(
     "/lookup",
     summary="批量查固资号基本信息（轻量，用于表单回填）",

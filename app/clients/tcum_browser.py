@@ -227,7 +227,7 @@ class TCUMBrowserImpl:
         """
 
         click_terms = ("登录", "确认", "确定", "继续", "继续访问", "进入", "进入系统", "授权", "同意")
-        deadline = asyncio.get_running_loop().time() + 30
+        deadline = asyncio.get_running_loop().time() + 120  # 首次登录可能需要扫码，等待最多 120 秒
         while is_login_url(page.url) and asyncio.get_running_loop().time() < deadline:
             clicked = False
             for term in click_terms:

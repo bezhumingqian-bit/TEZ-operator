@@ -33,6 +33,8 @@ class IDCRMPositionSkill:
 
     WAIT_AFTER_GOTO = 4
     WAIT_AFTER_FILTER = 8
+    LOGIN_WAIT_TIMEOUT = 120  # 等待登录最多 120 秒
+    LOGIN_POLL_INTERVAL = 3   # 每 3 秒检查一次
 
     # ant-select 在页面上的索引（从0开始）
     IDX_LOGIC_AREA = 3   # 机位逻辑区域属性
@@ -62,7 +64,17 @@ class IDCRMPositionSkill:
             await asyncio.sleep(self.WAIT_AFTER_GOTO)
 
             if is_login_url(page.url):
-                return {"free_count": None, "message": "数全通登录态失效，请扫码登录"}
+                # 首次使用或登录态过期——等待用户在弹出窗口中扫码
+                log.info("idcrm_skill.waiting_for_login", url=page.url[:50])
+                waited = 0
+                while is_login_url(page.url) and waited < self.LOGIN_WAIT_TIMEOUT:
+                    await asyncio.sleep(self.LOGIN_POLL_INTERVAL)
+                    waited += self.LOGIN_POLL_INTERVAL
+                if is_login_url(page.url):
+                    return {"free_count": None, "message": "登录超时（等待120秒），请重试"}
+                # 登录成功，等待目标页面加载
+                log.info("idcrm_skill.login_success", waited=waited)
+                await asyncio.sleep(self.WAIT_AFTER_GOTO)
 
             # 带校验的查询（最多重试 MAX_RETRY 次）
             for attempt in range(1 + self.MAX_RETRY):
