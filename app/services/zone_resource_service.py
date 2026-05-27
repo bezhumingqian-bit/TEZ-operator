@@ -142,7 +142,7 @@ class ZoneResourceService:
                 tcum = TCUMBrowserImpl()
                 devices = await tcum.batch_search(all_assets[:100])
 
-                TEZ_KEYWORDS = ["腾讯云边缘可用区", "TEZ"]
+                TEZ_KEYWORDS = ["腾讯云边缘可用区", "TEZ", "边缘计算"]
 
                 for dev in devices:
                     module = dev.get("module", "") or ""
@@ -160,10 +160,12 @@ class ZoneResourceService:
                             reason = "模块状态：待上线"
                         elif "上线中" in module:
                             reason = "模块状态：上线中"
-                        elif "搬迁中" in module:
+                        elif "搬迁" in module:
                             reason = "模块状态：搬迁中"
                         elif "待搬迁" in module:
                             reason = "模块状态：待搬迁"
+                        elif "buffer" in module.lower():
+                            reason = "模块状态：buffer（待分配）"
                         elif status == "maintenance":
                             reason = "设备状态：维护中"
                         elif status == "offline":
@@ -317,5 +319,6 @@ class ZoneResourceService:
                 f"虚拟化机位: {snapshot.total_positions}"
                 f"（空闲{snapshot.free_count}/已用{snapshot.used_count}），"
                 f"TEZ已上线{len(online)}台, 未上线{len(offline)}台"
+                + (f", 非TEZ设备{snapshot.non_tez_count}台" if snapshot.non_tez_count else "")
             ),
         }

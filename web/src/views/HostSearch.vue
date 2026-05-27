@@ -255,9 +255,19 @@ TYSV00000002
                 style="margin-bottom: 12px"
               />
 
-              <!-- 空闲机位 -->
+              <!-- 机位概况 -->
               <el-card shadow="never" class="node-section">
-                <template #header><b>空闲虚拟化机位</b></template>
+                <template #header><b>机位概况</b></template>
+                <el-descriptions :column="2" border size="small" style="margin-bottom: 12px">
+                  <el-descriptions-item label="总机位">{{ nodeOverviewData.positions.total_positions ?? '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="空闲机位">
+                    <span :style="{ color: nodeOverviewData.positions.free_count > 0 ? '#67c23a' : '#f56c6c', fontWeight: 'bold' }">
+                      {{ nodeOverviewData.positions.free_count ?? '-' }}
+                    </span>
+                  </el-descriptions-item>
+                  <el-descriptions-item label="TEZ设备">{{ (nodeOverviewData.online_devices?.length || 0) + (nodeOverviewData.offline_devices?.length || 0) }} 台</el-descriptions-item>
+                  <el-descriptions-item label="非TEZ设备">{{ nodeOverviewData.non_tez_count || 0 }} 台</el-descriptions-item>
+                </el-descriptions>
                 <el-alert
                   :title="nodeOverviewData.positions.message"
                   :type="nodeOverviewData.positions.free_count === null ? 'warning' : (nodeOverviewData.positions.free_count > 0 ? 'success' : 'error')"
@@ -481,6 +491,7 @@ interface NodeOverviewData {
   positions: { zone: string; idc: string | null; free_count: number | null; total_positions?: number; message: string }
   offline_devices: { asset_id: string; ip: string; machine_type: string; module?: string; reason: string }[]
   online_devices: { asset_id: string; ip: string; machine_type: string; module?: string }[]
+  non_tez_count?: number
   from_cache?: boolean
   last_sync_at?: string
 }
@@ -520,6 +531,7 @@ async function fetchNodeOverview(forceRefresh = false) {
       },
       offline_devices: resp.offline_devices || [],
       online_devices: resp.online_devices || [],
+      non_tez_count: resp.non_tez_count || 0,
       from_cache: resp.from_cache,
       last_sync_at: resp.last_sync_at,
     }
