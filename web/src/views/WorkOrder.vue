@@ -338,7 +338,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
 import { Plus, CircleCheck, CircleClose, Loading } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createOrder, listOrders, getOrderStats, getOrder, transitionOrder, deleteOrder,
   type OrderInfo, type StatsResponse
@@ -522,15 +522,45 @@ async function handleCreate() {
     return
   }
 
-  // 可用区校验（搬迁/投放必填）
-  if (f.order_type === 'host_deploy' && !f.zone) {
-    ElMessage.warning('请选择目标可用区')
-    return
+  // 投放类型必填校验
+  if (f.order_type === 'host_deploy') {
+    if (!f.demand_type) { ElMessage.warning('请选择需求类型'); return }
+    if (!f.zone) { ElMessage.warning('请选择目标可用区'); return }
+    if (!f.reinstall) { ElMessage.warning('请选择重装需求'); return }
   }
+
+  // 搬迁类型必填校验
   if (f.order_type === 'migration') {
     if (!f.source_zone) { ElMessage.warning('请填写搬迁前可用区'); return }
     if (!f.zone) { ElMessage.warning('请填写目的可用区'); return }
     if (f.source_zone === f.zone) { ElMessage.error('来源和目的可用区不能相同'); return }
+    if (!f.target_idc) { ElMessage.warning('请填写目的机房'); return }
+  }
+
+  // 提交前确认：展示关键信息让用户核对
+  const typeLabel = f.order_type === 'host_deploy' ? '投放' : f.order_type === 'migration' ? '搬迁' : f.order_type
+  const confirmLines = [
+    `类型：${typeLabel}`,
+    `标题：${f.title}`,
+    f.demand_type ? `需求类型：${f.demand_type}` : '',
+    f.asset_ids ? `固资号：${f.asset_ids.split('\n').filter(l => l.trim()).length} 台` : '',
+    f.zone ? `目标可用区：${f.zone}` : '',
+    f.source_zone ? `搬迁前：${f.source_zone}` : '',
+    f.target_idc ? `目的机房：${f.target_idc}` : '',
+    f.reinstall ? `重装：${f.reinstall}` : '',
+    f.vs_type ? `设备类型：${f.vs_type}` : '',
+  ].filter(l => l).join('\n')
+
+  try {
+    await ElMessageBox.confirm(confirmLines, '确认提交工单', {
+      confirmButtonText: '确认提交',
+      cancelButtonText: '返回修改',
+      type: 'info',
+      customStyle: { whiteSpace: 'pre-line' },
+    })
+  } catch {
+    // 用户点了"返回修改"
+    return
   }
 
   creating.value = true
