@@ -229,54 +229,73 @@ class TencentDocSkill:
             name_box = page.locator("input.bar-label")
             formula_bar = page.locator(".formula-bar").first
 
-            # 3. Cmd+End 跳到最后有数据的单元格
+            # 3. 定位到 A 列最后一行数据的下一个空行
+            #    策略：Cmd+End 找到整个表的右下角 → 提取行号 →
+            #    Name Box 跳到 A{行号} → 然后往下找第一个空行
+            name_box = page.locator("input.bar-label")
+            formula_bar = page.locator(".formula-bar").first
+
+            # Cmd+End → 找到 sheet 数据区域的右下角
             await page.keyboard.press("Meta+End")
             await asyncio.sleep(2)
             last_cell = await name_box.input_value()
             log.info("tencent_doc.last_cell", cell=last_cell)
 
-            # 4. Home 回到该行 A 列
-            await page.keyboard.press("Home")
-            await asyncio.sleep(1)
-            target_cell = await name_box.input_value()
-            log.info("tencent_doc.last_data_row", cell=target_cell)
+            # 提取行号
+            import re
+            row_match = re.search(r"(\d+)", last_cell)
+            last_row = int(row_match.group(1)) if row_match else 1
 
-            # 5. 检查当前行 A 列是否有数据（等待 formula bar 充分加载）
-            await asyncio.sleep(1)  # 额外等待确保 formula bar 更新
+            # Name Box 跳到 A{last_row}（确保在 A 列的最后数据行）
+            await name_box.click(timeout=2000)
+            await asyncio.sleep(0.3)
+            await name_box.fill(f"A{last_row}")
+            await name_box.press("Enter")
+            await asyncio.sleep(1)
+
+            current_cell = await name_box.input_value()
+            log.info("tencent_doc.navigate_to_a", cell=current_cell)
+
+            # 检查 A{last_row} 是否有数据
+            await asyncio.sleep(0.5)
             cell_value = (await formula_bar.inner_text()).strip()
-            # 多次读取确认（避免 formula bar 延迟加载导致误判）
-            for _ in range(3):
-                await asyncio.sleep(0.5)
-                check = (await formula_bar.inner_text()).strip()
-                if check:
-                    cell_value = check
-                    break
 
             if cell_value:
-                # A列有数据 → 必须到下一行
-                prev_cell = target_cell
+                # A 列在这一行有数据 → ArrowDown 到下一空行
+                prev_cell = current_cell
                 await page.keyboard.press("ArrowDown")
-                await asyncio.sleep(1)
-                new_cell = await name_box.input_value()
-
-                if new_cell == prev_cell:
-                    # ArrowDown 没移动——到了表格末尾
-                    # 用 Option+Shift+= 在当前行上方插入新行
-                    # 插入后原数据下移，光标跟着走，需要 ArrowUp 回到新空行
-                    await page.keyboard.press("Alt+Shift+Equal")
-                    await asyncio.sleep(1)
-                    await page.keyboard.press("ArrowUp")
-                    await asyncio.sleep(0.5)
-                    await page.keyboard.press("Home")
-                    await asyncio.sleep(0.5)
-                else:
-                    # 成功移到了下一行
-                    pass
-
+                await asyncio.sleep(0.5)
                 target_cell = await name_box.input_value()
-            # else: A列为空（可能是格式残留行），直接在此行写入
 
-            # 最终安全检查：确认目标行 A 列确实为空
+                if target_cell == prev_cell:
+                    # ArrowDown 没动——已到表格末尾，需要添加新行
+                    # 方法1：点击底部"添加"按钮
+                    added = await self._add_rows_at_bottom(page)
+                    if added:
+                        # 添加后重新 ArrowDown
+                        await page.keyboard.press("ArrowDown")
+                        await asyncio.sleep(0.5)
+                        target_cell = await name_box.input_value()
+                    else:
+                        # 方法2：Alt+Shift+= 插入行（在当前行上方）
+                        # 插入后数据下移，光标位置是新空行
+                        await page.keyboard.press("Alt+Shift+Equal")
+                        await asyncio.sleep(1)
+                        target_cell = await name_box.input_value()
+                    log.info("tencent_doc.added_row", cell=target_cell)
+            else:
+                # A 列这行为空 → 从这里往上找最后有数据的行，再 +1
+                # Cmd+ArrowUp 从当前空单元格往上找最近的非空
+                await page.keyboard.press("Meta+ArrowUp")
+                await asyncio.sleep(1)
+                found_cell = await name_box.input_value()
+                log.info("tencent_doc.found_last_a", cell=found_cell)
+                # 再 ArrowDown 到空行
+                await page.keyboard.press("ArrowDown")
+                await asyncio.sleep(0.5)
+                target_cell = await name_box.input_value()
+
+            # 安全检查：确认目标行 A 列为空
             await asyncio.sleep(0.5)
             final_check = (await formula_bar.inner_text()).strip()
             if final_check:
@@ -346,11 +365,14 @@ class TencentDocSkill:
             # 腾讯文档自动保存
             await asyncio.sleep(2)
 
-            # 8. 验证：用 Cmd+End → Home 回到最后有数据行的A列
-            await page.keyboard.press("Meta+End")
-            await asyncio.sleep(1)
-            await page.keyboard.press("Home")
+            # 8. 验证：回到 A 列最后有数据的单元格检查
+            await name_box.click(timeout=2000)
+            await asyncio.sleep(0.3)
+            await name_box.fill("A1")
+            await name_box.press("Enter")
             await asyncio.sleep(0.5)
+            await page.keyboard.press("Meta+ArrowDown")
+            await asyncio.sleep(1)
             verify_cell = await name_box.input_value()
             verify_value = (await formula_bar.inner_text()).strip()
 
@@ -374,6 +396,20 @@ class TencentDocSkill:
                     "success": False,
                     "message": f"写入验证失败：{sheet_name} 第 {actual_row} 行仍为空",
                 }
+
+    async def _add_rows_at_bottom(self, page) -> bool:
+        """点击腾讯文档底部的"添加"按钮来新增行。"""
+        try:
+            # 尝试找到底部的"添加"按钮
+            add_btn = page.get_by_text("添加", exact=False).last
+            if await add_btn.count() > 0 and await add_btn.is_visible():
+                await add_btn.click(timeout=3000)
+                await asyncio.sleep(1)
+                log.info("tencent_doc.rows_added_by_button")
+                return True
+        except Exception as exc:
+            log.debug("tencent_doc.add_rows_button_failed", error=str(exc))
+        return False
 
     async def _dismiss_overlays(self, page) -> None:
         """关闭可能遮挡 formula bar 的覆盖层/弹窗。
