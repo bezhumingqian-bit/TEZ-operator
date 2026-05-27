@@ -251,12 +251,12 @@ class TencentDocSkill:
             row_match = re.search(r"(\d+)", target_cell)
             actual_row = int(row_match.group(1)) if row_match else 0
 
-            # 6. 逐列输入数据（通过 Formula Bar 输入，支持中文字符）
+            # 6. 逐列输入数据
             #    普通列：formula bar click → type → Tab（确认并跳下一列）
-            #    下拉验证列：formula bar click → type → Enter（确认并下移）→ ArrowUp（回原行）→ Tab
+            #    下拉验证列：打开下拉菜单 → 点击匹配选项（DOM 元素）→ Tab
             #    换行：文本中的 \n 用 Alt+Enter 实现单元格内换行
             #
-            #    数据验证列索引（下拉单选，Tab 会被下拉框拦截）：
+            #    数据验证列索引（下拉单选）：
             #    - 投放记录: [2]=需求类型, [5]=投放流程重装
             #    - 搬迁记录: [2]=是否紧急, [11]=交付类型
             dropdown_indices = (
@@ -265,26 +265,30 @@ class TencentDocSkill:
 
             for i, value in enumerate(row_data):
                 if value:
-                    await formula_bar.click(timeout=3000)
-                    await asyncio.sleep(0.5)  # 等待 formula bar 完全激活
-                    # 处理单元格内换行
-                    parts = str(value).split("\n")
-                    for j, part in enumerate(parts):
-                        if j > 0:
-                            # Alt+Enter = 单元格内换行
-                            await page.keyboard.press("Alt+Enter")
-                            await asyncio.sleep(0.3)
-                        if part:
-                            await page.keyboard.type(part, delay=20)
-                            await asyncio.sleep(0.3)
-                    await asyncio.sleep(0.5)
-
                     if i in dropdown_indices:
-                        # 数据验证列：Enter 确认（关闭下拉框）→ 光标下移 → ArrowUp 回原行
-                        await page.keyboard.press("Enter")
+                        # 数据验证列：通过下拉菜单选择选项
+                        selected = await self._select_dropdown_option(page, str(value))
+                        if not selected:
+                            # 降级：尝试 formula bar 方式
+                            log.warning("tencent_doc.dropdown_fallback", col=i, value=str(value)[:20])
+                            await formula_bar.click(timeout=3000)
+                            await asyncio.sleep(0.5)
+                            await page.keyboard.type(str(value), delay=20)
+                            await asyncio.sleep(0.5)
+                    else:
+                        # 普通列：formula bar 输入
+                        await formula_bar.click(timeout=3000)
                         await asyncio.sleep(0.5)
-                        await page.keyboard.press("ArrowUp")
-                        await asyncio.sleep(0.3)
+                        # 处理单元格内换行
+                        parts = str(value).split("\n")
+                        for j, part in enumerate(parts):
+                            if j > 0:
+                                await page.keyboard.press("Alt+Enter")
+                                await asyncio.sleep(0.3)
+                            if part:
+                                await page.keyboard.type(part, delay=20)
+                                await asyncio.sleep(0.3)
+                        await asyncio.sleep(0.5)
 
                 # Tab 跳到下一列（空值也需要Tab跳过该列）
                 await page.keyboard.press("Tab")
@@ -338,6 +342,89 @@ class TencentDocSkill:
             return False
         except Exception as exc:
             log.error("tencent_doc.switch_sheet_error", sheet=sheet_name, error=str(exc))
+            return False
+
+    async def _select_dropdown_option(self, page, value: str) -> bool:
+        """对数据验证列（下拉单选），打开下拉菜单并点击匹配的选项。
+
+        流程：
+        1. 当前单元格已选中（通过之前的 Tab 到达）
+        2. 双击单元格或按 Alt+ArrowDown 打开下拉菜单
+        3. 在下拉菜单 DOM 中找到匹配文本的选项并点击
+        4. 选中后单元格值即确认
+
+        腾讯文档下拉菜单 DOM 结构（已知选择器，按优先级尝试）：
+        - .dv-dropdown-list 容器下的选项元素
+        - .editor-dropdown-list 容器
+        - 通用 popup/popover 中匹配文本的元素
+        """
+        try:
+            # 尝试打开下拉菜单：Alt+ArrowDown（标准快捷键）
+            await page.keyboard.press("Alt+ArrowDown")
+            await asyncio.sleep(1)
+
+            # 尝试多种选择器找到下拉选项
+            dropdown_selectors = [
+                # 腾讯文档数据验证下拉
+                ".dv-dropdown-list",
+                ".dv-dropdown",
+                # 通用下拉/弹出层
+                ".editor-dropdown-list",
+                ".dropdown-menu",
+                ".popup-content",
+                "[class*='dropdown']",
+                "[class*='select-option']",
+            ]
+
+            dropdown_container = None
+            for selector in dropdown_selectors:
+                locator = page.locator(selector).first
+                if await locator.count() > 0 and await locator.is_visible():
+                    dropdown_container = locator
+                    log.info("tencent_doc.dropdown_found", selector=selector)
+                    break
+
+            if dropdown_container:
+                # 在下拉容器中找到匹配文本的选项
+                option = dropdown_container.get_by_text(value, exact=True)
+                if await option.count() > 0:
+                    await option.first.click(timeout=3000)
+                    await asyncio.sleep(0.5)
+                    log.info("tencent_doc.dropdown_selected", value=value[:20])
+                    return True
+
+                # exact match 失败，尝试 contains match
+                option = dropdown_container.get_by_text(value)
+                if await option.count() > 0:
+                    await option.first.click(timeout=3000)
+                    await asyncio.sleep(0.5)
+                    log.info("tencent_doc.dropdown_selected_partial", value=value[:20])
+                    return True
+
+            # 方案 B：没找到容器，直接在页面中找可见的匹配文本
+            # （下拉菜单可能是 page-level overlay）
+            visible_option = page.get_by_text(value, exact=True).first
+            if await visible_option.count() > 0 and await visible_option.is_visible():
+                await visible_option.click(timeout=3000)
+                await asyncio.sleep(0.5)
+                log.info("tencent_doc.dropdown_selected_page_level", value=value[:20])
+                return True
+
+            # 所有方式都失败
+            log.warning("tencent_doc.dropdown_not_found", value=value[:20])
+            # 按 Escape 关闭可能打开的下拉菜单
+            await page.keyboard.press("Escape")
+            await asyncio.sleep(0.3)
+            return False
+
+        except Exception as exc:
+            log.error("tencent_doc.dropdown_error", value=value[:20], error=str(exc))
+            # 确保关闭下拉菜单
+            try:
+                await page.keyboard.press("Escape")
+            except Exception:
+                pass
+            await asyncio.sleep(0.3)
             return False
 
     async def _navigate_to_cell(self, page, cell_address: str) -> bool:
