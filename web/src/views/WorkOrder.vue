@@ -108,10 +108,10 @@
           <el-form-item label="设备数量">
             <el-input-number v-model="createForm.device_count" :min="1" :max="100" />
           </el-form-item>
-          <el-form-item label="设备类型/VS_Type">
-            <el-input v-model="createForm.vs_type" placeholder="如 CG3-10G_LOCALDISK / Y0-MI32-25G_LOCALDISK" />
+          <el-form-item label="设备类型">
+            <el-input v-model="createForm.vs_type" placeholder="VS_Type，如 CG3-10G / Y0-MI32-25G_LOCALDISK" />
           </el-form-item>
-          <el-form-item label="投放流程重装">
+          <el-form-item label="重装需求">
             <el-select v-model="createForm.reinstall" placeholder="选择" style="width: 100%">
               <el-option label="需要（已确认有带外）" value="需要（已确认有带外）" />
               <el-option label="不需要 已经重装过" value="不需要 已经重装过" />
