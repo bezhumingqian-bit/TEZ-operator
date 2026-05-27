@@ -229,74 +229,38 @@ class TencentDocSkill:
             name_box = page.locator("input.bar-label")
             formula_bar = page.locator(".formula-bar").first
 
-            # 3. 定位到 A 列最后一行数据的下一个空行
-            #    策略：Cmd+End 找到整个表的右下角 → 提取行号 →
-            #    Name Box 跳到 A{行号} → 然后往下找第一个空行
+            # 3. 定位到 A 列连续数据块末尾的下一个空行
+            #    腾讯文档不支持 Cmd+ArrowDown 跳到连续块末尾，
+            #    改用二分查找法：在 A 列中找到第一个空行的位置。
             name_box = page.locator("input.bar-label")
             formula_bar = page.locator(".formula-bar").first
 
-            # Cmd+End → 找到 sheet 数据区域的右下角
+            # 先用 Cmd+End 获取数据区域的大致范围
             await page.keyboard.press("Meta+End")
             await asyncio.sleep(2)
             last_cell = await name_box.input_value()
-            log.info("tencent_doc.last_cell", cell=last_cell)
-
-            # 提取行号
             import re
             row_match = re.search(r"(\d+)", last_cell)
-            last_row = int(row_match.group(1)) if row_match else 1
+            max_row = int(row_match.group(1)) if row_match else 500
 
-            # Name Box 跳到 A{last_row}（确保在 A 列的最后数据行）
+            # 二分查找：找 A 列从第 2 行开始第一个空行
+            target_row = await self._binary_search_first_empty_row(
+                page, name_box, formula_bar, start=2, end=max_row + 1
+            )
+            log.info("tencent_doc.binary_search_result", target_row=target_row)
+
+            # 导航到目标行
             await name_box.click(timeout=2000)
             await asyncio.sleep(0.3)
-            await name_box.fill(f"A{last_row}")
+            await name_box.fill(f"A{target_row}")
             await name_box.press("Enter")
             await asyncio.sleep(1)
+            await page.keyboard.press("Escape")
+            await asyncio.sleep(0.3)
+            target_cell = await name_box.input_value()
 
-            current_cell = await name_box.input_value()
-            log.info("tencent_doc.navigate_to_a", cell=current_cell)
-
-            # 检查 A{last_row} 是否有数据
-            await asyncio.sleep(0.5)
-            cell_value = (await formula_bar.inner_text()).strip()
-
-            if cell_value:
-                # A 列在这一行有数据 → ArrowDown 到下一空行
-                prev_cell = current_cell
-                await page.keyboard.press("ArrowDown")
-                await asyncio.sleep(0.5)
-                target_cell = await name_box.input_value()
-
-                if target_cell == prev_cell:
-                    # ArrowDown 没动——已到表格末尾，需要添加新行
-                    # 方法1：点击底部"添加"按钮
-                    added = await self._add_rows_at_bottom(page)
-                    if added:
-                        # 添加后用 Name Box 跳到紧接数据末尾的下一行
-                        next_row = last_row + 1
-                        await name_box.click(timeout=2000)
-                        await asyncio.sleep(0.3)
-                        await name_box.fill(f"A{next_row}")
-                        await name_box.press("Enter")
-                        await asyncio.sleep(1)
-                        target_cell = await name_box.input_value()
-                    else:
-                        # 方法2：Alt+Shift+= 插入行（在当前行上方）
-                        await page.keyboard.press("Alt+Shift+Equal")
-                        await asyncio.sleep(1)
-                        target_cell = await name_box.input_value()
-                    log.info("tencent_doc.added_row", cell=target_cell)
-            else:
-                # A 列这行为空 → 从这里往上找最后有数据的行，再 +1
-                # Cmd+ArrowUp 从当前空单元格往上找最近的非空
-                await page.keyboard.press("Meta+ArrowUp")
-                await asyncio.sleep(1)
-                found_cell = await name_box.input_value()
-                log.info("tencent_doc.found_last_a", cell=found_cell)
-                # 再 ArrowDown 到空行
-                await page.keyboard.press("ArrowDown")
-                await asyncio.sleep(0.5)
-                target_cell = await name_box.input_value()
+            # 提取行号
+            actual_row = target_row
 
             # 安全检查：确认目标行 A 列为空
             await asyncio.sleep(0.5)
@@ -399,6 +363,40 @@ class TencentDocSkill:
                     "success": False,
                     "message": f"写入验证失败：{sheet_name} 第 {actual_row} 行仍为空",
                 }
+
+    async def _binary_search_first_empty_row(
+        self, page, name_box, formula_bar, start: int, end: int
+    ) -> int:
+        """二分查找 A 列中从 start 行开始第一个空行的行号。
+
+        假设数据从 start 行连续到某一行，之后为空。
+        通过 Name Box 导航 + 读取 formula_bar 来检查每行。
+        约 log2(n) 次检查，500 行约 9 次 ≈ 18 秒。
+        """
+        low, high = start, end
+
+        while low < high:
+            mid = (low + high) // 2
+            has_data = await self._check_cell_has_data(page, name_box, formula_bar, f"A{mid}")
+
+            if has_data:
+                # mid 有数据 → 第一个空行在 mid+1 ~ high
+                low = mid + 1
+            else:
+                # mid 为空 → 第一个空行在 low ~ mid
+                high = mid
+
+        return low
+
+    async def _check_cell_has_data(self, page, name_box, formula_bar, cell: str) -> bool:
+        """通过 Name Box 导航到指定单元格，检查是否有数据。"""
+        await name_box.click(timeout=2000)
+        await asyncio.sleep(0.2)
+        await name_box.fill(cell)
+        await name_box.press("Enter")
+        await asyncio.sleep(0.8)
+        value = (await formula_bar.inner_text()).strip()
+        return bool(value)
 
     async def _add_rows_at_bottom(self, page) -> bool:
         """点击腾讯文档底部的"添加"按钮来新增行。"""
