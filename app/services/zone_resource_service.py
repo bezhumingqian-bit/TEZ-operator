@@ -142,26 +142,38 @@ class ZoneResourceService:
                 tcum = TCUMBrowserImpl()
                 devices = await tcum.batch_search(all_assets[:100])
 
-                TEZ_KEYWORDS = ["腾讯云边缘可用区", "TEZ", "边缘计算"]
-
-                # 判断设备是否处于过渡状态的模块关键词
+                # TEZ 设备识别规则：
+                # 1. 模块含 "腾讯云边缘可用区" 或 "TEZ" → 一定是 TEZ
+                # 2. 模块含 "边缘计算" + 过渡关键词(搬迁/buffer/待上线) → TEZ（过渡中）
+                # 3. 模块含 "边缘计算" 但无过渡词 → 非 TEZ（ECM 设备）
+                TEZ_CORE_KEYWORDS = ["腾讯云边缘可用区", "TEZ"]
                 TRANSITIONAL_KEYWORDS = ["待上线", "上线中", "搬迁", "待搬迁", "buffer", "未上线"]
 
                 for dev in devices:
                     module = dev.get("module", "") or ""
                     status = dev.get("status", "") or ""
-                    is_tez = any(kw in module for kw in TEZ_KEYWORDS)
+                    module_lower = module.lower()
+
+                    # 判断是否 TEZ
+                    is_core_tez = any(kw in module for kw in TEZ_CORE_KEYWORDS)
+                    has_edge_compute = "边缘计算" in module
+                    is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
+
+                    if is_core_tez:
+                        # 明确的 TEZ 设备
+                        is_tez = True
+                    elif has_edge_compute and is_transitional:
+                        # 边缘计算 + 过渡状态 = TEZ 搬迁中
+                        is_tez = True
+                    else:
+                        is_tez = False
 
                     if not is_tez:
                         non_tez_devices.append(dev)
                         continue
 
-                    # 先看模块路径：有过渡状态关键词 → 未上线（不管 TCUM 状态）
-                    module_lower = module.lower()
-                    is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
-
+                    # TEZ 设备：按模块状态分类
                     if is_transitional:
-                        # 判断具体原因
                         reason = "未知"
                         if "待上线" in module or "未上线" in module:
                             reason = "模块状态：待上线"
@@ -178,7 +190,6 @@ class ZoneResourceService:
                     elif status == "online":
                         online_devices.append(dev)
                     else:
-                        # TCUM 状态非 online 且模块无过渡关键词
                         reason = "未知"
                         if status == "maintenance":
                             reason = "设备状态：维护中"
