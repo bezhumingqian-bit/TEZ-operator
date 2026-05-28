@@ -227,8 +227,8 @@ class IDCRMPositionSkill:
             await self._click_query_button(page)
             await asyncio.sleep(self.WAIT_AFTER_FILTER)
 
-            # 5. 提取所有分页（最多20页 = 2000条）
-            rows = await self._extract_all_pages(page, max_pages=20)
+            # 5. 提取所有分页（最多50页 = 5000条，足够覆盖全部区域）
+            rows = await self._extract_all_pages(page, max_pages=50)
             log.info("idcrm_skill.all_positions_fetched", total=len(rows))
 
             # 6. 按机房分组统计
