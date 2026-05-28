@@ -102,7 +102,7 @@
         </div>
         <el-divider />
         <div v-loading="manualLoading" class="manual-content">
-          <pre v-if="manualContent" class="markdown-body">{{ manualContent }}</pre>
+          <div v-if="manualHtml" v-html="manualHtml" class="markdown-body"></div>
           <el-empty v-else-if="!manualLoading" description="暂无内容" />
         </div>
       </div>
@@ -114,6 +114,9 @@
 import { ref, computed } from 'vue'
 import { Search, Reading, Star, Document, DataAnalysis, Setting, Connection, Coin, Grid } from '@element-plus/icons-vue'
 import { getArticleContent } from '@/api/knowledge'
+import MarkdownIt from 'markdown-it'
+
+const md = new MarkdownIt({ html: true, breaks: true, linkify: true })
 
 const searchQuery = ref('')
 const activeTab = ref('manuals')
@@ -193,18 +196,21 @@ function handleFilter() {
 const manualDialogVisible = ref(false)
 const selectedManual = ref<typeof manuals.value[0] | null>(null)
 const manualContent = ref('')
+const manualHtml = ref('')
 const manualLoading = ref(false)
 
 async function openManual(manual: typeof manuals.value[0]) {
   selectedManual.value = manual
   manualDialogVisible.value = true
   manualContent.value = ''
+  manualHtml.value = ''
   manualLoading.value = true
   try {
     const resp = await getArticleContent(manual.id)
     manualContent.value = resp.content
+    manualHtml.value = md.render(resp.content)
   } catch {
-    manualContent.value = '*加载失败，请稍后重试*'
+    manualHtml.value = '<p style="color:#f56c6c">加载失败，请稍后重试</p>'
   } finally {
     manualLoading.value = false
   }
@@ -334,15 +340,32 @@ function openUrl(url: string) {
 }
 
 .markdown-body {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.8;
   color: #333;
   padding: 0;
   margin: 0;
 }
+.markdown-body :deep(h1) { font-size: 22px; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+.markdown-body :deep(h2) { font-size: 18px; margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+.markdown-body :deep(h3) { font-size: 16px; margin: 16px 0 8px; }
+.markdown-body :deep(h4) { font-size: 14px; margin: 12px 0 6px; font-weight: 600; }
+.markdown-body :deep(p) { margin: 8px 0; }
+.markdown-body :deep(ul), .markdown-body :deep(ol) { padding-left: 20px; margin: 8px 0; }
+.markdown-body :deep(li) { margin: 4px 0; }
+.markdown-body :deep(table) { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+.markdown-body :deep(th), .markdown-body :deep(td) { border: 1px solid #e4e7ed; padding: 8px 12px; text-align: left; }
+.markdown-body :deep(th) { background: #f5f7fa; font-weight: 600; }
+.markdown-body :deep(tr:nth-child(2n)) { background: #fafafa; }
+.markdown-body :deep(code) { background: #f5f7fa; padding: 2px 6px; border-radius: 3px; font-size: 13px; font-family: 'SF Mono', Monaco, monospace; }
+.markdown-body :deep(pre) { background: #f5f7fa; padding: 12px 16px; border-radius: 6px; overflow-x: auto; margin: 12px 0; }
+.markdown-body :deep(pre code) { padding: 0; background: none; }
+.markdown-body :deep(blockquote) { border-left: 3px solid #409eff; padding: 8px 16px; margin: 12px 0; background: #f0f5ff; color: #606266; }
+.markdown-body :deep(a) { color: #409eff; text-decoration: none; }
+.markdown-body :deep(a:hover) { text-decoration: underline; }
+.markdown-body :deep(hr) { border: none; border-top: 1px solid #eee; margin: 16px 0; }
+.markdown-body :deep(strong) { font-weight: 600; color: #303133; }
 
 .manual-tip {
   margin-top: 8px;
