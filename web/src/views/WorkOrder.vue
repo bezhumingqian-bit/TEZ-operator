@@ -27,7 +27,7 @@
     </div>
 
     <!-- 工单列表 -->
-    <el-table :data="orders" stripe style="width: 100%" v-loading="listLoading" @row-click="openDetail">
+    <el-table :data="orders" stripe style="width: 100%" v-loading="listLoading" @row-click="openDetail" empty-text="暂无工单，点击上方按钮提交新工单">
       <el-table-column prop="order_no" label="工单号" width="160" />
       <el-table-column prop="order_type" label="类型" width="100">
         <template #default="{ row }">

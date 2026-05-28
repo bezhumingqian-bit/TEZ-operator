@@ -42,7 +42,9 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/knowledge',
-    redirect: '/assistant',
+    name: 'knowledge',
+    component: () => import('@/views/Knowledge.vue'),
+    meta: { title: '知识库', icon: 'Reading' },
   },
   {
     path: '/:pathMatch(.*)*',
