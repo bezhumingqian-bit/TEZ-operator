@@ -4,7 +4,7 @@
     <p class="subtitle">TEZ 边缘可用区各机型月度运营成本及售价比例</p>
 
     <el-table :data="costData" border stripe size="small" style="width: 100%" max-height="calc(100vh - 200px)">
-      <el-table-column prop="model" label="型号" width="140" fixed />
+      <el-table-column prop="model" label="型号" width="150" fixed />
       <el-table-column prop="physical_machine" label="物理机" width="180" />
       <el-table-column prop="machine_cost" label="物理机成本" width="100" align="right">
         <template #default="{ row }">{{ row.machine_cost || '-' }}</template>
@@ -17,17 +17,24 @@
       <el-table-column prop="sell_price_5g" label="售卖价(一台5G)" width="120" align="right">
         <template #default="{ row }">{{ row.sell_price_5g || '-' }}</template>
       </el-table-column>
-      <el-table-column prop="cost_ratio_sell" label="成本比例-售价" width="110" align="right">
+      <el-table-column prop="cost_ratio_sell" label="成本比例-竞价" width="110" align="right">
         <template #default="{ row }">
-          <span :style="{ color: row.cost_ratio_sell > 15 ? '#e6a23c' : '#67c23a' }">
+          <span :style="{ color: row.cost_ratio_sell && row.cost_ratio_sell < 5 ? '#67c23a' : row.cost_ratio_sell > 15 ? '#e6a23c' : '#303133' }">
             {{ row.cost_ratio_sell ? row.cost_ratio_sell + '%' : '-' }}
           </span>
         </template>
       </el-table-column>
       <el-table-column prop="cost_ratio_ondemand" label="成本比例-按量" width="110" align="right">
         <template #default="{ row }">
-          <span :style="{ color: row.cost_ratio_ondemand > 15 ? '#e6a23c' : '#67c23a' }">
+          <span :style="{ color: row.cost_ratio_ondemand && row.cost_ratio_ondemand < 5 ? '#67c23a' : row.cost_ratio_ondemand > 15 ? '#e6a23c' : '#303133' }">
             {{ row.cost_ratio_ondemand ? row.cost_ratio_ondemand + '%' : '-' }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="cost_ratio_monthly" label="成本比例-包月" width="110" align="right">
+        <template #default="{ row }">
+          <span :style="{ color: row.cost_ratio_monthly && row.cost_ratio_monthly > 30 ? '#e6a23c' : '#303133' }">
+            {{ row.cost_ratio_monthly ? row.cost_ratio_monthly + '%' : '-' }}
           </span>
         </template>
       </el-table-column>
