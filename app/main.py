@@ -56,10 +56,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
                 hint="首次访问 TCUM 时会唤起浏览器，请扫码登录",
             )
 
+    # ── 启动定时任务 ──
+    from app.scheduler import start_scheduler, shutdown_scheduler
+    start_scheduler()
+
     try:
         yield
     finally:
         log.info("app.shutdown")
+        shutdown_scheduler()
         # 关闭三 client + cache + browser
         try:
             await get_host_service().close()
