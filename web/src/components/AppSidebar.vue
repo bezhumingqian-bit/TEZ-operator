@@ -34,8 +34,8 @@
     </el-menu>
 
     <div class="app-sidebar__footer">
-      <div>M1 资源查询 · M2 运维助手</div>
-      <div class="app-sidebar__hint">M3 工单流 · M4 驾驶舱</div>
+      <div>TEZ Operator v0.1</div>
+      <div class="app-sidebar__hint">资源查询 · 工单流 · 运维驾驶舱</div>
     </div>
   </aside>
 </template>
@@ -56,7 +56,7 @@ const route = useRoute()
 const menus: MenuItem[] = [
   { path: '/hosts', title: '资源查询', icon: 'Search' },
   { path: '/assistant', title: '运维助手', icon: 'MagicStick' },
-  { path: '/dashboard', title: '运维驾驶舱', icon: 'DataAnalysis', milestone: 'M4' },
+  { path: '/dashboard', title: '运维驾驶舱', icon: 'DataAnalysis' },
   { path: '/workorder', title: '工单流转', icon: 'Tickets' },
 ]
 

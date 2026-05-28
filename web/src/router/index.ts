@@ -3,7 +3,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/hosts',
+    redirect: '/dashboard',
   },
   {
     path: '/hosts',
@@ -46,7 +46,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/hosts',
+    redirect: '/dashboard',
   },
 ]
 
