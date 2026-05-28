@@ -175,6 +175,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search, User, Document, Link, TopRight, Star, QuestionFilled, ArrowLeft } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import { routeContacts, type RouteResult } from '@/api/contacts'
@@ -274,7 +275,16 @@ const platformGroups = ref([
   { label: '流程工具', links: [] as {name: string; url: string; importance: number}[] },
 ])
 
+const route = useRoute()
+
 onMounted(async () => {
+  // 如果从驾驶舱带了搜索词过来，自动搜索
+  const q = route.query.q as string
+  if (q) {
+    query.value = q
+    handleSearch()
+  }
+
   try {
     const links = await listLinks()
     // 按关键词分组

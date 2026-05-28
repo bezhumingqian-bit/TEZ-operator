@@ -1,9 +1,25 @@
 <template>
   <div class="dashboard">
-    <!-- 顶部欢迎 -->
+    <!-- 顶部欢迎 + 运维助手搜索 -->
     <div class="dashboard__header">
-      <h2>运维驾驶舱</h2>
-      <span class="dashboard__time">{{ currentTime }}</span>
+      <div class="dashboard__title-row">
+        <h2>运维驾驶舱</h2>
+        <span class="dashboard__time">{{ currentTime }}</span>
+      </div>
+      <div class="dashboard__search">
+        <el-input
+          v-model="assistantQuery"
+          placeholder="有问题？输入关键词快速找答案（如：母机故障 / 搬迁 / 找机器）"
+          size="large"
+          clearable
+          @keyup.enter="goAssistant"
+        >
+          <template #prefix><el-icon><Search /></el-icon></template>
+          <template #append>
+            <el-button @click="goAssistant">搜索</el-button>
+          </template>
+        </el-input>
+      </div>
     </div>
 
     <!-- 工单统计卡片 -->
@@ -126,7 +142,21 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose } from '@element-plus/icons-vue'
+
+const router = useRouter()
+
+// ─── 运维助手搜索 ───
+const assistantQuery = ref('')
+function goAssistant() {
+  const q = assistantQuery.value.trim()
+  if (q) {
+    router.push({ path: '/assistant', query: { q } })
+  } else {
+    router.push('/assistant')
+  }
+}
 
 // ─── 时间显示 ───
 const currentTime = ref('')
@@ -204,10 +234,13 @@ onMounted(async () => {
 }
 
 .dashboard__header {
+  margin-bottom: 24px;
+}
+.dashboard__title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 .dashboard__header h2 {
   margin: 0;
@@ -217,6 +250,9 @@ onMounted(async () => {
 .dashboard__time {
   color: #909399;
   font-size: 14px;
+}
+.dashboard__search {
+  max-width: 700px;
 }
 
 /* ─── 统计卡片网格 ─── */
