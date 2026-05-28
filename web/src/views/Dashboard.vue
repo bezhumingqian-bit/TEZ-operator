@@ -110,7 +110,12 @@
           <template #header>
             <div class="card-header">
               <b>节点资源</b>
-              <el-button text type="primary" size="small" @click="$router.push('/hosts')">详细 →</el-button>
+              <div>
+                <el-button size="small" :loading="syncAllLoading" @click="syncAllZones">
+                  🔄 刷新全部
+                </el-button>
+                <el-button text type="primary" size="small" @click="$router.push('/hosts')">详细 →</el-button>
+              </div>
             </div>
           </template>
           <el-table :data="zoneSnapshots" size="small" v-loading="zonesLoading" class="zone-table">
@@ -144,6 +149,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 
@@ -166,6 +172,27 @@ function updateTime() {
 }
 onMounted(() => { updateTime(); timer = window.setInterval(updateTime, 60000) })
 onUnmounted(() => { if (timer) clearInterval(timer) })
+
+// ─── 全量刷新 ───
+const syncAllLoading = ref(false)
+async function syncAllZones() {
+  syncAllLoading.value = true
+  try {
+    const resp = await fetch('/api/v1/zones/sync-all', { method: 'POST' }).then(r => r.json())
+    if (resp.success) {
+      ElMessage.success(`已刷新 ${resp.zones_updated} 个可用区（共 ${resp.total_positions} 个机位）`)
+      // 重新加载节点数据
+      const zonesResp = await fetch('/api/v1/zones/snapshots').then(r => r.json())
+      zoneSnapshots.value = zonesResp.items || []
+    } else {
+      ElMessage.error(resp.message || '刷新失败')
+    }
+  } catch {
+    ElMessage.error('刷新失败，请检查浏览器登录状态')
+  } finally {
+    syncAllLoading.value = false
+  }
+}
 
 // ─── 工单统计 ───
 interface Stats {

@@ -183,6 +183,104 @@ class IDCRMPositionSkill:
             # 不应走到这里
             return {"free_count": None, "message": "查询异常"}
 
+    async def query_all_positions(self) -> dict[str, Any]:
+        """查询全部可用区的虚拟化机位（只筛选逻辑区域，不限机房）。
+
+        一次拉取所有 TEZ 机位数据，再按机房管理单元分组。
+        适合驾驶舱全量刷新场景。
+        """
+        base_url = self._settings.idcrm_base_url.rstrip("/") + "/db/positions"
+        timeout_ms = self._settings.browser_page_timeout_ms
+
+        async with BrowserSession.page() as page:
+            # 1. 打开页面
+            try:
+                await page.goto(base_url, wait_until="domcontentloaded", timeout=timeout_ms)
+            except Exception:
+                pass
+            await asyncio.sleep(self.WAIT_AFTER_GOTO)
+
+            # 等待登录
+            if is_login_url(page.url):
+                log.info("idcrm_skill.waiting_for_login_all")
+                waited = 0
+                while is_login_url(page.url) and waited < self.LOGIN_WAIT_TIMEOUT:
+                    await asyncio.sleep(self.LOGIN_POLL_INTERVAL)
+                    waited += self.LOGIN_POLL_INTERVAL
+                if is_login_url(page.url):
+                    return {"success": False, "message": "登录超时"}
+                await asyncio.sleep(self.WAIT_AFTER_GOTO)
+
+            # 2. 展开设备列 + 设置每页100
+            await self._enable_device_column(page)
+            await self._set_page_size(page, "100 条/ 页")
+
+            # 3. 只筛选逻辑区域 = 通用虚拟化bonding区（不筛选具体机房）
+            await self._ant_select_with_search(
+                page, self.IDX_LOGIC_AREA,
+                search_text=self.LOGIC_AREA_VALUE,
+                exact_match=self.LOGIC_AREA_VALUE,
+            )
+            await asyncio.sleep(1)
+
+            # 4. 点查询
+            await self._click_query_button(page)
+            await asyncio.sleep(self.WAIT_AFTER_FILTER)
+
+            # 5. 提取所有分页（最多20页 = 2000条）
+            rows = await self._extract_all_pages(page, max_pages=20)
+            log.info("idcrm_skill.all_positions_fetched", total=len(rows))
+
+            # 6. 按机房分组统计
+            from app.data.zone_mapping import ZONE_IDC_MAPPING
+            # 反向映射 IDC → zone
+            idc_to_zone = {v: k for k, v in ZONE_IDC_MAPPING.items()}
+
+            results_by_idc: dict[str, dict] = {}
+            for row in rows:
+                row_text = " ".join(row)
+                # 找到匹配的 IDC（检查每一列是否包含已知机房名）
+                matched_idc = ""
+                for idc_name in idc_to_zone:
+                    if idc_name in row_text:
+                        matched_idc = idc_name
+                        break
+
+                if not matched_idc:
+                    continue
+
+                if matched_idc not in results_by_idc:
+                    results_by_idc[matched_idc] = {
+                        "idc": matched_idc,
+                        "zone": idc_to_zone.get(matched_idc, ""),
+                        "total_positions": 0,
+                        "free_count": 0,
+                        "used_count": 0,
+                        "all_assets": [],
+                    }
+
+                entry = results_by_idc[matched_idc]
+                entry["total_positions"] += 1
+
+                assets = re.findall(r"TYSV[0-9A-Z]{6,}", row_text, re.IGNORECASE)
+                entry["all_assets"].extend(assets)
+
+                if "空闲" in row_text:
+                    entry["free_count"] += 1
+                elif "已用" in row_text:
+                    entry["used_count"] += 1
+
+            # 去重 assets
+            for entry in results_by_idc.values():
+                entry["all_assets"] = list(set(entry["all_assets"]))
+
+            return {
+                "success": True,
+                "total_rows": len(rows),
+                "zones_found": len(results_by_idc),
+                "results": results_by_idc,
+            }
+
     # ─── 内部辅助方法 ───
 
     async def _enable_device_column(self, page) -> None:

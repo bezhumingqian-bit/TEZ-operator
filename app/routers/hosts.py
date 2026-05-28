@@ -446,6 +446,75 @@ async def list_zone_snapshots(
     return {"items": items}
 
 
+@zone_router.post(
+    "/sync-all",
+    summary="一次性刷新所有可用区机位数据（驾驶舱用）",
+)
+async def sync_all_zones(
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """一次查询全部 TEZ 机位，按机房分组后批量写入本地缓存。
+
+    比逐个查询快得多（1次浏览器操作 vs 57次）。
+    """
+    from app.skills.idcrm_position_skill import IDCRMPositionSkill
+    from app.services.zone_resource_service import ZoneResourceService
+    from app.models.zone_snapshot import ZoneSnapshot
+    from datetime import datetime
+
+    skill = IDCRMPositionSkill()
+    result = await skill.query_all_positions()
+
+    if not result.get("success"):
+        return {"success": False, "message": result.get("message", "查询失败")}
+
+    # 批量更新快照
+    svc = ZoneResourceService(session)
+    updated_zones = []
+
+    for idc, data in result.get("results", {}).items():
+        zone = data.get("zone", "")
+        if not zone:
+            continue
+
+        # Upsert snapshot（简化版，只更新机位数据）
+        existing = await svc._get_snapshot(zone)
+        if existing:
+            existing.total_positions = data["total_positions"]
+            existing.free_count = data["free_count"]
+            existing.used_count = data["used_count"]
+            existing.idc = idc
+            existing.last_sync_at = datetime.now()
+        else:
+            snapshot = ZoneSnapshot(
+                zone=zone,
+                idc=idc,
+                total_positions=data["total_positions"],
+                free_count=data["free_count"],
+                used_count=data["used_count"],
+                other_count=0,
+                total_assets=len(data["all_assets"]),
+                online_count=0,
+                offline_count=0,
+                non_tez_count=0,
+                last_sync_at=datetime.now(),
+                raw_data=data,
+            )
+            session.add(snapshot)
+
+        updated_zones.append(zone)
+
+    await session.commit()
+
+    return {
+        "success": True,
+        "total_positions": result.get("total_rows", 0),
+        "zones_updated": len(updated_zones),
+        "zones": updated_zones,
+        "message": f"已刷新 {len(updated_zones)} 个可用区的机位数据",
+    }
+
+
 @zone_router.get(
     "/{zone}/overview",
     summary="节点资源概况（本地数据库优先，7天过期自动刷新）",
