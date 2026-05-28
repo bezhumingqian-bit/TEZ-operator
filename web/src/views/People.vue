@@ -97,6 +97,19 @@
 
     <!-- 快捷场景区（未搜索时展示）-->
     <div v-if="!searched" class="scenes-section">
+      <!-- 热门搜索 -->
+      <div class="hot-tags">
+        <span class="hot-label">热门：</span>
+        <el-tag
+          v-for="tag in hotTags"
+          :key="tag"
+          size="small"
+          effect="plain"
+          class="hot-tag"
+          @click="query = tag; handleSearch()"
+        >{{ tag }}</el-tag>
+      </div>
+
       <h3 class="section-title">高频场景</h3>
       <div class="scene-grid">
         <div
@@ -217,6 +230,8 @@ async function handleSearch() {
 }
 
 // ─── 快捷场景 ───
+const hotTags = ['母机故障', '搬迁', '投放', '开区', '调账', '机型成本', '重装', 'IPv6']
+
 const scenes = [
   { icon: '🔧', title: '母机故障', desc: '故障排查 → 值班运维 → 上升', keyword: '母机故障' },
   { icon: '🚚', title: '搬迁服务器', desc: '出入库 → 提单 → 模块转移', keyword: '搬迁' },
@@ -304,7 +319,12 @@ function openWecom(username: string) {
 
 .search-section {
   text-align: center;
-  padding: 32px 0 24px;
+  padding: 40px 0 24px;
+  background: linear-gradient(180deg, #f0f5ff 0%, transparent 100%);
+  border-radius: 12px;
+  margin: -24px -24px 0;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 .page-title {
@@ -443,6 +463,29 @@ function openWecom(username: string) {
   margin-top: 32px;
 }
 
+.hot-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: #fafafa;
+  border-radius: 8px;
+}
+.hot-label {
+  font-size: 13px;
+  color: #909399;
+}
+.hot-tag {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.hot-tag:hover {
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
+}
+
 .section-title {
   font-size: 16px;
   font-weight: 600;
@@ -465,16 +508,25 @@ function openWecom(username: string) {
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s;
+  background: #fff;
 }
 
 .scene-card:hover {
   border-color: var(--el-color-primary);
-  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.1);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.12);
+  transform: translateY(-3px);
 }
 
 .scene-icon {
-  font-size: 28px;
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #f5f7fa;
+  flex-shrink: 0;
 }
 
 .scene-title {
