@@ -15,6 +15,7 @@
         clearable
         class="search-input"
         @keyup.enter="handleSearch"
+        @clear="clearSearch"
       >
         <template #prefix><el-icon><Search /></el-icon></template>
         <template #append>
@@ -25,6 +26,12 @@
 
     <!-- 搜索结果区 -->
     <div v-if="hasResults" class="results-section">
+      <!-- 返回按钮 -->
+      <div class="results-header">
+        <el-button @click="clearSearch" :icon="ArrowLeft" text>返回</el-button>
+        <span class="results-query">搜索结果：「{{ query }}」</span>
+      </div>
+
       <!-- 接口人结果 -->
       <div v-if="contactResults.length" class="result-block">
         <h3 class="block-title"><el-icon><User /></el-icon> 找谁</h3>
@@ -93,7 +100,10 @@
     </div>
 
     <!-- 无结果 -->
-    <el-empty v-else-if="searched && !hasResults" description="没找到相关内容，试试换个关键词？" />
+    <div v-else-if="searched && !hasResults" style="text-align:center; margin-top:24px">
+      <el-button @click="clearSearch" :icon="ArrowLeft" text style="margin-bottom:12px">返回</el-button>
+      <el-empty description="没找到相关内容，试试换个关键词？" />
+    </div>
 
     <!-- 快捷场景区（未搜索时展示）-->
     <div v-if="!searched" class="scenes-section">
@@ -165,7 +175,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { Search, User, Document, Link, TopRight, Star, QuestionFilled } from '@element-plus/icons-vue'
+import { Search, User, Document, Link, TopRight, Star, QuestionFilled, ArrowLeft } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import { routeContacts, type RouteResult } from '@/api/contacts'
 import { searchKnowledge, getArticleContent, listLinks, type ArticleInfo, type LinkInfo, type FAQInfo } from '@/api/knowledge'
@@ -246,6 +256,15 @@ const scenes = [
 function enterScene(scene: typeof scenes[0]) {
   query.value = scene.keyword
   handleSearch()
+}
+
+function clearSearch() {
+  searched.value = false
+  query.value = ''
+  contactResults.value = []
+  articleResults.value = []
+  linkResults.value = []
+  faqResults.value = []
 }
 
 // ─── 平台导航（从 API 加载）───
@@ -350,6 +369,19 @@ function openWecom(username: string) {
 /* 搜索结果 */
 .results-section {
   margin-top: 24px;
+}
+
+.results-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.results-query {
+  font-size: 14px;
+  color: #606266;
 }
 
 .result-block {
