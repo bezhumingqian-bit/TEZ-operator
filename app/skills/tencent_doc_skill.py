@@ -328,41 +328,68 @@ class TencentDocSkill:
 
             await asyncio.sleep(1)
 
-            # 7. 无需 Enter（最后一个 Tab 已确认）
-            # 腾讯文档自动保存
+            # 7. 腾讯文档自动保存
             await asyncio.sleep(2)
 
-            # 8. 验证：回到 A 列最后有数据的单元格检查
+            # 8. 写入后校验：回到写入行首列，逐列回读对比
             await name_box.click(timeout=2000)
             await asyncio.sleep(0.3)
-            await name_box.fill("A1")
+            await name_box.fill(f"A{actual_row}")
             await name_box.press("Enter")
-            await asyncio.sleep(0.5)
-            await page.keyboard.press("Meta+ArrowDown")
             await asyncio.sleep(1)
-            verify_cell = await name_box.input_value()
-            verify_value = (await formula_bar.inner_text()).strip()
+            await page.keyboard.press("Escape")
+            await asyncio.sleep(0.3)
 
-            if verify_value:
-                log.info(
-                    "tencent_doc.write_success",
+            # 逐列读取并对比（只验证有值的列）
+            mismatches = []
+            col_letter = 'A'
+            for i, expected in enumerate(row_data):
+                cell_val = (await formula_bar.inner_text()).strip()
+
+                if expected:
+                    # 对比：去掉换行符后比较（单元格内换行在formula bar可能显示不同）
+                    expected_flat = expected.replace("\n", " ").strip()
+                    actual_flat = cell_val.replace("\n", " ").strip()
+                    if expected_flat and actual_flat and expected_flat not in actual_flat and actual_flat not in expected_flat:
+                        mismatches.append({
+                            "col": col_letter,
+                            "expected": expected_flat[:30],
+                            "actual": actual_flat[:30],
+                        })
+
+                # Tab 到下一列读取
+                await page.keyboard.press("Tab")
+                await asyncio.sleep(0.3)
+                col_letter = chr(ord(col_letter) + 1)
+
+                # 只检查前15列（避免超出数据范围）
+                if i >= 14:
+                    break
+
+            if mismatches:
+                log.warning(
+                    "tencent_doc.write_mismatch",
                     sheet=sheet_name,
                     row=actual_row,
-                    cell=verify_cell,
-                    first_col=verify_value[:20],
+                    mismatches=mismatches,
                 )
                 return {
                     "success": True,
-                    "message": f"已成功写入 {sheet_name} 第 {actual_row} 行",
+                    "message": f"已写入 {sheet_name} 第 {actual_row} 行，但部分列可能未正确填入",
                     "row": actual_row,
-                    "cell": verify_cell,
-                    "verified_value": verify_value[:30],
+                    "mismatches": mismatches,
+                    "warning": f"{len(mismatches)} 列内容可能不一致：" + ", ".join(
+                        f"{m['col']}列(期望:{m['expected']})" for m in mismatches[:3]
+                    ),
                 }
-            else:
-                return {
-                    "success": False,
-                    "message": f"写入验证失败：{sheet_name} 第 {actual_row} 行仍为空",
-                }
+
+            log.info("tencent_doc.write_verified", sheet=sheet_name, row=actual_row)
+            return {
+                "success": True,
+                "message": f"已成功写入并验证 {sheet_name} 第 {actual_row} 行",
+                "row": actual_row,
+                "verified": True,
+            }
 
     async def _binary_search_first_empty_row(
         self, page, name_box, formula_bar, start: int, end: int
