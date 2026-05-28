@@ -432,6 +432,21 @@ async def get_offline_devices(
 
 
 @zone_router.get(
+    "/snapshots",
+    summary="列出所有已同步的节点快照摘要（驾驶舱用）",
+)
+async def list_zone_snapshots(
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """返回所有已同步过的可用区概况（用于驾驶舱看板）。"""
+    from app.services.zone_resource_service import ZoneResourceService
+
+    svc = ZoneResourceService(session)
+    items = await svc.list_all_snapshots()
+    return {"items": items}
+
+
+@zone_router.get(
     "/{zone}/overview",
     summary="节点资源概况（本地数据库优先，7天过期自动刷新）",
 )
