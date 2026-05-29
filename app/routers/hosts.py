@@ -457,8 +457,8 @@ async def sync_all_zones(
     """全量同步：IDCRM 拉机位 → TCUM 批量查设备 → 按区域写入本地缓存。
 
     耗时约 2-5 分钟（取决于设备数量），前端可用 AbortController 取消。
+    HTTP 模式下 IDCRM 查询仅需数秒。
     """
-    from app.skills.idcrm_position_skill import IDCRMPositionSkill
     from app.services.zone_resource_service import ZoneResourceService
     from app.clients.tcum_browser import TCUMBrowserImpl
     from app.models.zone_snapshot import ZoneSnapshot
@@ -469,9 +469,15 @@ async def sync_all_zones(
     settings = get_settings()
     log = get_logger(__name__)
 
-    # Step 1: IDCRM 全量机位
-    skill = IDCRMPositionSkill()
-    result = await skill.query_all_positions()
+    # Step 1: IDCRM 全量机位（优先用 HTTP）
+    if settings.idcrm_mode == "http":
+        from app.clients.idcrm_http import IDCRMHttpClient
+        client = IDCRMHttpClient()
+        result = await client.query_all_positions()
+    else:
+        from app.skills.idcrm_position_skill import IDCRMPositionSkill
+        skill = IDCRMPositionSkill()
+        result = await skill.query_all_positions()
 
     if not result.get("success"):
         return {"success": False, "message": result.get("message", "IDCRM查询失败")}

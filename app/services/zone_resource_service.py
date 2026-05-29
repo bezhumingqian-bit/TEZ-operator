@@ -113,11 +113,17 @@ class ZoneResourceService:
             return {"zone": zone, "message": "需要 browser 模式才能同步"}
 
         try:
-            # Step 1: IDCRM 查全量机位
-            from app.skills.idcrm_position_skill import IDCRMPositionSkill
-
-            skill = IDCRMPositionSkill()
-            pos_result = await skill.query_free_positions(idc)
+            # Step 1: IDCRM 查全量机位（支持 HTTP 和 Browser 两种模式）
+            if settings.idcrm_mode == "http":
+                from app.clients.idcrm_http import IDCRMHttpClient
+                client = IDCRMHttpClient()
+                pos_result = await client.query_positions_by_idc(idc)
+                if not pos_result.get("success"):
+                    pos_result = {"free_count": None, "message": pos_result.get("message", "HTTP查询失败")}
+            else:
+                from app.skills.idcrm_position_skill import IDCRMPositionSkill
+                skill = IDCRMPositionSkill()
+                pos_result = await skill.query_free_positions(idc)
 
             if pos_result.get("idc_not_found"):
                 # 存一条标记为未开区的快照
