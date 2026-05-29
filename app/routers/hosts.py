@@ -499,9 +499,13 @@ async def sync_all_zones(
     all_assets_flat = list(set(all_assets_flat))
     tcum_device_map: dict[str, dict] = {}  # asset_id → device info
 
-    if all_assets_flat and settings.tcum_mode == "browser":
+    if all_assets_flat and settings.tcum_mode in ("browser", "http"):
         try:
-            tcum = TCUMBrowserImpl()
+            if settings.tcum_mode == "http":
+                from app.clients.tcum_http import TCUMHttpClient
+                tcum = TCUMHttpClient()
+            else:
+                tcum = TCUMBrowserImpl()
             # 分批查询（每批 50 个，TCUM 限制）
             batch_size = 50
             for i in range(0, len(all_assets_flat), batch_size):

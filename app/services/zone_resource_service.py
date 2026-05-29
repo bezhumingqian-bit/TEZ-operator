@@ -142,10 +142,13 @@ class ZoneResourceService:
             offline_devices: list[dict] = []
             non_tez_devices: list[dict] = []
 
-            if all_assets and settings.tcum_mode == "browser":
-                from app.clients.tcum_browser import TCUMBrowserImpl
-
-                tcum = TCUMBrowserImpl()
+            if all_assets and settings.tcum_mode in ("browser", "http"):
+                if settings.tcum_mode == "http":
+                    from app.clients.tcum_http import TCUMHttpClient
+                    tcum = TCUMHttpClient()
+                else:
+                    from app.clients.tcum_browser import TCUMBrowserImpl
+                    tcum = TCUMBrowserImpl()
                 devices = await tcum.batch_search(all_assets[:100])
 
                 # TEZ 设备识别规则：
