@@ -105,8 +105,58 @@
       <el-empty description="没找到相关内容，试试换个关键词？" />
     </div>
 
-    <!-- 快捷场景区（未搜索时展示）-->
-    <div v-if="!searched" class="scenes-section">
+    <!-- SOP 流程展示 -->
+    <div v-if="activeFlow" class="sop-section">
+      <div class="sop-header">
+        <el-button @click="activeFlow = null" :icon="ArrowLeft" text>返回</el-button>
+        <h3><span class="sop-icon">{{ activeFlow.icon }}</span> {{ activeFlow.title }}</h3>
+        <p class="sop-desc">{{ activeFlow.desc }}</p>
+      </div>
+
+      <el-timeline>
+        <el-timeline-item
+          v-for="(step, idx) in activeFlow.steps"
+          :key="idx"
+          :timestamp="`第 ${idx + 1} 步`"
+          placement="top"
+          :type="idx === 0 ? 'primary' : ''"
+        >
+          <el-card shadow="hover" class="sop-step-card">
+            <h4>{{ step.title }}</h4>
+            <p class="step-desc">{{ step.desc }}</p>
+
+            <!-- 联系人 -->
+            <div v-if="step.contacts && step.contacts.length" class="step-contacts">
+              <el-tag v-for="c in step.contacts" :key="c" size="small" type="primary" effect="plain">
+                👤 {{ c }}
+              </el-tag>
+            </div>
+
+            <!-- 链接 -->
+            <div v-if="step.links && step.links.length" class="step-links">
+              <el-button v-for="link in step.links" :key="link.name" size="small" @click="openUrl(link.url)">
+                {{ link.name }} ↗
+              </el-button>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div v-if="step.action" class="step-action">
+              <el-button type="primary" size="small" @click="handleStepAction(step.action)">
+                {{ step.action.label }}
+              </el-button>
+            </div>
+
+            <!-- 注意事项 -->
+            <div v-if="step.tips && step.tips.length" class="step-tips">
+              <div v-for="tip in step.tips" :key="tip" class="tip-item">⚠️ {{ tip }}</div>
+            </div>
+          </el-card>
+        </el-timeline-item>
+      </el-timeline>
+    </div>
+
+    <!-- 快捷场景区（未搜索且无SOP时展示）-->
+    <div v-if="!searched && !activeFlow" class="scenes-section">
       <!-- 热门搜索 -->
       <div class="hot-tags">
         <span class="hot-label">热门：</span>
@@ -175,7 +225,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Search, User, Document, Link, TopRight, Star, QuestionFilled, ArrowLeft } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import { routeContacts, type RouteResult } from '@/api/contacts'
@@ -244,19 +294,19 @@ async function handleSearch() {
 const hotTags = ['母机故障', '搬迁', '投放', '开区', '调账', '机型成本', '重装', 'IPv6']
 
 const scenes = [
-  { icon: '🔧', title: '母机故障', desc: '故障排查 → 值班运维 → 上升', keyword: '母机故障' },
-  { icon: '🚚', title: '搬迁服务器', desc: '出入库 → 提单 → 模块转移', keyword: '搬迁' },
-  { icon: '📦', title: '要机器', desc: 'CVM/异构/运管 → 云霄查空闲', keyword: '要机器' },
-  { icon: '🌐', title: '开新区', desc: '需求确认 → 开区流程 → 部署', keyword: '开区' },
-  { icon: '🔀', title: 'IPv6', desc: '母机支持 + VPC适配 + 网平实施', keyword: 'IPv6' },
-  { icon: '💰', title: '成本/报价', desc: '机型成本 + 报价规则', keyword: '成本' },
-  { icon: '⚙️', title: '机型改造', desc: '评估 → 执行 → 上线', keyword: '机型改造' },
-  { icon: '📐', title: '机位扩容', desc: '评估供应商 → 建设 → 交付', keyword: '机位扩容' },
+  { id: 'host_fault', icon: '🔧', title: '母机故障', desc: '故障排查 → 值班运维 → 上升', keyword: '母机故障' },
+  { id: 'migration', icon: '🚚', title: '搬迁服务器', desc: '出入库 → 提单 → 模块转移', keyword: '搬迁' },
+  { id: 'host_deploy', icon: '📦', title: '投放母机', desc: '投放 → 重装 → 上线', keyword: '投放' },
+  { id: 'find_machine', icon: '🖥️', title: '要机器', desc: '查库存 → 云霄 → 协调', keyword: '要机器' },
+  { id: 'open_zone', icon: '🌐', title: '开新区', desc: '需求确认 → 开区流程 → 部署', keyword: '开区' },
+  { id: 'ipv6', icon: '🔀', title: 'IPv6', desc: '母机支持 + VPC适配 + 网平实施', keyword: 'IPv6' },
+  { id: 'cost', icon: '💰', title: '成本/报价', desc: '机型成本 + 报价规则', keyword: '成本' },
+  { id: 'machine_transform', icon: '⚙️', title: '机型改造', desc: '评估 → 执行 → 上线', keyword: '机型改造' },
 ]
 
 function enterScene(scene: typeof scenes[0]) {
-  query.value = scene.keyword
-  handleSearch()
+  // 打开 SOP 流程视图
+  loadSopFlow(scene.id)
 }
 
 function clearSearch() {
@@ -268,6 +318,28 @@ function clearSearch() {
   faqResults.value = []
 }
 
+// ─── SOP 流程 ───
+const activeFlow = ref<any>(null)
+
+async function loadSopFlow(flowId: string) {
+  try {
+    const resp = await fetch(`/api/v1/knowledge/sop-flows/${flowId}`)
+    if (resp.ok) {
+      activeFlow.value = await resp.json()
+    }
+  } catch {
+    // 静默失败
+  }
+}
+
+function handleStepAction(action: { type: string; path?: string; order_type?: string; label: string }) {
+  if (action.type === 'navigate' && action.path) {
+    router.push(action.path)
+  } else if (action.type === 'create_order') {
+    router.push({ path: '/workorder', query: { create: '1', type: action.order_type } })
+  }
+}
+
 // ─── 平台导航（从 API 加载）───
 const platformGroups = ref([
   { label: '资源查询', links: [] as {name: string; url: string; importance: number}[] },
@@ -276,6 +348,7 @@ const platformGroups = ref([
 ])
 
 const route = useRoute()
+const router = useRouter()
 
 onMounted(async () => {
   // 如果从驾驶舱带了搜索词过来，自动搜索
@@ -498,6 +571,69 @@ function openWecom(username: string) {
 .faq-answer {
   line-height: 1.8;
   color: #606266;
+}
+
+/* SOP 流程 */
+.sop-section {
+  margin-top: 24px;
+}
+.sop-header {
+  margin-bottom: 20px;
+}
+.sop-header h3 {
+  font-size: 20px;
+  margin: 8px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sop-icon {
+  font-size: 24px;
+}
+.sop-desc {
+  color: #909399;
+  margin: 0;
+}
+.sop-step-card {
+  transition: transform 0.15s;
+}
+.sop-step-card:hover {
+  transform: translateX(4px);
+}
+.sop-step-card h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.step-desc {
+  color: #606266;
+  font-size: 14px;
+  margin: 0 0 10px;
+}
+.step-contacts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.step-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.step-action {
+  margin-bottom: 8px;
+}
+.step-tips {
+  background: #fdf6ec;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+.tip-item {
+  font-size: 13px;
+  color: #e6a23c;
+  line-height: 1.8;
 }
 
 /* 快捷场景 */

@@ -210,3 +210,22 @@ async def create_faq(
     faq = await service.create_faq(**payload.model_dump())
     await service.session.commit()
     return faq
+
+
+
+@router.get("/sop-flows", summary="获取运维SOP流程数据")
+async def get_sop_flows():
+    """返回所有场景的 SOP 分步操作流程。"""
+    from app.data.sop_flows import SOP_FLOWS
+    return {"items": SOP_FLOWS}
+
+
+@router.get("/sop-flows/{flow_id}", summary="获取单个SOP流程详情")
+async def get_sop_flow(flow_id: str):
+    """返回指定场景的 SOP 流程。"""
+    from app.data.sop_flows import SOP_FLOWS
+    for flow in SOP_FLOWS:
+        if flow["id"] == flow_id:
+            return flow
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="SOP流程不存在")
