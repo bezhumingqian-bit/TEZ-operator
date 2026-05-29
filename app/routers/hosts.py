@@ -25,6 +25,7 @@ from app.schemas.host import (
     ZoneInstanceStatsResponse,
 )
 from app.services.host_service import HostService
+from app.utils.logger import get_logger
 from app.utils.parser import detect_query_type, normalize_query
 
 router = APIRouter(prefix="/hosts", tags=["hosts"])
@@ -448,70 +449,144 @@ async def list_zone_snapshots(
 
 @zone_router.post(
     "/sync-all",
-    summary="一次性刷新所有可用区机位数据（驾驶舱用）",
+    summary="一次性刷新所有可用区（IDCRM机位 + TCUM设备详情）",
 )
 async def sync_all_zones(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
-    """一次查询全部 TEZ 机位，按机房分组后批量写入本地缓存。
+    """全量同步：IDCRM 拉机位 → TCUM 批量查设备 → 按区域写入本地缓存。
 
-    比逐个查询快得多（1次浏览器操作 vs 57次）。
+    耗时约 2-5 分钟（取决于设备数量），前端可用 AbortController 取消。
     """
     from app.skills.idcrm_position_skill import IDCRMPositionSkill
     from app.services.zone_resource_service import ZoneResourceService
+    from app.clients.tcum_browser import TCUMBrowserImpl
     from app.models.zone_snapshot import ZoneSnapshot
+    from app.config import get_settings
     from datetime import datetime
+    import re
 
+    settings = get_settings()
+    log = get_logger(__name__)
+
+    # Step 1: IDCRM 全量机位
     skill = IDCRMPositionSkill()
     result = await skill.query_all_positions()
 
     if not result.get("success"):
-        return {"success": False, "message": result.get("message", "查询失败")}
+        return {"success": False, "message": result.get("message", "IDCRM查询失败")}
 
-    # 批量更新快照
+    log.info("sync_all.idcrm_done", zones=result.get("zones_found"), rows=result.get("total_rows"))
+
+    # Step 2: 收集所有固资号 → TCUM 批量查
+    all_assets_flat = []
+    zone_assets_map: dict[str, list[str]] = {}  # zone → [asset_ids]
+
+    for idc, data in result.get("results", {}).items():
+        zone = data.get("zone", "")
+        if not zone:
+            continue
+        assets = data.get("all_assets", [])
+        zone_assets_map[zone] = assets
+        all_assets_flat.extend(assets)
+
+    all_assets_flat = list(set(all_assets_flat))
+    tcum_device_map: dict[str, dict] = {}  # asset_id → device info
+
+    if all_assets_flat and settings.tcum_mode == "browser":
+        try:
+            tcum = TCUMBrowserImpl()
+            # 分批查询（每批 50 个，TCUM 限制）
+            batch_size = 50
+            for i in range(0, len(all_assets_flat), batch_size):
+                batch = all_assets_flat[i:i + batch_size]
+                devices = await tcum.batch_search(batch)
+                for dev in devices:
+                    aid = dev.get("asset_id", "")
+                    if aid:
+                        tcum_device_map[aid] = dev
+                log.info("sync_all.tcum_batch", batch_num=i // batch_size + 1, found=len(devices))
+        except Exception as exc:
+            log.warning("sync_all.tcum_failed", error=str(exc))
+
+    log.info("sync_all.tcum_done", total_devices=len(tcum_device_map))
+
+    # Step 3: 按区域分类设备 + 写入
     svc = ZoneResourceService(session)
     updated_zones = []
+
+    TEZ_CORE_KEYWORDS = ["腾讯云边缘可用区", "TEZ"]
+    TRANSITIONAL_KEYWORDS = ["待上线", "上线中", "搬迁", "待搬迁", "buffer", "未上线"]
 
     for idc, data in result.get("results", {}).items():
         zone = data.get("zone", "")
         if not zone:
             continue
 
-        # Upsert snapshot（简化版，只更新机位数据）
-        existing = await svc._get_snapshot(zone)
-        if existing:
-            existing.total_positions = data["total_positions"]
-            existing.free_count = data["free_count"]
-            existing.used_count = data["used_count"]
-            existing.idc = idc
-            existing.last_sync_at = datetime.now()
-        else:
-            snapshot = ZoneSnapshot(
-                zone=zone,
-                idc=idc,
-                total_positions=data["total_positions"],
-                free_count=data["free_count"],
-                used_count=data["used_count"],
-                other_count=0,
-                total_assets=len(data["all_assets"]),
-                online_count=0,
-                offline_count=0,
-                non_tez_count=0,
-                last_sync_at=datetime.now(),
-                raw_data=data,
-            )
-            session.add(snapshot)
+        assets = data.get("all_assets", [])
+        online_devices = []
+        offline_devices = []
+        non_tez_devices = []
 
+        for asset_id in assets:
+            dev = tcum_device_map.get(asset_id)
+            if not dev:
+                continue
+
+            module = dev.get("module", "") or ""
+            status = dev.get("status", "") or ""
+            module_lower = module.lower()
+
+            is_core_tez = any(kw in module for kw in TEZ_CORE_KEYWORDS)
+            has_edge_compute = "边缘计算" in module
+            is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
+
+            if is_core_tez:
+                is_tez = True
+            elif has_edge_compute and is_transitional:
+                is_tez = True
+            else:
+                is_tez = False
+
+            if not is_tez:
+                non_tez_devices.append(dev)
+            elif is_transitional:
+                reason = "搬迁/待上线"
+                if "待上线" in module or "未上线" in module:
+                    reason = "模块状态：待上线"
+                elif "搬迁" in module:
+                    reason = "模块状态：搬迁中"
+                elif "buffer" in module_lower:
+                    reason = "模块状态：buffer"
+                dev["reason"] = reason
+                offline_devices.append(dev)
+            elif status == "online":
+                online_devices.append(dev)
+            else:
+                dev["reason"] = f"设备状态：{status or '未知'}"
+                offline_devices.append(dev)
+
+        # 保存快照
+        pos_result = {
+            "total_positions": data["total_positions"],
+            "free_count": data["free_count"],
+            "used_count": data["used_count"],
+            "other_count": 0,
+        }
+        await svc._save_snapshot(
+            zone, idc, pos_result,
+            online_devices, offline_devices, non_tez_devices,
+            len(assets),
+        )
         updated_zones.append(zone)
-
-    await session.commit()
 
     return {
         "success": True,
         "total_positions": result.get("total_rows", 0),
+        "total_devices": len(tcum_device_map),
         "zones_updated": len(updated_zones),
         "zones": updated_zones,
-        "message": f"已刷新 {len(updated_zones)} 个可用区的机位数据",
+        "message": f"已刷新 {len(updated_zones)} 个可用区（{result.get('total_rows', 0)} 机位，{len(tcum_device_map)} 台设备）",
     }
 
 
