@@ -30,8 +30,6 @@ function saveRecent(items: RecentQuery[]) {
 
 export const useAppStore = defineStore('app', () => {
   const appName = ref<string>(import.meta.env.VITE_APP_NAME || '边缘云资源运维平台')
-  // 占位用户，真实用户系统 M2 接入
-  const currentUser = ref<{ name: string; role: string }>({ name: 'alice', role: 'operator' })
 
   const recentQueries = ref<RecentQuery[]>(loadRecent())
 
@@ -53,7 +51,6 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     appName,
-    currentUser,
     recentQueries,
     pushRecentQuery,
     clearRecentQueries,

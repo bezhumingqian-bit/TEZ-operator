@@ -9,7 +9,7 @@
       active-text-color="#409eff"
     >
       <el-menu-item
-        v-for="item in menus"
+        v-for="item in visibleMenus"
         :key="item.path"
         :index="item.path"
         :disabled="false"
@@ -20,22 +20,14 @@
         <template #title>
           <div class="app-sidebar__item">
             <span>{{ item.title }}</span>
-            <el-tag
-              v-if="item.milestone"
-              size="small"
-              effect="plain"
-              type="info"
-              class="app-sidebar__tag"
-              >{{ item.milestone }}</el-tag
-            >
           </div>
         </template>
       </el-menu-item>
     </el-menu>
 
     <div class="app-sidebar__footer">
-      <div>TEZ Operator v0.1</div>
-      <div class="app-sidebar__hint">资源查询 · 工单流 · 运维驾驶舱</div>
+      <div>TEZ Operator v1.2.0</div>
+      <div class="app-sidebar__hint">{{ authStore.role }} · {{ authStore.displayName }}</div>
     </div>
   </aside>
 </template>
@@ -43,22 +35,33 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 interface MenuItem {
   path: string
   title: string
   icon: string
-  milestone?: string
+  module: string
 }
 
 const route = useRoute()
+const authStore = useAuthStore()
 
-const menus: MenuItem[] = [
-  { path: '/dashboard', title: '运维驾驶舱', icon: 'DataAnalysis' },
-  { path: '/hosts', title: '资源查询', icon: 'Search' },
-  { path: '/workorder', title: '工单流转', icon: 'Tickets' },
-  { path: '/assistant', title: '运维助手', icon: 'MagicStick' },
+const allMenus: MenuItem[] = [
+  { path: '/dashboard', title: '运维驾驶舱', icon: 'DataAnalysis', module: 'dashboard' },
+  { path: '/hosts', title: '资源查询', icon: 'Search', module: 'hosts' },
+  { path: '/workorder', title: '工单流转', icon: 'Tickets', module: 'workorder' },
+  { path: '/cost', title: '成本一览', icon: 'Coin', module: 'cost' },
+  { path: '/assistant', title: '运维助手', icon: 'MagicStick', module: 'assistant' },
+  { path: '/knowledge', title: '知识库', icon: 'Reading', module: 'knowledge' },
+  { path: '/competitive', title: '竞争分析', icon: 'TrendCharts', module: 'knowledge' },
+  { path: '/ai', title: 'AI 助手', icon: 'ChatLineRound', module: 'users' },
+  { path: '/users', title: '用户管理', icon: 'UserFilled', module: 'users' },
 ]
+
+const visibleMenus = computed(() =>
+  allMenus.filter((item) => authStore.hasPermission(item.module))
+)
 
 const activeIndex = computed(() => route.path)
 </script>
@@ -81,13 +84,13 @@ const activeIndex = computed(() => route.path)
 
 .app-sidebar__menu :deep(.el-menu-item) {
   margin: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--tez-radius-sm);
   height: 40px;
   line-height: 40px;
 }
 
 .app-sidebar__menu :deep(.el-menu-item.is-active) {
-  background: rgba(64, 158, 255, 0.1);
+  background: var(--tez-primary-light);
 }
 
 .app-sidebar__item {
@@ -97,20 +100,16 @@ const activeIndex = computed(() => route.path)
   width: 100%;
 }
 
-.app-sidebar__tag {
-  margin-left: 8px;
-}
-
 .app-sidebar__footer {
   padding: 12px 16px;
   font-size: 12px;
-  color: var(--tez-text-secondary);
+  color: var(--tez-text-muted);
   border-top: 1px solid var(--tez-border);
 }
 
 .app-sidebar__hint {
   margin-top: 2px;
-  color: var(--tez-text-secondary);
+  color: var(--tez-text-muted);
   opacity: 0.8;
 }
 </style>

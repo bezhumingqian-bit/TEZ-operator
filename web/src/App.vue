@@ -1,6 +1,10 @@
 <template>
   <el-config-provider>
-    <div class="layout">
+    <!-- 公开页面（登录/提单）：无 header/sidebar 布局 -->
+    <router-view v-if="isPublicPage" />
+
+    <!-- 主布局：header + sidebar + content -->
+    <div v-else class="layout">
       <AppHeader />
       <div class="layout__body">
         <AppSidebar />
@@ -17,8 +21,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AppHeader from '@/components/AppHeader.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
+
+const route = useRoute()
+const isPublicPage = computed(() => route.meta?.public === true)
 </script>
 
 <style scoped>

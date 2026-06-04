@@ -1,18 +1,35 @@
-/* 全局样式：尽量克制，仅做布局基底 + 暗色文字阶梯 */
+/* TEZ Operator 全局设计系统
+ * 统一风格：圆角12px、轻阴影、灰白色系、品牌蓝强调
+ */
 
 :root {
-  --tez-bg: #f5f7fa;
+  /* 色彩 */
+  --tez-bg: #f3f4f6;
   --tez-surface: #ffffff;
-  --tez-border: #e4e7ed;
-  --tez-text-primary: #303133;
-  --tez-text-regular: #606266;
-  --tez-text-secondary: #909399;
+  --tez-border: #e5e7eb;
+  --tez-border-light: #f3f4f6;
+  --tez-text-primary: #1f2937;
+  --tez-text-regular: #374151;
+  --tez-text-secondary: #6b7280;
+  --tez-text-muted: #9ca3af;
   --tez-primary: #409eff;
-  --tez-success: #67c23a;
-  --tez-warning: #e6a23c;
-  --tez-danger: #f56c6c;
+  --tez-primary-light: #ecf5ff;
+  --tez-success: #10b981;
+  --tez-success-light: #ecfdf5;
+  --tez-warning: #f59e0b;
+  --tez-warning-light: #fffbeb;
+  --tez-danger: #ef4444;
+  --tez-danger-light: #fef2f2;
+
+  /* 布局 */
   --tez-header-h: 56px;
   --tez-sidebar-w: 220px;
+  --tez-radius: 12px;
+  --tez-radius-sm: 8px;
+  --tez-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --tez-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --tez-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
+  --tez-transition: 0.2s ease;
 }
 
 html,
@@ -30,6 +47,7 @@ body {
   background: var(--tez-bg);
   color: var(--tez-text-primary);
   font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -37,24 +55,138 @@ a {
   text-decoration: none;
 }
 
+/* ─── 页面通用布局 ─── */
 .tez-page {
-  padding: 16px 20px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .tez-page__title {
-  font-size: 18px;
-  font-weight: 600;
-  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 20px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  color: var(--tez-text-primary);
 }
 
+/* ─── 通用卡片 ─── */
 .tez-card {
   background: var(--tez-surface);
   border: 1px solid var(--tez-border);
-  border-radius: 6px;
-  padding: 16px;
+  border-radius: var(--tez-radius);
+  padding: 20px;
+  transition: box-shadow var(--tez-transition);
+}
+
+.tez-card:hover {
+  box-shadow: var(--tez-shadow-sm);
+}
+
+.tez-card--interactive:hover {
+  box-shadow: var(--tez-shadow-md);
+  transform: translateY(-1px);
+}
+
+/* ─── Section 卡片（带标题） ─── */
+.tez-section {
+  background: var(--tez-surface);
+  border: 1px solid var(--tez-border);
+  border-radius: var(--tez-radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.tez-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--tez-border-light);
+}
+
+.tez-section__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tez-text-primary);
+}
+
+.tez-section__desc {
+  font-size: 12px;
+  color: var(--tez-text-muted);
+}
+
+/* ─── 统计卡片 ─── */
+.tez-stat-card {
+  background: var(--tez-surface);
+  border: 1px solid var(--tez-border);
+  border-radius: var(--tez-radius);
+  padding: 16px 20px;
+  transition: all var(--tez-transition);
+}
+
+.tez-stat-card:hover {
+  box-shadow: var(--tez-shadow-sm);
+}
+
+/* ─── Badge ─── */
+.tez-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tez-badge--success { background: var(--tez-success-light); color: #059669; }
+.tez-badge--warning { background: var(--tez-warning-light); color: #d97706; }
+.tez-badge--danger { background: var(--tez-danger-light); color: #dc2626; }
+.tez-badge--muted { background: #f9fafb; color: var(--tez-text-muted); }
+
+/* ─── Banner（页面顶部深色横幅） ─── */
+.tez-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+  border-radius: var(--tez-radius);
+  padding: 24px 32px;
+  margin-bottom: 24px;
+  color: #fff;
+}
+
+.tez-banner__title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.tez-banner__subtitle {
+  font-size: 13px;
+  color: #d1d5db;
+  margin: 0;
+}
+
+/* ─── Element Plus 覆盖 ─── */
+.el-card {
+  border-radius: var(--tez-radius) !important;
+  border-color: var(--tez-border) !important;
+}
+
+.el-card__header {
+  border-bottom-color: var(--tez-border-light) !important;
+  padding: 14px 20px !important;
+}
+
+.el-table th {
+  background: #f9fafb !important;
+}
+
+.el-dialog {
+  border-radius: var(--tez-radius) !important;
 }
 
 .tez-empty-block {
@@ -64,5 +196,5 @@ a {
   min-height: 320px;
   background: var(--tez-surface);
   border: 1px dashed var(--tez-border);
-  border-radius: 6px;
+  border-radius: var(--tez-radius);
 }

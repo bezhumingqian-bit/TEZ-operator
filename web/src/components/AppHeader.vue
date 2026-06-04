@@ -4,26 +4,35 @@
       <div class="app-header__logo" aria-hidden="true">
         <el-icon :size="22"><Cloudy /></el-icon>
       </div>
-      <div class="app-header__title">{{ store.appName }}</div>
+      <div class="app-header__title">{{ appStore.appName }}</div>
       <el-tag size="small" type="info" effect="plain" class="app-header__env"
         >内部使用 · v1.2.0</el-tag
       >
     </div>
     <div class="app-header__right">
-      <el-tooltip content="问题反馈（占位）" placement="bottom">
+      <el-tooltip content="问题反馈" placement="bottom">
         <el-button text :icon="ChatLineRound" />
       </el-tooltip>
-      <el-dropdown trigger="click">
+      <el-dropdown trigger="click" @command="handleCommand">
         <span class="app-header__user">
           <el-avatar :size="28" class="app-header__avatar">{{ avatarText }}</el-avatar>
-          <span class="app-header__user-name">{{ store.currentUser.name }}</span>
+          <span class="app-header__user-name">{{ authStore.displayName }}</span>
           <el-icon><ArrowDown /></el-icon>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item disabled>身份: {{ store.currentUser.role }}</el-dropdown-item>
-            <el-dropdown-item disabled>账户中心 (M2)</el-dropdown-item>
-            <el-dropdown-item disabled>退出登录 (M2)</el-dropdown-item>
+            <el-dropdown-item disabled>
+              <el-icon><User /></el-icon>
+              角色: {{ roleLabel }}
+            </el-dropdown-item>
+            <el-dropdown-item command="settings">
+              <el-icon><Setting /></el-icon>
+              个人设置
+            </el-dropdown-item>
+            <el-dropdown-item divided command="logout">
+              <el-icon><SwitchButton /></el-icon>
+              退出登录
+            </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -33,11 +42,30 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ArrowDown, ChatLineRound, Cloudy } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
+import { ArrowDown, ChatLineRound, Cloudy, User, SwitchButton, Setting } from '@element-plus/icons-vue'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 
-const store = useAppStore()
-const avatarText = computed(() => (store.currentUser.name?.[0] || 'U').toUpperCase())
+const appStore = useAppStore()
+const authStore = useAuthStore()
+const router = useRouter()
+
+const avatarText = computed(() => (authStore.displayName?.[0] || 'U').toUpperCase())
+
+const roleLabel = computed(() => {
+  const map: Record<string, string> = { admin: '管理员', ops: '运维', viewer: '只读' }
+  return map[authStore.role] || authStore.role
+})
+
+function handleCommand(cmd: string) {
+  if (cmd === 'logout') {
+    authStore.logout()
+    router.replace('/login')
+  } else if (cmd === 'settings') {
+    router.push('/settings')
+  }
+}
 </script>
 
 <style scoped>
