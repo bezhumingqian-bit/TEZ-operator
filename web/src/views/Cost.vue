@@ -1,11 +1,23 @@
 <template>
   <div class="cost-page">
     <h2>机型成本一览</h2>
-    <p class="subtitle">TEZ 边缘可用区各机型月度运营成本及售价比例</p>
+    <div class="cost-toolbar">
+      <el-radio-group v-model="filter" size="default">
+        <el-radio-button value="expired">过保机型</el-radio-button>
+        <el-radio-button value="normal">正常机型</el-radio-button>
+        <el-radio-button value="all">全部</el-radio-button>
+      </el-radio-group>
+      <span class="cost-toolbar__count">共 {{ filteredData.length }} 条</span>
+    </div>
 
-    <el-table :data="costData" border stripe size="small" style="width: 100%" max-height="calc(100vh - 200px)">
+    <el-table :data="filteredData" border stripe size="small" style="width: 100%" max-height="calc(100vh - 220px)">
       <el-table-column prop="model" label="型号" width="150" fixed />
-      <el-table-column prop="physical_machine" label="物理机" width="180" />
+      <el-table-column prop="physical_machine" label="物理机" width="180">
+        <template #default="{ row }">
+          <span>{{ row.physical_machine }}</span>
+          <el-tag v-if="isExpired(row)" type="warning" size="small" style="margin-left: 6px">过保</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="machine_cost" label="物理机成本" width="100" align="right">
         <template #default="{ row }">{{ row.machine_cost || '-' }}</template>
       </el-table-column>
@@ -19,14 +31,14 @@
       </el-table-column>
       <el-table-column prop="cost_ratio_sell" label="成本比例-竞价" width="110" align="right">
         <template #default="{ row }">
-          <span :style="{ color: row.cost_ratio_sell && row.cost_ratio_sell < 5 ? '#67c23a' : row.cost_ratio_sell > 15 ? '#e6a23c' : '#303133' }">
+          <span :style="{ color: ratioColor(row.cost_ratio_sell, 5, 15) }">
             {{ row.cost_ratio_sell ? row.cost_ratio_sell + '%' : '-' }}
           </span>
         </template>
       </el-table-column>
       <el-table-column prop="cost_ratio_ondemand" label="成本比例-按量" width="110" align="right">
         <template #default="{ row }">
-          <span :style="{ color: row.cost_ratio_ondemand && row.cost_ratio_ondemand < 5 ? '#67c23a' : row.cost_ratio_ondemand > 15 ? '#e6a23c' : '#303133' }">
+          <span :style="{ color: ratioColor(row.cost_ratio_ondemand, 5, 15) }">
             {{ row.cost_ratio_ondemand ? row.cost_ratio_ondemand + '%' : '-' }}
           </span>
         </template>
@@ -44,7 +56,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import apiClient from '@/api/client'
 
 interface CostItem {
   model: string
@@ -63,24 +76,55 @@ interface CostItem {
 }
 
 const costData = ref<CostItem[]>([])
+const filter = ref<'expired' | 'normal' | 'all'>('expired')
+
+function isExpired(row: CostItem): boolean {
+  return row.physical_machine.includes('过保')
+}
+
+const filteredData = computed(() => {
+  if (filter.value === 'expired') return costData.value.filter(isExpired)
+  if (filter.value === 'normal') return costData.value.filter((r) => !isExpired(r))
+  return costData.value
+})
+
+function ratioColor(value: number | null, low: number, high: number): string {
+  if (!value) return '#303133'
+  if (value < low) return '#67c23a'
+  if (value > high) return '#e6a23c'
+  return '#303133'
+}
 
 onMounted(async () => {
   try {
-    const resp = await fetch('/api/v1/cost/machines')
-    if (resp.ok) {
-      const data = await resp.json()
-      costData.value = data.items || []
-    }
-  } catch {}
+    const resp = await apiClient.get('/api/v1/cost/machines')
+    costData.value = resp.data.items || []
+  } catch {
+    // handled by interceptor
+  }
 })
 </script>
 
 <style scoped>
 .cost-page {
-  padding: 20px;
+  padding: 24px;
 }
-.subtitle {
-  color: #909399;
+
+.cost-page h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+
+.cost-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 16px;
+}
+
+.cost-toolbar__count {
+  font-size: 13px;
+  color: var(--tez-text-muted);
 }
 </style>

@@ -23,6 +23,7 @@
       <el-select v-model="filterType" placeholder="类型筛选" clearable size="default" style="width: 140px">
         <el-option label="投放" value="host_deploy" />
         <el-option label="搬迁" value="migration" />
+        <el-option label="需求单" value="demand_request" />
       </el-select>
     </div>
 
@@ -31,7 +32,7 @@
       <el-table-column prop="order_no" label="工单号" width="160" />
       <el-table-column prop="order_type" label="类型" width="100">
         <template #default="{ row }">
-          <el-tag size="small" :type="typeTagMap[row.order_type]">{{ typeLabel[row.order_type] }}</el-tag>
+          <el-tag size="small" :type="typeTagMap[row.order_type] || ''">{{ typeLabel[row.order_type] || row.order_type }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="title" label="标题" min-width="200" />
@@ -337,16 +338,20 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus, CircleCheck, CircleClose, Loading } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   createOrder, listOrders, getOrderStats, getOrder, transitionOrder, deleteOrder,
   type OrderInfo, type StatsResponse
 } from '@/api/workorders'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 // ─── 常量映射 ───
-const typeLabel: Record<string, string> = { host_deploy: '投放', migration: '搬迁' }
-const typeTagMap: Record<string, string> = { host_deploy: 'success', migration: 'warning' }
+const typeLabel: Record<string, string> = { host_deploy: '投放', migration: '搬迁', demand_request: '需求单' }
+const typeTagMap: Record<string, string> = { host_deploy: 'success', migration: 'warning', demand_request: 'info' }
 const statusLabel: Record<string, string> = { submitted: '已提交', pending: '待受理', processing: '处理中', verifying: '待验证', completed: '已完成', rejected: '已驳回' }
 const statusTagMap: Record<string, string> = { submitted: 'info', pending: 'warning', processing: '', verifying: 'warning', completed: 'success', rejected: 'danger' }
 const priorityLabel: Record<number, string> = { 1: '紧急', 2: '普通', 3: '低' }
@@ -489,10 +494,15 @@ async function loadStats() {
 async function loadOrders() {
   listLoading.value = true
   try {
-    const resp = await listOrders({
+    const params: any = {
       status: filterStatus.value || undefined,
       order_type: filterType.value || undefined,
-    })
+    }
+    // 非 admin 只看自己的工单
+    if (authStore.role !== 'admin') {
+      params.creator = authStore.user?.username
+    }
+    const resp = await listOrders(params)
     orders.value = resp.items
   } finally { listLoading.value = false }
 }
@@ -566,10 +576,10 @@ async function handleCreate() {
   creating.value = true
   try {
     const f = createForm.value
-    await createOrder({
+    const resp = await createOrder({
       order_type: f.order_type,
       title: f.title,
-      creator: 'current_user',
+      creator: authStore.user?.username || 'unknown',
       detail: {
         asset_ids: f.asset_ids,
         zone: f.zone,
@@ -589,7 +599,14 @@ async function handleCreate() {
       note: f.note,
       priority: f.priority,
     })
-    ElMessage.success('工单创建成功，正在后台同步到OnePage')
+
+    // 检查推送结果
+    if (resp.push_success === false) {
+      ElMessage.warning(`工单已保存，但腾讯文档推送失败：${resp.push_error || '未知错误'}`)
+    } else {
+      ElMessage.success('工单创建成功，后台正在同步到腾讯文档')
+    }
+
     showCreateDialog.value = false
     createForm.value = { order_type: '', title: '', priority: 2, asset_ids: '', zone: '', note: '', demand_type: '', device_count: 1, vs_type: '', related_demand: '', expected_date: '', source_zone: '', source_idc: '', target_idc: '', delivery_type: 'TEZ', reinstall: '', module_path: '', fault_desc: '' }
     await loadOrders()
@@ -664,7 +681,36 @@ function formatTime(t: string) {
 }
 
 // ─── 生命周期 ───
-onMounted(() => { loadStats(); loadOrders(); loadZones() })
+const route = useRoute()
+
+function applyQueryFilters() {
+  const q = route.query
+  if (q.type) filterType.value = q.type as string
+  if (q.status) filterStatus.value = q.status as string
+}
+
+onMounted(() => {
+  applyQueryFilters()
+  loadStats(); loadOrders(); loadZones()
+
+  // 从资源查询跳转过来时自动打开创建对话框并预填
+  const q = route.query
+  if (q.action === 'create') {
+    showCreateDialog.value = true
+    if (q.type) createForm.value.order_type = q.type as string
+    if (q.title) createForm.value.title = q.title as string
+    if (q.asset_ids) createForm.value.asset_ids = q.asset_ids as string
+    if (q.zone) createForm.value.zone = q.zone as string
+    if (q.count) createForm.value.device_count = Number(q.count) || 1
+  }
+})
+
+// 监听 route query 变化（从 Dashboard 跳转过来时已在此页，onMounted 不会重新触发）
+watch(() => route.query, (newQuery) => {
+  if (newQuery.type) filterType.value = newQuery.type as string
+  if (newQuery.status) filterStatus.value = newQuery.status as string
+}, { flush: 'post' })
+
 watch([filterStatus, filterType], () => loadOrders())
 </script>
 
@@ -673,19 +719,19 @@ watch([filterStatus, filterType], () => loadOrders())
 
 .stats-bar { display: flex; gap: 16px; margin-bottom: 20px; }
 .stat-item { flex: 1; text-align: center; padding: 16px; border-radius: 8px; background: #f5f7fa; border: 1px solid #ebeef5; }
-.stat-value { font-size: 28px; font-weight: 700; color: #303133; }
-.stat-label { font-size: 13px; color: #909399; margin-top: 4px; }
+.stat-value { font-size: 28px; font-weight: 700; color: var(--tez-text-primary); }
+.stat-label { font-size: 13px; color: var(--tez-text-muted); margin-top: 4px; }
 .stat-item.processing { border-color: #409eff; background: #ecf5ff; }
 .stat-item.processing .stat-value { color: #409eff; }
 
 .toolbar { display: flex; gap: 12px; margin-bottom: 16px; }
 
 .priority-1 { color: #f56c6c; font-weight: 600; }
-.priority-2 { color: #303133; }
-.priority-3 { color: #909399; }
+.priority-2 { color: var(--tez-text-primary); }
+.priority-3 { color: var(--tez-text-muted); }
 
 .order-detail .section { margin-top: 20px; }
-.order-detail .section h4 { margin-bottom: 8px; font-size: 14px; color: #606266; }
+.order-detail .section h4 { margin-bottom: 8px; font-size: 14px; color: var(--tez-text-regular); }
 .check-item { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
 
 .asset-lookup-info { display: flex; flex-wrap: wrap; gap: 6px; }

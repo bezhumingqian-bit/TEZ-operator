@@ -440,7 +440,7 @@ function openWecom(username: string) {
 }
 
 .page-desc {
-  color: #909399;
+  color: var(--tez-text-muted);
   margin-bottom: 20px;
 }
 
@@ -464,7 +464,7 @@ function openWecom(username: string) {
 }
 .results-query {
   font-size: 14px;
-  color: #606266;
+  color: var(--tez-text-regular);
 }
 
 .result-block {
@@ -478,7 +478,7 @@ function openWecom(username: string) {
   align-items: center;
   gap: 6px;
   margin-bottom: 12px;
-  color: #303133;
+  color: var(--tez-text-primary);
 }
 
 .contact-results {
@@ -498,7 +498,7 @@ function openWecom(username: string) {
   padding: 8px 12px;
   font-weight: 600;
   font-size: 13px;
-  color: #606266;
+  color: var(--tez-text-regular);
 }
 
 .contact-card .card-body {
@@ -528,7 +528,7 @@ function openWecom(username: string) {
 }
 
 .contact-row .role {
-  color: #909399;
+  color: var(--tez-text-muted);
   font-size: 12px;
 }
 
@@ -554,7 +554,7 @@ function openWecom(username: string) {
 
 .article-summary {
   font-size: 13px;
-  color: #909399;
+  color: var(--tez-text-muted);
   margin-bottom: 6px;
 }
 
@@ -570,7 +570,7 @@ function openWecom(username: string) {
 
 .faq-answer {
   line-height: 1.8;
-  color: #606266;
+  color: var(--tez-text-regular);
 }
 
 /* SOP 流程 */
@@ -591,7 +591,7 @@ function openWecom(username: string) {
   font-size: 24px;
 }
 .sop-desc {
-  color: #909399;
+  color: var(--tez-text-muted);
   margin: 0;
 }
 .sop-step-card {
@@ -605,7 +605,7 @@ function openWecom(username: string) {
   font-size: 15px;
 }
 .step-desc {
-  color: #606266;
+  color: var(--tez-text-regular);
   font-size: 14px;
   margin: 0 0 10px;
 }
@@ -653,7 +653,7 @@ function openWecom(username: string) {
 }
 .hot-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--tez-text-muted);
 }
 .hot-tag {
   cursor: pointer;
@@ -668,7 +668,7 @@ function openWecom(username: string) {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #303133;
+  color: var(--tez-text-primary);
 }
 
 .scene-grid {
@@ -714,7 +714,7 @@ function openWecom(username: string) {
 
 .scene-desc {
   font-size: 12px;
-  color: #909399;
+  color: var(--tez-text-muted);
   margin-top: 2px;
 }
 
@@ -735,7 +735,7 @@ function openWecom(username: string) {
   min-width: 80px;
   font-weight: 600;
   font-size: 13px;
-  color: #606266;
+  color: var(--tez-text-regular);
   padding-top: 6px;
 }
 
@@ -760,7 +760,7 @@ function openWecom(username: string) {
 .markdown-body {
   font-size: 14px;
   line-height: 1.8;
-  color: #303133;
+  color: var(--tez-text-primary);
 }
 
 .markdown-body :deep(h1) { font-size: 22px; margin: 24px 0 12px; border-bottom: 1px solid #ebeef5; padding-bottom: 8px; }
@@ -772,9 +772,9 @@ function openWecom(username: string) {
 .markdown-body :deep(code) { background: #f5f7fa; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
 .markdown-body :deep(pre) { background: #f5f7fa; padding: 12px 16px; border-radius: 6px; overflow-x: auto; }
 .markdown-body :deep(pre code) { background: none; padding: 0; }
-.markdown-body :deep(blockquote) { border-left: 4px solid #409eff; padding: 8px 16px; margin: 12px 0; background: #ecf5ff; color: #606266; }
+.markdown-body :deep(blockquote) { border-left: 4px solid #409eff; padding: 8px 16px; margin: 12px 0; background: #ecf5ff; color: var(--tez-text-regular); }
 .markdown-body :deep(ul), .markdown-body :deep(ol) { padding-left: 20px; }
 .markdown-body :deep(li) { margin: 4px 0; }
 .markdown-body :deep(hr) { border: none; border-top: 1px solid #ebeef5; margin: 20px 0; }
-.markdown-body :deep(strong) { color: #303133; }
+.markdown-body :deep(strong) { color: var(--tez-text-primary); }
 </style>

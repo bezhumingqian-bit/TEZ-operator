@@ -8,203 +8,6 @@
 
     <el-card shadow="never" class="host-search__panel">
       <el-tabs v-model="activeTab" class="host-search__tabs">
-        <!-- ─────────── 单条查询 ─────────── -->
-        <el-tab-pane label="单条查询" name="single">
-          <div class="host-search__bar">
-            <el-input
-              v-model="singleQuery"
-              size="large"
-              clearable
-              placeholder="输入固资号 / IP / Zone（如 TYSV00000001、10.0.0.5、zone_a）"
-              :prefix-icon="Search"
-              @keyup.enter="onSingleSearch"
-            />
-            <el-button
-              type="primary"
-              size="large"
-              :loading="singleLoading"
-              :icon="Search"
-              @click="onSingleSearch"
-            >
-              查询
-            </el-button>
-          </div>
-          <div class="host-search__hint">
-            支持识别：固资号 <code>TYSV*</code>、IPv4、Zone <code>zone_*</code>
-            / <code>ap-*-*-N</code>。Enter 直接搜索。
-          </div>
-
-          <!-- 最近查询 -->
-          <div v-if="appStore.recentQueries.length" class="host-search__recent">
-            <span class="host-search__recent-label">最近查询：</span>
-            <el-tag
-              v-for="r in appStore.recentQueries"
-              :key="r.q + r.at"
-              class="host-search__recent-item"
-              effect="plain"
-              @click="useRecent(r.q)"
-            >
-              {{ r.q }}
-            </el-tag>
-            <el-button text size="small" @click="appStore.clearRecentQueries">清空</el-button>
-          </div>
-
-          <!-- 结果展示 -->
-          <div class="host-search__result">
-            <el-skeleton v-if="singleLoading" :rows="6" animated />
-
-            <template v-else>
-              <!-- zone 类型：返回列表 -->
-              <div v-if="singleZoneList && singleZoneList.length" class="host-search__zone-result">
-                <el-alert
-                  type="info"
-                  :closable="false"
-                  show-icon
-                  :title="`识别为 Zone 查询，共找到 ${singleZoneList.length} 台母机`"
-                  class="host-search__zone-alert"
-                />
-                <HostTable
-                  :rows="singleZoneList"
-                  @export="onTableExport"
-                />
-              </div>
-
-              <!-- 单台主机 -->
-              <HostCard v-else-if="singleHost" :host="singleHost" />
-
-              <!-- 错误 -->
-              <el-result
-                v-else-if="singleError"
-                icon="warning"
-                :title="singleError"
-                sub-title="请检查输入是否正确，或换一种方式查询"
-              />
-
-              <el-empty
-                v-else
-                description="输入固资号 / IP / Zone 后回车即可查询"
-                class="host-search__empty"
-              />
-            </template>
-          </div>
-        </el-tab-pane>
-
-        <!-- ─────────── 批量查询 ─────────── -->
-        <el-tab-pane label="批量查询" name="batch">
-          <div class="host-search__batch">
-            <div class="host-search__batch-form">
-              <el-input
-                v-model="batchInput"
-                type="textarea"
-                :rows="8"
-                placeholder="每行一个，固资号或 IP，最多 100 条
-例：
-TYSV00000001
-TYSV00000002
-10.0.0.5"
-              />
-              <div class="host-search__batch-toolbar">
-                <span class="host-search__batch-count"
-                  >已输入：<b>{{ batchQueries.length }}</b> / 100</span
-                >
-                <div>
-                  <el-button @click="batchInput = ''">清空</el-button>
-                  <el-button
-                    type="primary"
-                    :loading="batchLoading"
-                    :icon="Search"
-                    :disabled="!batchQueries.length"
-                    @click="onBatchSearch"
-                  >
-                    批量查询
-                  </el-button>
-                </div>
-              </div>
-            </div>
-
-            <div class="host-search__batch-result">
-              <el-skeleton v-if="batchLoading" :rows="5" animated />
-              <template v-else-if="batchResp">
-                <div class="host-search__batch-summary">
-                  <el-statistic title="总数" :value="batchResp.total" />
-                  <el-statistic title="成功" :value="batchResp.success_count" />
-                  <el-statistic
-                    title="失败"
-                    :value="batchResp.total - batchResp.success_count"
-                    value-style="color: var(--tez-danger)"
-                  />
-                </div>
-                <BatchTable :items="batchResp.items" @export="onBatchTableExport" />
-              </template>
-              <el-empty v-else description="批量结果将显示于此" />
-            </div>
-          </div>
-        </el-tab-pane>
-
-        <!-- ─────────── 可用区信息 ─────────── -->
-        <el-tab-pane label="可用区信息" name="zone">
-          <el-alert
-            class="host-search__zone-alert"
-            type="info"
-            :closable="false"
-            show-icon
-            title="多选可用区查看详细信息（Region、机房、架构等），方便去星云查询"
-          />
-          <div class="host-search__bar">
-            <el-select
-              v-model="zoneInfoSelected"
-              filterable
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              size="large"
-              placeholder="搜索并多选可用区"
-              style="width: 500px"
-            >
-              <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
-            </el-select>
-            <el-button
-              type="primary"
-              size="large"
-              :loading="zoneInfoLoading"
-              :disabled="!zoneInfoSelected.length"
-              @click="onZoneInfoQuery"
-            >
-              查询信息
-            </el-button>
-          </div>
-
-          <div class="host-search__result">
-            <el-skeleton v-if="zoneInfoLoading" :rows="4" animated />
-            <template v-else-if="zoneInfoData && zoneInfoData.length">
-              <el-table :data="zoneInfoData" border stripe size="small" style="margin-top: 12px">
-                <el-table-column prop="zone" label="可用区" min-width="180" />
-                <el-table-column prop="nebula_region" label="星云地域" width="140">
-                  <template #default="{ row }">
-                    <el-tag v-if="row.nebula_region" size="small" type="primary">{{ row.nebula_region }}</el-tag>
-                    <span v-else style="color: #999">未上线</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="city" label="城市" width="80" />
-                <el-table-column prop="isp" label="运营商" width="70" />
-                <el-table-column prop="idc" label="机房(IDC)" min-width="220" />
-                <el-table-column prop="arch" label="架构" width="60">
-                  <template #default="{ row }">
-                    <el-tag :type="row.arch === '25G' ? 'success' : 'info'" size="small">{{ row.arch }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="status" label="状态" width="80">
-                  <template #default="{ row }">
-                    <el-tag :type="row.status === '已开区' ? 'success' : row.status === '已下线' ? 'danger' : 'warning'" size="small">{{ row.status }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="models" label="支持机型" min-width="180" />
-              </el-table>
-            </template>
-            <el-empty v-else description="选择可用区后查询信息" />
-          </div>
-        </el-tab-pane>
-
         <!-- ─────────── 节点资源概况 ─────────── -->
         <el-tab-pane label="节点资源概况" name="node_overview">
           <div class="host-search__bar">
@@ -213,9 +16,14 @@ TYSV00000002
               filterable
               size="large"
               placeholder="选择可用区"
-              style="width: 360px"
+              style="width: 420px"
             >
-              <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
+              <el-option v-for="z in zoneOptionsWithArch" :key="z.zone" :label="z.zone" :value="z.zone">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%">
+                  <span>{{ z.zone }}</span>
+                  <el-tag :type="z.arch === '25G' ? 'success' : 'info'" size="small" effect="plain">{{ z.arch }}</el-tag>
+                </div>
+              </el-option>
             </el-select>
             <el-button
               type="primary"
@@ -282,12 +90,25 @@ TYSV00000002
               <!-- 已上线设备 -->
               <el-card v-if="nodeOverviewData.online_devices && nodeOverviewData.online_devices.length" shadow="never" class="node-section" style="margin-top: 16px">
                 <template #header>
-                  <b>已上线设备</b>
-                  <el-tag size="small" type="success" style="margin-left: 8px">
-                    {{ nodeOverviewData.online_devices.length }} 台
-                  </el-tag>
+                  <div class="node-section__header">
+                    <div>
+                      <b>已上线设备</b>
+                      <el-tag size="small" type="success" style="margin-left: 8px">
+                        {{ nodeOverviewData.online_devices.length }} 台
+                      </el-tag>
+                    </div>
+                    <div>
+                      <el-button v-if="onlineSelection.length" size="small" type="primary" @click="copyAssetIds(onlineSelection)">
+                        复制选中 ({{ onlineSelection.length }})
+                      </el-button>
+                      <el-button size="small" text type="primary" @click="copyAssetIds(nodeOverviewData.online_devices)">
+                        复制全部
+                      </el-button>
+                    </div>
+                  </div>
                 </template>
-                <el-table :data="nodeOverviewData.online_devices" stripe size="small">
+                <el-table :data="nodeOverviewData.online_devices" stripe size="small" @selection-change="(rows: any[]) => onlineSelection = rows">
+                  <el-table-column type="selection" width="40" />
                   <el-table-column prop="asset_id" label="固资号" width="140" />
                   <el-table-column prop="ip" label="IP" width="130" />
                   <el-table-column prop="machine_type" label="机型" width="130" />
@@ -298,12 +119,28 @@ TYSV00000002
               <!-- 未上线设备 -->
               <el-card shadow="never" class="node-section" style="margin-top: 16px">
                 <template #header>
-                  <b>未上线设备</b>
-                  <el-tag size="small" type="warning" style="margin-left: 8px">
-                    {{ nodeOverviewData.offline_devices.length }} 台
-                  </el-tag>
+                  <div class="node-section__header">
+                    <div>
+                      <b>未上线设备</b>
+                      <el-tag size="small" type="warning" style="margin-left: 8px">
+                        {{ nodeOverviewData.offline_devices.length }} 台
+                      </el-tag>
+                    </div>
+                    <div v-if="nodeOverviewData.offline_devices.length">
+                      <el-button size="small" type="warning" @click="submitDeployOrder">
+                        提交投放单
+                      </el-button>
+                      <el-button v-if="offlineSelection.length" size="small" type="primary" @click="copyAssetIds(offlineSelection)">
+                        复制选中 ({{ offlineSelection.length }})
+                      </el-button>
+                      <el-button size="small" text type="primary" @click="copyAssetIds(nodeOverviewData.offline_devices)">
+                        复制全部
+                      </el-button>
+                    </div>
+                  </div>
                 </template>
-                <el-table v-if="nodeOverviewData.offline_devices.length" :data="nodeOverviewData.offline_devices" stripe size="small">
+                <el-table v-if="nodeOverviewData.offline_devices.length" :data="nodeOverviewData.offline_devices" stripe size="small" @selection-change="(rows: any[]) => offlineSelection = rows">
+                  <el-table-column type="selection" width="40" />
                   <el-table-column prop="asset_id" label="固资号" width="140" />
                   <el-table-column prop="ip" label="IP" width="130" />
                   <el-table-column prop="machine_type" label="机型" width="130" />
@@ -316,21 +153,313 @@ TYSV00000002
               <!-- 非TEZ设备（ECM等其他业务占用机位） -->
               <el-card v-if="nodeOverviewData.non_tez_devices && nodeOverviewData.non_tez_devices.length" shadow="never" class="node-section" style="margin-top: 16px">
                 <template #header>
-                  <b>非TEZ设备</b>
-                  <el-tag size="small" type="info" style="margin-left: 8px">
-                    {{ nodeOverviewData.non_tez_devices.length }} 台
-                  </el-tag>
-                  <span style="color:#909399; font-size:12px; margin-left:8px">（ECM等其他业务占用机位）</span>
+                  <div class="node-section__header">
+                    <div>
+                      <b>非TEZ设备</b>
+                      <el-tag size="small" type="info" style="margin-left: 8px">
+                        {{ nodeOverviewData.non_tez_devices.length }} 台
+                      </el-tag>
+                      <span style="color:#909399; font-size:12px; margin-left:8px">（ECM等其他业务占用机位）</span>
+                    </div>
+                    <div>
+                      <el-button v-if="nonTezSelection.length" size="small" type="primary" @click="copyAssetIds(nonTezSelection)">
+                        复制选中 ({{ nonTezSelection.length }})
+                      </el-button>
+                      <el-button size="small" text type="primary" @click="copyAssetIds(nodeOverviewData.non_tez_devices)">
+                        复制全部
+                      </el-button>
+                    </div>
+                  </div>
                 </template>
-                <el-table :data="nodeOverviewData.non_tez_devices" stripe size="small">
+                <el-table :data="nodeOverviewData.non_tez_devices" stripe size="small" @selection-change="(rows: any[]) => nonTezSelection = rows">
+                  <el-table-column type="selection" width="40" />
                   <el-table-column prop="asset_id" label="固资号" width="140" />
                   <el-table-column prop="ip" label="IP" width="130" />
                   <el-table-column prop="machine_type" label="机型" width="130" />
                   <el-table-column prop="module" label="模块" min-width="250" />
                 </el-table>
               </el-card>
+
+              <!-- 批量复制选中浮动条 -->
+              <div v-if="totalSelected > 0" class="node-selection-bar">
+                <span>已选 {{ totalSelected }} 台设备</span>
+                <el-button type="primary" size="small" @click="copyAllSelected">复制选中固资号</el-button>
+              </div>
             </template>
             <el-empty v-else description="选择可用区后查询资源概况" />
+          </div>
+        </el-tab-pane>
+
+        <!-- ─────────── 机型库存查询 ─────────── -->
+        <el-tab-pane label="机型库存" name="machine_type">
+          <div class="host-search__bar">
+            <el-select
+              v-model="mtSelected"
+              filterable
+              size="large"
+              placeholder="选择或搜索机型"
+              style="width: 480px"
+            >
+              <el-option
+                v-for="t in machineTypeOptions"
+                :key="t.value"
+                :label="t.label"
+                :value="t.value"
+              >
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%">
+                  <span style="font-weight:600">{{ t.value }}</span>
+                  <span style="font-size:12px; color:#909399">{{ t.instances }}</span>
+                </div>
+              </el-option>
+            </el-select>
+            <el-button
+              type="primary"
+              size="large"
+              :loading="mtLoading"
+              :disabled="!mtSelected"
+              @click="onMachineTypeQuery"
+            >
+              查询库存
+            </el-button>
+          </div>
+
+          <div class="host-search__result">
+            <el-skeleton v-if="mtLoading" :rows="4" animated />
+            <template v-else-if="mtResult">
+              <el-alert
+                type="success"
+                :closable="false"
+                show-icon
+                style="margin-bottom: 16px"
+              >
+                <template #title>
+                  机型 <b>{{ mtResult.machine_type }}</b>：共 {{ mtResult.total }} 台，分布在 {{ mtResult.zone_count }} 个可用区
+                </template>
+              </el-alert>
+
+              <!-- 按区域分组展示 -->
+              <el-card v-for="zg in mtResult.zones" :key="zg.zone" shadow="never" class="node-section" style="margin-bottom: 12px">
+                <template #header>
+                  <div class="node-section__header">
+                    <div>
+                      <b>{{ zg.zone }}</b>
+                      <el-tag size="small" style="margin-left: 8px">{{ zg.count }} 台</el-tag>
+                    </div>
+                    <el-button size="small" text type="primary" @click="copyAssetIds(zg.devices)">
+                      复制固资号
+                    </el-button>
+                  </div>
+                </template>
+                <el-table :data="zg.devices" stripe size="small" @selection-change="(rows: any[]) => mtSelections[zg.zone] = rows">
+                  <el-table-column type="selection" width="40" />
+                  <el-table-column prop="asset_id" label="固资号" width="150" />
+                  <el-table-column prop="ip" label="IP" width="140" />
+                  <el-table-column prop="status" label="状态" width="80">
+                    <template #default="{ row }">
+                      <el-tag :type="row.status === 'online' ? 'success' : row.category === 'non_tez' ? 'info' : 'warning'" size="small">
+                        {{ row.status === 'online' ? '在线' : row.category === 'non_tez' ? '非TEZ' : '离线' }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="module" label="模块" min-width="250" show-overflow-tooltip />
+                </el-table>
+              </el-card>
+
+              <!-- 批量复制浮动条 -->
+              <div v-if="mtTotalSelected > 0" class="node-selection-bar">
+                <span>已选 {{ mtTotalSelected }} 台设备</span>
+                <el-button type="primary" size="small" @click="copyMtSelected">复制选中固资号</el-button>
+              </div>
+            </template>
+            <el-empty v-else description="选择机型后查询全平台库存分布" />
+          </div>
+        </el-tab-pane>
+
+        <!-- ─────────── 设备查询（合并单条+批量） ─────────── -->
+        <el-tab-pane label="设备查询" name="search">
+          <div class="host-search__bar">
+            <el-input
+              v-model="singleQuery"
+              size="large"
+              clearable
+              placeholder="输入固资号 / IP / Zone，支持多个（换行或逗号分隔）"
+              :prefix-icon="Search"
+              @keyup.enter="onSingleSearch"
+            />
+            <el-button
+              type="primary"
+              size="large"
+              :loading="singleLoading || batchLoading"
+              :icon="Search"
+              @click="onSingleSearch"
+            >
+              查询
+            </el-button>
+            <el-button
+              v-if="!showBatchInput"
+              size="large"
+              @click="showBatchInput = true"
+            >
+              批量输入
+            </el-button>
+          </div>
+
+          <!-- 批量输入框（展开） -->
+          <div v-if="showBatchInput" class="host-search__batch-expand">
+            <el-input
+              v-model="batchInput"
+              type="textarea"
+              :rows="6"
+              placeholder="每行一个固资号或 IP，最多 100 条"
+            />
+            <div class="host-search__batch-toolbar">
+              <span class="host-search__batch-count">已输入：<b>{{ batchQueries.length }}</b> / 100</span>
+              <div>
+                <el-button size="small" @click="showBatchInput = false; batchInput = ''">收起</el-button>
+                <el-button type="primary" size="small" :loading="batchLoading" :disabled="!batchQueries.length" @click="onBatchSearch">
+                  批量查询
+                </el-button>
+              </div>
+            </div>
+          </div>
+
+          <div class="host-search__hint">
+            支持：固资号 <code>TYSV*</code>、IPv4、Zone <code>zone_*</code> / <code>ap-*-*-N</code>。多个用换行或逗号分隔自动识别为批量。
+          </div>
+
+          <!-- 最近查询 -->
+          <div v-if="appStore.recentQueries.length" class="host-search__recent">
+            <span class="host-search__recent-label">最近查询：</span>
+            <el-tag
+              v-for="r in appStore.recentQueries"
+              :key="r.q + r.at"
+              class="host-search__recent-item"
+              effect="plain"
+              @click="useRecent(r.q)"
+            >
+              {{ r.q }}
+            </el-tag>
+            <el-button text size="small" @click="appStore.clearRecentQueries">清空</el-button>
+          </div>
+
+          <!-- 结果展示 -->
+          <div class="host-search__result">
+            <el-skeleton v-if="singleLoading" :rows="6" animated />
+
+            <template v-else>
+              <!-- zone 类型：返回列表 -->
+              <div v-if="singleZoneList && singleZoneList.length" class="host-search__zone-result">
+                <el-alert
+                  type="info"
+                  :closable="false"
+                  show-icon
+                  :title="`识别为 Zone 查询，共找到 ${singleZoneList.length} 台母机`"
+                  class="host-search__zone-alert"
+                />
+                <HostTable
+                  :rows="singleZoneList"
+                  @export="onTableExport"
+                />
+              </div>
+
+              <!-- 单台主机 -->
+              <HostCard v-else-if="singleHost" :host="singleHost" />
+
+              <!-- 错误 -->
+              <el-result
+                v-else-if="singleError"
+                icon="warning"
+                :title="singleError"
+                sub-title="请检查输入是否正确，或换一种方式查询"
+              />
+
+              <el-empty
+                v-else-if="!batchResp"
+                description="输入固资号 / IP / Zone 后回车即可查询"
+                class="host-search__empty"
+              />
+            </template>
+
+            <!-- 批量结果 -->
+            <template v-if="batchResp">
+              <el-skeleton v-if="batchLoading" :rows="5" animated />
+              <template v-else>
+                <div class="host-search__batch-summary">
+                  <el-statistic title="总数" :value="batchResp.total" />
+                  <el-statistic title="成功" :value="batchResp.success_count" />
+                  <el-statistic
+                    title="失败"
+                    :value="batchResp.total - batchResp.success_count"
+                    value-style="color: var(--tez-danger)"
+                  />
+                </div>
+                <BatchTable :items="batchResp.items" @export="onBatchTableExport" />
+              </template>
+            </template>
+          </div>
+        </el-tab-pane>
+
+        <!-- ─────────── 可用区信息 ─────────── -->
+        <el-tab-pane label="可用区信息" name="zone">
+          <el-alert
+            class="host-search__zone-alert"
+            type="info"
+            :closable="false"
+            show-icon
+            title="多选可用区查看详细信息（Region、机房、架构等），方便去星云查询"
+          />
+          <div class="host-search__bar">
+            <el-select
+              v-model="zoneInfoSelected"
+              filterable
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              size="large"
+              placeholder="搜索并多选可用区"
+              style="width: 500px"
+            >
+              <el-option v-for="z in zoneOptions" :key="z" :label="z" :value="z" />
+            </el-select>
+            <el-button
+              type="primary"
+              size="large"
+              :loading="zoneInfoLoading"
+              :disabled="!zoneInfoSelected.length"
+              @click="onZoneInfoQuery"
+            >
+              查询信息
+            </el-button>
+          </div>
+
+          <div class="host-search__result">
+            <el-skeleton v-if="zoneInfoLoading" :rows="4" animated />
+            <template v-else-if="zoneInfoData && zoneInfoData.length">
+              <el-table :data="zoneInfoData" border stripe size="small" style="margin-top: 12px">
+                <el-table-column prop="zone" label="可用区" min-width="180" />
+                <el-table-column prop="nebula_region" label="星云地域" width="140">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.nebula_region" size="small" type="primary">{{ row.nebula_region }}</el-tag>
+                    <span v-else style="color: #999">未上线</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="city" label="城市" width="80" />
+                <el-table-column prop="isp" label="运营商" width="70" />
+                <el-table-column prop="idc" label="机房(IDC)" min-width="220" />
+                <el-table-column prop="arch" label="架构" width="60">
+                  <template #default="{ row }">
+                    <el-tag :type="row.arch === '25G' ? 'success' : 'info'" size="small">{{ row.arch }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" width="80">
+                  <template #default="{ row }">
+                    <el-tag :type="row.status === '已开区' ? 'success' : row.status === '已下线' ? 'danger' : 'warning'" size="small">{{ row.status }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="models" label="支持机型" min-width="180" />
+              </el-table>
+            </template>
+            <el-empty v-else description="选择可用区后查询信息" />
           </div>
         </el-tab-pane>
       </el-tabs>
@@ -340,6 +469,7 @@ TYSV00000002
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import HostCard from '@/components/HostCard.vue'
@@ -352,6 +482,7 @@ import {
   getZoneInstanceStats,
   listZoneHosts,
   listZones,
+  listZonesWithArch,
   pickSingleHost,
   searchHost,
 } from '@/api/hosts'
@@ -364,8 +495,9 @@ import type {
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
-const activeTab = ref<'single' | 'batch' | 'zone'>('single')
-const fallbackZoneOptions = ['zone_a', 'zone_b', 'zone_c']
+const router = useRouter()
+const activeTab = ref('node_overview')
+const fallbackZoneOptions: string[] = []
 
 // ─── 单条 ───
 const singleQuery = ref('')
@@ -408,6 +540,7 @@ function useRecent(q: string) {
 
 // ─── 批量 ───
 const batchInput = ref('')
+const showBatchInput = ref(false)
 const batchLoading = ref(false)
 const batchResp = ref<BatchSearchResponse | null>(null)
 
@@ -456,17 +589,22 @@ async function onZoneInfoQuery() {
 }
 const zoneStatsResp = ref<ZoneInstanceStatsResponse | null>(null)
 
+const zoneOptionsWithArch = ref<{ zone: string; arch: string }[]>([])
+
 async function loadZoneOptions() {
   try {
-    const zones = await listZones()
-    zoneOptions.value = zones.length ? zones : [...fallbackZoneOptions]
+    const zonesWithArch = await listZonesWithArch()
+    zoneOptionsWithArch.value = zonesWithArch
+    zoneOptions.value = zonesWithArch.map(z => z.zone)
   } catch {
-    zoneOptions.value = [...fallbackZoneOptions]
+    zoneOptions.value = []
+    zoneOptionsWithArch.value = []
   }
 }
 
 onMounted(() => {
   void loadZoneOptions()
+  void loadMachineTypes()
 })
 
 // ─── 导出 ───
@@ -501,6 +639,104 @@ async function onBatchTableExport(assetIds: string[]) {
   } catch (error) {
     ElMessage.warning(formatExportError(error))
   }
+}
+
+// ─── 机型库存查询 ───
+const mtSelected = ref('')
+const mtLoading = ref(false)
+const machineTypes = ref<string[]>([])
+const mtResult = ref<{ machine_type: string; total: number; zone_count: number; zones: { zone: string; count: number; devices: any[] }[] } | null>(null)
+const mtSelections = ref<Record<string, any[]>>({})
+
+// 机型 → 可生产实例映射
+const machineInstanceMap: Record<string, string> = {
+  'CG3-25G': 'S5、SN3ne（标准型）',
+  'CG3-10G': 'S5nt（标准型10G）',
+  'Y0-MI52-25G': 'SN3ne、IT5（高IO）',
+  'Y0-MI32-25G': 'IT3（高IO）',
+  'SH5-10G': 'IT5c（高IO 10G）',
+  'Y0-BI03-10G': 'D3nt（大数据型）',
+  'Y0-BI02-10G': 'D3nt（大数据型）',
+  'Y0-MD53M-25G': 'BMD2/BMD2i（裸金属）',
+  'T0-MD42M-25G': 'BMD2/BMD2i（裸金属）',
+  'Y0-MS31-25G': 'TOC/TPC管控（VSELF_3）',
+  'DS4A-100G': 'TGW网关（TEZ_TGW）',
+  'DS3-40G': 'TGW网关（TEZ_TGW_INTEL）',
+  'CG1-10G': 'TOC/TPC管控（VSELF_3）',
+  'CG2-10G': 'S4（ECM标准型）',
+  'Y0-GG52R-10G': 'GPU实例',
+  'Y0-SH11-10G': '存储型',
+  'Y0-SW13-10G': '存储型',
+}
+
+const machineTypeOptions = computed(() =>
+  machineTypes.value.map(t => ({
+    value: t,
+    label: `${t} - ${machineInstanceMap[t] || '通用'}`,
+    instances: machineInstanceMap[t] || '通用',
+  }))
+)
+
+const mtTotalSelected = computed(() => Object.values(mtSelections.value).reduce((sum, arr) => sum + arr.length, 0))
+
+function copyMtSelected() {
+  const all = Object.values(mtSelections.value).flat()
+  copyAssetIds(all)
+}
+
+async function loadMachineTypes() {
+  try {
+    const resp = await fetch('/api/v1/zones/devices/types')
+    const data = await resp.json()
+    machineTypes.value = data.types || []
+  } catch {}
+}
+
+async function onMachineTypeQuery() {
+  if (!mtSelected.value) return
+  mtLoading.value = true
+  mtResult.value = null
+  mtSelections.value = {}
+  try {
+    const resp = await fetch(`/api/v1/zones/devices/by-type?machine_type=${encodeURIComponent(mtSelected.value)}`)
+    mtResult.value = await resp.json()
+  } catch {
+    ElMessage.error('查询失败')
+  } finally {
+    mtLoading.value = false
+  }
+}
+
+// ─── 一键提交投放单 ───
+function submitDeployOrder() {
+  if (!nodeOverviewData.value) return
+
+  // 优先用选中的，没选就用全部未上线设备
+  const devices = offlineSelection.value.length > 0
+    ? offlineSelection.value
+    : nodeOverviewData.value.offline_devices
+
+  if (!devices.length) {
+    ElMessage.warning('没有未上线设备')
+    return
+  }
+
+  const assetIds = devices.map((d: any) => d.asset_id).filter(Boolean).join('\n')
+  const zone = nodeOverviewData.value.positions.zone || ''
+  const count = devices.length
+
+  // 跳转到工单页面，带上预填参数
+  router.push({
+    path: '/workorder',
+    query: {
+      action: 'create',
+      type: 'host_deploy',
+      asset_ids: assetIds,
+      zone: zone,
+      count: String(count),
+      title: `${zone} 投放 ${count} 台设备`,
+    },
+  })
 }
 
 // ─── 节点资源概况 ───
@@ -572,6 +808,38 @@ function cancelNodeQuery() {
   ElMessage.info('已取消查询')
 }
 
+function copyAssetIds(devices: { asset_id: string }[]) {
+  const ids = devices.map(d => d.asset_id).filter(Boolean)
+  if (!ids.length) {
+    ElMessage.warning('没有可复制的固资号')
+    return
+  }
+  const text = ids.join('\n')
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success(`已复制 ${ids.length} 个固资号`)
+  }).catch(() => {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    ElMessage.success(`已复制 ${ids.length} 个固资号`)
+  })
+}
+
+// 批量选择
+const onlineSelection = ref<any[]>([])
+const offlineSelection = ref<any[]>([])
+const nonTezSelection = ref<any[]>([])
+
+const totalSelected = computed(() => onlineSelection.value.length + offlineSelection.value.length + nonTezSelection.value.length)
+
+function copyAllSelected() {
+  const all = [...onlineSelection.value, ...offlineSelection.value, ...nonTezSelection.value]
+  copyAssetIds(all)
+}
+
 async function onNodeOverview() {
   if (!nodeZoneSelected.value) return
   nodeLoading.value = true
@@ -608,7 +876,7 @@ async function onNodeForceRefresh() {
 }
 
 .host-search__panel {
-  border-radius: 8px;
+  border-radius: var(--tez-radius-sm);
 }
 
 .host-search__tabs :deep(.el-tabs__item) {
@@ -677,7 +945,7 @@ async function onNodeForceRefresh() {
   margin-bottom: 12px;
   background: #f8fafc;
   border: 1px solid var(--tez-border);
-  border-radius: 8px;
+  border-radius: var(--tez-radius-sm);
 }
 
 .host-search__stats-table {
@@ -698,6 +966,14 @@ async function onNodeForceRefresh() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.host-search__batch-expand {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid var(--tez-border);
+  border-radius: var(--tez-radius-sm);
 }
 
 .host-search__batch-toolbar {
@@ -733,9 +1009,31 @@ async function onNodeForceRefresh() {
   margin-bottom: 0;
 }
 
+.node-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.node-selection-bar {
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: #ecf5ff;
+  border: 1px solid #b3d8ff;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #409eff;
+}
+
 .node-info {
   margin-top: 8px;
   font-size: 13px;
-  color: #606266;
+  color: var(--tez-text-regular);
 }
 </style>

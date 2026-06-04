@@ -64,8 +64,8 @@ export async function createOrder(data: {
   detail?: OrderDetail
   note?: string
   priority?: number
-}): Promise<OrderInfo> {
-  const { data: resp } = await apiClient.post<OrderInfo>('/api/v1/workorders', data)
+}): Promise<OrderInfo & { push_success?: boolean; push_error?: string }> {
+  const { data: resp } = await apiClient.post<OrderInfo & { push_success?: boolean; push_error?: string }>('/api/v1/workorders', data)
   return resp
 }
 

@@ -24,7 +24,14 @@
 
     <!-- 工单统计卡片 -->
     <div class="stat-grid">
-      <div v-for="item in statCards" :key="item.label" class="stat-card" :style="{ '--card-color': item.color, '--card-bg': item.bg }">
+      <div
+        v-for="item in statCards"
+        :key="item.label"
+        class="stat-card"
+        :class="{ 'stat-card--clickable': item.link }"
+        :style="{ '--card-color': item.color, '--card-bg': item.bg }"
+        @click="item.link && $router.push(item.link)"
+      >
         <div class="stat-card__icon">
           <el-icon :size="24"><component :is="item.icon" /></el-icon>
         </div>
@@ -94,13 +101,35 @@
               <el-icon :size="22" color="#67c23a"><Search /></el-icon>
               <span>资源查询</span>
             </div>
-            <div class="quick-item" @click="$router.push('/assistant')">
-              <el-icon :size="22" color="#e6a23c"><User /></el-icon>
-              <span>找接口人</span>
+            <div class="quick-item" @click="openDemandForm">
+              <el-icon :size="22" color="#8b5cf6"><ChatDotRound /></el-icon>
+              <span>行业提单</span>
             </div>
             <div class="quick-item" @click="$router.push('/knowledge')">
               <el-icon :size="22" color="#909399"><Reading /></el-icon>
               <span>知识库</span>
+            </div>
+          </div>
+        </el-card>
+
+        <!-- 行业需求单 -->
+        <el-card v-if="demandOrders.length" shadow="never" class="content-card" style="margin-bottom: 16px">
+          <template #header>
+            <div class="card-header">
+              <b>行业需求单</b>
+              <div>
+                <el-button text type="primary" size="small" @click="copyDemandLink">复制提单链接</el-button>
+                <el-button text type="primary" size="small" @click="$router.push('/workorder?type=demand_request')">查看全部 →</el-button>
+              </div>
+            </div>
+          </template>
+          <div class="demand-list">
+            <div v-for="d in demandOrders" :key="d.order_no" class="demand-item">
+              <div class="demand-item__title">{{ d.title }}</div>
+              <div class="demand-item__meta">
+                <span>{{ d.creator }}</span>
+                <span>{{ formatTime(d.created_at) }}</span>
+              </div>
             </div>
           </div>
         </el-card>
@@ -148,7 +177,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose } from '@element-plus/icons-vue'
+import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -162,6 +191,19 @@ function goAssistant() {
   } else {
     router.push('/assistant')
   }
+}
+
+function copyDemandLink() {
+  const link = `${window.location.origin}/demand-request`
+  navigator.clipboard.writeText(link).then(() => {
+    ElMessage.success(`已复制提单链接：${link}`)
+  }).catch(() => {
+    ElMessage.info(`提单链接：${link}`)
+  })
+}
+
+function openDemandForm() {
+  window.open('/demand-request', '_blank')
 }
 
 // ─── 时间显示 ───
@@ -200,21 +242,23 @@ interface Stats {
   verifying: number; completed: number; rejected: number; total: number
 }
 const stats = ref<Stats>({ submitted: 0, pending: 0, processing: 0, verifying: 0, completed: 0, rejected: 0, total: 0 })
+const demandPending = ref(0)
 const ordersLoading = ref(false)
 const zonesLoading = ref(false)
 
 const statCards = computed(() => [
-  { label: '总工单', value: stats.value.total, color: '#409eff', bg: 'rgba(64,158,255,0.08)', icon: 'Tickets' },
-  { label: '待受理', value: stats.value.submitted, color: '#e6a23c', bg: 'rgba(230,162,60,0.08)', icon: 'Timer' },
-  { label: '处理中', value: stats.value.processing, color: '#409eff', bg: 'rgba(64,158,255,0.08)', icon: 'Loading' },
-  { label: '待验证', value: stats.value.verifying, color: '#909399', bg: 'rgba(144,147,153,0.08)', icon: 'WarningFilled' },
-  { label: '已完成', value: stats.value.completed, color: '#67c23a', bg: 'rgba(103,194,58,0.08)', icon: 'SuccessFilled' },
-  { label: '已驳回', value: stats.value.rejected, color: '#f56c6c', bg: 'rgba(245,108,108,0.08)', icon: 'CircleClose' },
+  { label: '总工单', value: stats.value.total, color: '#409eff', bg: 'rgba(64,158,255,0.08)', icon: 'Tickets', link: '/workorder' },
+  { label: '待受理', value: stats.value.submitted, color: '#e6a23c', bg: 'rgba(230,162,60,0.08)', icon: 'Timer', link: '/workorder?status=submitted' },
+  { label: '处理中', value: stats.value.processing, color: '#409eff', bg: 'rgba(64,158,255,0.08)', icon: 'Loading', link: '/workorder?status=processing' },
+  { label: '行业需求', value: demandPending.value, color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', icon: 'ChatDotRound', link: '/workorder?type=demand_request' },
+  { label: '已完成', value: stats.value.completed, color: '#67c23a', bg: 'rgba(103,194,58,0.08)', icon: 'SuccessFilled', link: '/workorder?status=completed' },
+  { label: '已驳回', value: stats.value.rejected, color: '#f56c6c', bg: 'rgba(245,108,108,0.08)', icon: 'CircleClose', link: '/workorder?status=rejected' },
 ])
 
 // ─── 最近工单 ───
-interface OrderBrief { order_no: string; title: string; order_type: string; status: string; created_at: string }
+interface OrderBrief { order_no: string; title: string; order_type: string; status: string; created_at: string; creator: string }
 const recentOrders = ref<OrderBrief[]>([])
+const demandOrders = ref<OrderBrief[]>([])
 
 function statusType(s: string) {
   const map: Record<string, string> = { submitted: 'warning', pending: 'info', processing: '', verifying: 'info', completed: 'success', rejected: 'danger' }
@@ -238,15 +282,20 @@ onMounted(async () => {
   ordersLoading.value = true
   zonesLoading.value = true
 
-  const [statsResp, ordersResp, zonesResp] = await Promise.allSettled([
+  const [statsResp, ordersResp, zonesResp, demandResp] = await Promise.allSettled([
     fetch('/api/v1/workorders/stats').then(r => r.json()),
     fetch('/api/v1/workorders?limit=8').then(r => r.json()),
     fetch('/api/v1/zones/snapshots').then(r => r.json()),
+    fetch('/api/v1/workorders?order_type=demand_request&status=submitted&limit=5').then(r => r.json()),
   ])
 
   if (statsResp.status === 'fulfilled') stats.value = statsResp.value
   if (ordersResp.status === 'fulfilled') recentOrders.value = ordersResp.value.items || []
   if (zonesResp.status === 'fulfilled') zoneSnapshots.value = zonesResp.value.items || []
+  if (demandResp.status === 'fulfilled') {
+    demandPending.value = demandResp.value.total || 0
+    demandOrders.value = demandResp.value.items || []
+  }
 
   ordersLoading.value = false
   zonesLoading.value = false
@@ -272,10 +321,11 @@ onMounted(async () => {
 .dashboard__header h2 {
   margin: 0;
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--tez-text-primary);
 }
 .dashboard__time {
-  color: #909399;
+  color: var(--tez-text-muted);
   font-size: 14px;
 }
 .dashboard__search {
@@ -293,20 +343,23 @@ onMounted(async () => {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border-radius: 10px;
+  border-radius: var(--tez-radius);
   background: var(--card-bg);
-  border: 1px solid rgba(0,0,0,0.04);
-  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid var(--tez-border);
+  transition: transform var(--tez-transition), box-shadow var(--tez-transition);
   cursor: default;
+}
+.stat-card--clickable {
+  cursor: pointer;
 }
 .stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  box-shadow: var(--tez-shadow-md);
 }
 .stat-card__icon {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--tez-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -321,17 +374,17 @@ onMounted(async () => {
 }
 .stat-card__label {
   font-size: 12px;
-  color: #909399;
+  color: var(--tez-text-muted);
   margin-top: 2px;
 }
 
 /* ─── 内容卡片 ─── */
 .content-card {
-  border-radius: 10px;
+  border-radius: var(--tez-radius) !important;
 }
 .content-card :deep(.el-card__header) {
   padding: 14px 20px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--tez-border-light);
 }
 .card-header {
   display: flex;
@@ -345,16 +398,16 @@ onMounted(async () => {
   transition: background 0.15s;
 }
 .order-table :deep(.el-table__row:hover > td) {
-  background: #f5f8ff !important;
+  background: var(--tez-primary-light) !important;
 }
 .order-no {
   font-family: 'SF Mono', 'Monaco', monospace;
   font-size: 12px;
-  color: #606266;
+  color: var(--tez-text-regular);
 }
 .time-text {
   font-size: 12px;
-  color: #909399;
+  color: var(--tez-text-muted);
 }
 .status-bar {
   width: 3px;
@@ -362,12 +415,12 @@ onMounted(async () => {
   border-radius: 2px;
   background: #ddd;
 }
-.status-bar--submitted { background: #e6a23c; }
-.status-bar--processing { background: #409eff; }
-.status-bar--verifying { background: #909399; }
-.status-bar--completed { background: #67c23a; }
-.status-bar--rejected { background: #f56c6c; }
-.status-bar--pending { background: #c0c4cc; }
+.status-bar--submitted { background: var(--tez-warning); }
+.status-bar--processing { background: var(--tez-primary); }
+.status-bar--verifying { background: var(--tez-text-muted); }
+.status-bar--completed { background: var(--tez-success); }
+.status-bar--rejected { background: var(--tez-danger); }
+.status-bar--pending { background: #d1d5db; }
 
 /* ─── 快捷操作网格 ─── */
 .quick-grid {
@@ -381,20 +434,26 @@ onMounted(async () => {
   align-items: center;
   gap: 6px;
   padding: 16px 8px;
-  border-radius: 8px;
+  border-radius: var(--tez-radius-sm);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--tez-transition);
   font-size: 13px;
-  color: #606266;
+  color: var(--tez-text-regular);
 }
 .quick-item:hover {
-  background: #f5f7fa;
+  background: var(--tez-bg);
 }
 
 /* ─── 节点表格 ─── */
 .cell-highlight {
   font-weight: 600;
 }
-.cell-highlight--danger { color: #f56c6c; }
-.cell-highlight--success { color: #67c23a; }
+.cell-highlight--danger { color: var(--tez-danger); }
+.cell-highlight--success { color: var(--tez-success); }
+
+/* ─── 行业需求列表 ─── */
+.demand-list { display: flex; flex-direction: column; gap: 10px; }
+.demand-item { padding: 10px 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #f3f4f6; }
+.demand-item__title { font-size: 13px; font-weight: 500; color: #1f2937; margin-bottom: 4px; }
+.demand-item__meta { font-size: 11px; color: #9ca3af; display: flex; gap: 12px; }
 </style>

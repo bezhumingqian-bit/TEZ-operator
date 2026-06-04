@@ -50,6 +50,8 @@ export class ApiError extends Error {
 // 生产环境：通过 VITE_API_BASE 环境变量指定
 const baseURL = import.meta.env.VITE_API_BASE || ''
 
+const TOKEN_KEY = 'tez-ops:token'
+
 function toMessage(value: unknown): string | undefined {
   if (typeof value === 'string' && value.trim()) return value
   if (Array.isArray(value)) {
@@ -71,6 +73,16 @@ export const apiClient: AxiosInstance = axios.create({
   },
 })
 
+// 请求拦截：自动附加 Authorization header
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem(TOKEN_KEY)
+  if (token) {
+    config.headers = config.headers || {}
+    config.headers['Authorization'] = `Bearer ${token}`
+  }
+  return config
+})
+
 apiClient.interceptors.response.use(
   (resp) => resp,
   (error: AxiosError<ErrorPayload>) => {
@@ -81,7 +93,16 @@ apiClient.interceptors.response.use(
     const requestId = typeof requestIdValue === 'string' ? requestIdValue : undefined
     let msg = toMessage(detail) || error.message || '网络错误'
 
-    if (status === 404) {
+    if (status === 401) {
+      // token 过期或无效 → 清除本地存储，跳转登录页
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem('tez-ops:user')
+      const currentPath = window.location.pathname
+      if (currentPath !== '/login') {
+        window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+      }
+      msg = toMessage(detail) || '登录已过期，请重新登录'
+    } else if (status === 404) {
       msg = toMessage(detail) || '未找到匹配资源'
     } else if (status === 400) {
       msg = toMessage(detail) || '请求参数有误'

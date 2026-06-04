@@ -23,6 +23,7 @@ const PREFIX = '/api/v1'
 
 interface ListZonesResponse {
   zones: string[]
+  arch?: Record<string, string>
 }
 
 /** 单条查询：固资号 / IP / Zone */
@@ -56,6 +57,15 @@ export async function listZones(): Promise<string[]> {
   const config: ApiRequestConfig = { silent: true }
   const { data } = await apiClient.get<ListZonesResponse>(`${PREFIX}/zones`, config)
   return Array.isArray(data.zones) ? data.zones : []
+}
+
+/** 列出所有可用 Zone（带架构信息） */
+export async function listZonesWithArch(): Promise<{ zone: string; arch: string }[]> {
+  const config: ApiRequestConfig = { silent: true }
+  const { data } = await apiClient.get<ListZonesResponse>(`${PREFIX}/zones`, config)
+  const zones = Array.isArray(data.zones) ? data.zones : []
+  const archMap = data.arch || {}
+  return zones.map(z => ({ zone: z, arch: archMap[z] || '10G' }))
 }
 
 /** 按 Zone 列母机 */

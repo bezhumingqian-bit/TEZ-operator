@@ -4,9 +4,14 @@
     <el-card class="search-card" shadow="never">
       <template #header>
         <div class="card-header">
-          <el-icon><Reading /></el-icon>
-          <span>知识中枢</span>
-          <el-tag size="small" type="success">M2</el-tag>
+          <div style="display:flex; align-items:center; gap:8px">
+            <el-icon><Reading /></el-icon>
+            <span>知识中枢</span>
+            <el-tag size="small" type="success">M2</el-tag>
+          </div>
+          <el-button type="primary" size="small" :icon="Upload" @click="showUploadDialog = true">
+            上传文档
+          </el-button>
         </div>
       </template>
 
@@ -85,7 +90,66 @@
           </el-collapse-item>
         </el-collapse>
       </el-tab-pane>
+
+      <!-- 竞争分析 -->
+      <el-tab-pane label="竞争分析" name="competitive">
+        <div class="competitive-header">
+          <p style="color: var(--tez-text-muted); margin:0">TEZ 与阿里云、AWS、Cloudflare 等云厂商边缘节点竞分资料</p>
+          <el-button text type="primary" size="small" @click="$router.push('/competitive')">
+            查看分析面板 →
+          </el-button>
+        </div>
+        <el-table v-if="competitiveArticles.length" :data="competitiveArticles" stripe style="width: 100%">
+          <el-table-column prop="title" label="标题" min-width="250">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="openArticleById(row.id, row.title)">{{ row.title }}</el-button>
+            </template>
+          </el-table-column>
+          <el-table-column prop="summary" label="摘要" min-width="300" show-overflow-tooltip />
+          <el-table-column prop="tags" label="标签" width="150">
+            <template #default="{ row }">
+              <el-tag v-for="t in (row.tags || '').split(',').filter(Boolean)" :key="t" size="small" effect="plain" style="margin-right:4px">{{ t }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty v-else description="暂无竞分资料，点击上方按钮上传文档" />
+      </el-tab-pane>
     </el-tabs>
+
+    <!-- 上传文档对话框 -->
+    <el-dialog v-model="showUploadDialog" title="上传文档" width="500px" destroy-on-close>
+      <el-alert type="info" :closable="false" show-icon style="margin-bottom: 16px">
+        <template #title>上传 Word/PDF 文档，系统自动解析并分类到对应板块</template>
+      </el-alert>
+      <el-form label-width="80px">
+        <el-form-item label="文件">
+          <el-upload
+            ref="uploadRef"
+            :auto-upload="false"
+            multiple
+            :on-change="onFileChange"
+            :on-remove="onFileRemove"
+            accept=".docx,.pdf"
+            drag
+          >
+            <el-icon :size="40" style="color: var(--tez-text-muted)"><Upload /></el-icon>
+            <div style="margin-top:8px">拖拽文件到此处，或<em>点击选择</em>（支持多选）</div>
+            <template #tip>
+              <div style="color: var(--tez-text-muted); font-size:12px">支持 .docx / .pdf，单文件最大 10MB，自动识别分类</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-input v-model="uploadTags" placeholder="可选，多个标签逗号分隔（如: AWS,边缘计算）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUploadDialog = false">取消</el-button>
+        <el-button type="primary" :loading="uploading" :disabled="!uploadFiles.length" @click="handleUpload">
+          {{ uploading ? `上传中 (${uploadProgress}/${uploadFiles.length})` : `解析并保存 (${uploadFiles.length} 个文件)` }}
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- 手册详情弹窗 -->
     <el-dialog
@@ -111,9 +175,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Search, Reading, Star, Document, DataAnalysis, Setting, Connection, Coin, Grid } from '@element-plus/icons-vue'
-import { getArticleContent } from '@/api/knowledge'
+import { ref, computed, onMounted } from 'vue'
+import { Search, Reading, Star, Document, DataAnalysis, Setting, Connection, Coin, Grid, Upload } from '@element-plus/icons-vue'
+import { getArticleContent, listArticles, uploadDocument, type ArticleInfo } from '@/api/knowledge'
+import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 
 const md = new MarkdownIt({ html: true, breaks: true, linkify: true })
@@ -219,6 +284,84 @@ async function openManual(manual: typeof manuals.value[0]) {
 function openUrl(url: string) {
   window.open(url, '_blank')
 }
+
+// ─── 竞争分析 ───
+const competitiveArticles = ref<ArticleInfo[]>([])
+
+async function fetchCompetitiveArticles() {
+  try {
+    competitiveArticles.value = await listArticles('competitive')
+  } catch {
+    // handled by interceptor
+  }
+}
+
+async function openArticleById(id: number, title: string) {
+  selectedManual.value = { id, title, description: '', icon: 'Document', color: '#409EFF', tag: '竞分', tagType: 'success' as const }
+  manualDialogVisible.value = true
+  manualContent.value = ''
+  manualHtml.value = ''
+  manualLoading.value = true
+  try {
+    const resp = await getArticleContent(id)
+    manualContent.value = resp.content
+    manualHtml.value = md.render(resp.content)
+  } catch {
+    manualHtml.value = '<p style="color:#f56c6c">加载失败</p>'
+  } finally {
+    manualLoading.value = false
+  }
+}
+
+// ─── 文档上传 ───
+const showUploadDialog = ref(false)
+const uploadFiles = ref<File[]>([])
+const uploadTags = ref('')
+const uploading = ref(false)
+const uploadProgress = ref(0)
+
+function onFileChange(file: any) {
+  const raw = file.raw || file
+  if (raw && !uploadFiles.value.includes(raw)) {
+    uploadFiles.value.push(raw)
+  }
+}
+
+function onFileRemove(file: any) {
+  const raw = file.raw || file
+  uploadFiles.value = uploadFiles.value.filter(f => f !== raw)
+}
+
+async function handleUpload() {
+  if (!uploadFiles.value.length) return
+  uploading.value = true
+  uploadProgress.value = 0
+  let successCount = 0
+
+  for (const file of uploadFiles.value) {
+    try {
+      uploadProgress.value++
+      // category 传 auto，后端自动识别分类
+      await uploadDocument(file, 'auto', uploadTags.value)
+      successCount++
+    } catch {
+      // 单个失败不中断
+    }
+  }
+
+  uploading.value = false
+  if (successCount > 0) {
+    ElMessage.success(`成功上传 ${successCount} / ${uploadFiles.value.length} 个文档`)
+    showUploadDialog.value = false
+    uploadFiles.value = []
+    uploadTags.value = ''
+    await fetchCompetitiveArticles()
+  }
+}
+
+onMounted(() => {
+  fetchCompetitiveArticles()
+})
 </script>
 
 <style scoped>
@@ -226,6 +369,13 @@ function openUrl(url: string) {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.competitive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
 .search-card {
@@ -287,7 +437,7 @@ function openUrl(url: string) {
 .manual-info p {
   margin: 0;
   font-size: 12px;
-  color: #909399;
+  color: var(--tez-text-muted);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -310,7 +460,7 @@ function openUrl(url: string) {
 .faq-answer {
   padding: 8px 0;
   line-height: 1.8;
-  color: #606266;
+  color: var(--tez-text-regular);
 }
 
 :deep(.el-collapse-item__header) {
@@ -330,7 +480,7 @@ function openUrl(url: string) {
 }
 
 .meta-desc {
-  color: #909399;
+  color: var(--tez-text-muted);
   font-size: 13px;
 }
 
@@ -365,7 +515,7 @@ function openUrl(url: string) {
 .markdown-body :deep(a) { color: #409eff; text-decoration: none; }
 .markdown-body :deep(a:hover) { text-decoration: underline; }
 .markdown-body :deep(hr) { border: none; border-top: 1px solid #eee; margin: 16px 0; }
-.markdown-body :deep(strong) { font-weight: 600; color: #303133; }
+.markdown-body :deep(strong) { font-weight: 600; color: var(--tez-text-primary); }
 
 .manual-tip {
   margin-top: 8px;

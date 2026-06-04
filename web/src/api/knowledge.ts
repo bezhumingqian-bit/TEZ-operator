@@ -80,3 +80,16 @@ export async function getArticleContent(articleId: number): Promise<ArticleConte
   const { data } = await apiClient.get<ArticleContentResponse>(`/api/v1/knowledge/articles/${articleId}/content`)
   return data
 }
+
+/** 上传文档（Word/PDF）解析为文章 */
+export async function uploadDocument(file: File, category: string = 'competitive', tags: string = ''): Promise<ArticleInfo> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('category', category)
+  formData.append('tags', tags)
+  const { data } = await apiClient.post<ArticleInfo>('/api/v1/knowledge/articles/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 60000,
+  })
+  return data
+}
