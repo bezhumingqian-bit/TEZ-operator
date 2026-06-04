@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from pydantic import BaseModel, Field
 
 from app.deps import get_db_session
@@ -126,6 +126,65 @@ async def create_article(
     service: KnowledgeService = Depends(_get_service),
 ) -> ArticleInfo:
     art = await service.create_article(**payload.model_dump())
+    await service.session.commit()
+    return art
+
+
+# 上传目录
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "uploads" / "knowledge"
+MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_EXTENSIONS = {".docx", ".pdf"}
+
+
+@router.post("/articles/upload", response_model=ArticleInfo, status_code=201, summary="上传文档解析为文章")
+async def upload_article(
+    file: UploadFile = File(...),
+    category: str = Form(default="competitive"),
+    tags: str = Form(default=""),
+    service: KnowledgeService = Depends(_get_service),
+) -> ArticleInfo:
+    """上传 Word/PDF 文档，自动解析为 Markdown 存入知识库。"""
+    from app.services.document_parser import parse_document
+
+    # 校验文件扩展名
+    filename = file.filename or "unnamed"
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"不支持的文件格式（仅支持 {', '.join(ALLOWED_EXTENSIONS)}）")
+
+    # 读取并校验大小
+    file_bytes = await file.read()
+    if len(file_bytes) > MAX_UPLOAD_SIZE:
+        raise HTTPException(status_code=400, detail="文件大小超过 10MB 限制")
+
+    # 解析文档
+    try:
+        result = parse_document(file_bytes, filename)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"文档解析失败: {str(exc)[:200]}")
+
+    # 自动分类
+    if category == "auto":
+        from app.services.document_parser import auto_categorize
+        category = auto_categorize(result["title"], result["content"])
+
+    # 保存原始文件到 data/uploads/knowledge/
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    import time
+    safe_name = f"{int(time.time())}_{filename}"
+    save_path = UPLOAD_DIR / safe_name
+    save_path.write_bytes(file_bytes)
+
+    # 写入数据库
+    art = await service.create_article(
+        title=result["title"],
+        category=category,
+        content=result["content"],
+        summary=result["summary"],
+        tags=tags or None,
+        source_file=f"uploads/knowledge/{safe_name}",
+        importance=2,
+    )
     await service.session.commit()
     return art
 

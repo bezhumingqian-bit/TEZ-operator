@@ -38,6 +38,7 @@ DEFAULT_ASSIGNEES: dict[str, str] = {
     "host_deploy": "",
     "migration": "",
     "repair": "",
+    "demand_request": "",
 }
 
 # ─── 前置校验规则 ───
@@ -46,6 +47,7 @@ PRE_CHECK_RULES: dict[str, list[str]] = {
     "host_deploy": ["check_tpc", "check_backup_cleared", "check_module_path"],
     "migration": ["check_target_position", "check_sideband"],
     "repair": [],
+    "demand_request": [],
 }
 
 
@@ -103,9 +105,8 @@ class WorkOrderService:
         self.session.add(log_entry)
         await self.session.flush()
 
-        # 创建即同步到 OnePage 腾讯文档（异步后台任务，不阻塞请求）
-        # 重要：提前快照 detail/order_type/title 等字段，避免异步任务执行时
-        # session 已关闭导致 ORM 属性访问异常
+        # 创建即推送到 OnePage 腾讯文档
+        # 策略：后台异步推送 + 持久化队列（进程重启后自动重试）
         if order.order_type in ("migration", "ecm_export", "host_deploy"):
             import asyncio
             push_snapshot = {
@@ -116,16 +117,87 @@ class WorkOrderService:
                 "priority": order.priority,
                 "detail": dict(order.detail) if order.detail else {},
             }
-            asyncio.create_task(self._push_to_onepage_safe(push_snapshot))
+            # 持久化到文件队列（防止进程崩溃丢失）
+            self._save_pending_push(push_snapshot)
+            # 后台异步执行（不阻塞 API 响应）
+            asyncio.create_task(self._push_and_update(push_snapshot))
 
+        order._push_result = {"queued": True}  # type: ignore
         return order
 
-    async def _push_to_onepage_safe(self, snapshot: dict) -> None:
-        """后台安全推送（异常不影响主流程）。"""
+    async def _push_and_update(self, snapshot: dict) -> None:
+        """后台推送到腾讯文档，完成后更新工单状态。"""
+        order_id = snapshot["order_id"]
+        order_no = snapshot["order_no"]
         try:
             await self._push_to_onepage(snapshot)
+            log.info("workorder.onepage_push_ok", order_no=order_no)
+            await self._update_push_note(order_id, success=True)
+            self._remove_pending_push(order_id)
         except Exception as exc:
-            log.warning("workorder.onepage_push_failed", order_id=snapshot.get("order_id"), error=str(exc))
+            log.warning("workorder.onepage_push_failed", order_id=order_id, error=str(exc))
+            await self._update_push_note(order_id, success=False, error=str(exc)[:100])
+
+    async def _update_push_note(self, order_id: int, success: bool, error: str = "") -> None:
+        """更新工单备注里的推送状态。"""
+        from app.deps import _get_session_factory
+        from sqlalchemy import select
+        from app.models.workorder import WorkOrder
+
+        factory = _get_session_factory()
+        async with factory() as session:
+            stmt = select(WorkOrder).where(WorkOrder.id == order_id)
+            result = await session.execute(stmt)
+            order = result.scalar_one_or_none()
+            if order:
+                if success:
+                    order.note = "✅ 已同步到腾讯文档"
+                else:
+                    order.note = f"❌ 腾讯文档推送失败: {error}"
+                await session.commit()
+
+    @staticmethod
+    def _save_pending_push(snapshot: dict) -> None:
+        """持久化待推送任务到文件（防止进程崩溃丢失）。"""
+        import json
+        from pathlib import Path
+        queue_dir = Path("data/push_queue")
+        queue_dir.mkdir(parents=True, exist_ok=True)
+        (queue_dir / f"{snapshot['order_id']}.json").write_text(
+            json.dumps(snapshot, ensure_ascii=False)
+        )
+
+    @staticmethod
+    def _remove_pending_push(order_id: int) -> None:
+        """推送成功后删除队列文件。"""
+        from pathlib import Path
+        f = Path(f"data/push_queue/{order_id}.json")
+        if f.exists():
+            f.unlink()
+
+    @classmethod
+    async def retry_pending_pushes(cls) -> int:
+        """重试所有未完成的推送（服务启动时调用）。"""
+        import json, asyncio
+        from pathlib import Path
+
+        queue_dir = Path("data/push_queue")
+        if not queue_dir.exists():
+            return 0
+
+        files = list(queue_dir.glob("*.json"))
+        if not files:
+            return 0
+
+        log.info("workorder.retrying_pending_pushes", count=len(files))
+        svc = cls.__new__(cls)  # 无需 session，只用推送方法
+        for f in files:
+            try:
+                snapshot = json.loads(f.read_text())
+                asyncio.create_task(svc._push_and_update(snapshot))
+            except Exception as exc:
+                log.warning("workorder.retry_load_failed", file=f.name, error=str(exc))
+        return len(files)
 
     # ─── 状态流转 ───
 
@@ -229,7 +301,8 @@ class WorkOrderService:
             data_snapshot={k: v[:20] if isinstance(v, str) and len(v) > 20 else v for k, v in data.items()},
         )
         if not result.get("success"):
-            log.warning("workorder.onepage_push_failed", order_no=order_no, result=result)
+            error_msg = result.get("message", result.get("error", "写入失败"))
+            raise RuntimeError(f"腾讯文档写入失败: {error_msg}")
 
     # ─── 查询 ───
 
@@ -290,6 +363,47 @@ class WorkOrderService:
         result["total"] = sum(result.values())
         return result
 
+    # ─── 公开需求提单 ───
+
+    async def create_demand(
+        self,
+        requester: str,
+        contact: str,
+        title: str,
+        detail: dict[str, Any],
+    ) -> WorkOrder:
+        """创建行业需求单（免登录，不走流转，仅通知展示）。"""
+        order_no = await self._gen_order_no()
+
+        order = WorkOrder(
+            order_no=order_no,
+            order_type="demand_request",
+            title=title,
+            status="submitted",
+            creator=requester,
+            assignee=None,
+            detail=detail,
+            pre_checks={},
+            note=f"行业需求单 | 联系方式: {contact}",
+            priority=2,
+        )
+        self.session.add(order)
+        await self.session.flush()
+
+        # 创建日志
+        log_entry = WorkOrderLog(
+            order_id=order.id,
+            action="demand_submit",
+            operator=requester,
+            content=f"行业需求提交：{title}",
+            from_status=None,
+            to_status="submitted",
+        )
+        self.session.add(log_entry)
+        await self.session.flush()
+
+        return order
+
     # ─── 内部 ───
 
     async def _gen_order_no(self) -> str:
@@ -305,6 +419,10 @@ class WorkOrderService:
     def _run_pre_checks(order_type: str, detail: dict[str, Any]) -> dict[str, Any]:
         """执行前置校验（当前为规则模拟，后续接真实 API）。"""
         rules = PRE_CHECK_RULES.get(order_type, [])
+        # 跳过需求表单的前置校验
+        if order_type == "demand_request":
+            return {}
+
         results: dict[str, Any] = {}
 
         for rule in rules:

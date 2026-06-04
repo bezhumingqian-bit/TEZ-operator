@@ -199,17 +199,33 @@ zone_router = APIRouter(prefix="/zones", tags=["zones"])
 
 
 @zone_router.get(
+    "/options",
+    summary="可用区下拉选项（公开，免登录）",
+)
+async def zone_options() -> list[dict[str, str]]:
+    """返回简化的 zone 列表，供公开表单下拉框使用。"""
+    from app.data.zone_mapping import ZONE_INFO
+
+    return [
+        {"zone": item["zone"], "city": item.get("city", "")}
+        for item in ZONE_INFO
+        if item.get("status") in ("已开区", "开区中")
+    ]
+
+
+@zone_router.get(
     "",
     summary="列出所有可用 zone（前端远程加载用）",
 )
 async def list_zones(
     service: HostService = Depends(get_host_service),
 ) -> dict[str, Any]:
-    """返回 zone 列表 + zone→机房映射。"""
-    from app.data.zone_mapping import ZONE_IDC_MAPPING
+    """返回 zone 列表 + zone→机房映射 + zone→架构映射。"""
+    from app.data.zone_mapping import ZONE_IDC_MAPPING, ZONE_INFO
 
     zones = sorted(ZONE_IDC_MAPPING.keys())
-    return {"zones": zones, "mapping": ZONE_IDC_MAPPING}
+    arch_map = {item["zone"]: item.get("arch", "10G") for item in ZONE_INFO}
+    return {"zones": zones, "mapping": ZONE_IDC_MAPPING, "arch": arch_map}
 
 
 @zone_router.get(
@@ -635,18 +651,82 @@ async def get_browser_status() -> dict:
     }
 
 
+@zone_router.get(
+    "/devices/by-type",
+    summary="按机型查询设备（从本地缓存）",
+)
+async def query_devices_by_type(
+    machine_type: str = Query(..., description="机型，如 CG3-25G"),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """按机型从本地 zone_devices 表查询，按区域分组返回。"""
+    from sqlalchemy import select
+    from app.models.zone_snapshot import ZoneDevice
+
+    stmt = select(ZoneDevice).where(ZoneDevice.machine_type == machine_type)
+    result = await session.execute(stmt)
+    devices = result.scalars().all()
+
+    # 按区域分组
+    zone_map: dict[str, list[dict]] = {}
+    for d in devices:
+        zone_map.setdefault(d.zone, []).append({
+            "asset_id": d.asset_id,
+            "ip": d.ip,
+            "status": d.status,
+            "module": d.module,
+            "category": d.category,
+        })
+
+    # 构建响应
+    zones = []
+    for zone, devs in sorted(zone_map.items()):
+        zones.append({
+            "zone": zone,
+            "count": len(devs),
+            "devices": devs,
+        })
+
+    return {
+        "machine_type": machine_type,
+        "total": len(devices),
+        "zone_count": len(zones),
+        "zones": zones,
+    }
+
+
+@zone_router.get(
+    "/devices/types",
+    summary="列出所有已知机型",
+)
+async def list_device_types(
+    session: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """从本地 zone_devices 表获取所有去重机型列表。"""
+    from sqlalchemy import select, distinct
+    from app.models.zone_snapshot import ZoneDevice
+
+    stmt = select(distinct(ZoneDevice.machine_type)).where(ZoneDevice.machine_type.isnot(None))
+    result = await session.execute(stmt)
+    types = sorted([row[0] for row in result.fetchall()])
+    return {"types": types}
+
+
 @router.post(
     "/lookup",
     summary="批量查固资号基本信息（轻量，用于表单回填）",
 )
 async def lookup_assets(
     payload: dict[str, Any],
+    session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """输入固资号列表，返回每个固资号的设备型号和可用区。
 
-    数据来源：本地全量母机缓存（从 OnePage 导入）。
+    优先查本地 zone_devices 数据库（实时同步数据），
+    查不到再 fallback 到 asset_cache 静态文件。
     """
-    from app.data.asset_cache import ASSET_CACHE
+    from sqlalchemy import select
+    from app.models.zone_snapshot import ZoneDevice
 
     asset_ids = payload.get("asset_ids", [])
     if isinstance(asset_ids, str):
@@ -655,10 +735,26 @@ async def lookup_assets(
     results = {}
     for aid in asset_ids[:100]:
         aid_upper = aid.strip().upper()
-        if aid_upper in ASSET_CACHE:
-            results[aid_upper] = ASSET_CACHE[aid_upper]
+
+        # 优先从 zone_devices 表查
+        stmt = select(ZoneDevice).where(ZoneDevice.asset_id == aid_upper).limit(1)
+        result = await session.execute(stmt)
+        device = result.scalar_one_or_none()
+
+        if device:
+            results[aid_upper] = {
+                "machine_type": device.machine_type,
+                "zone": device.zone,
+                "ip": device.ip,
+                "status": device.status,
+            }
         else:
-            results[aid_upper] = None
+            # fallback 到静态缓存
+            try:
+                from app.data.asset_cache import ASSET_CACHE
+                results[aid_upper] = ASSET_CACHE.get(aid_upper)
+            except ImportError:
+                results[aid_upper] = None
 
     found = sum(1 for v in results.values() if v)
     return {"results": results, "found": found, "total": len(results)}

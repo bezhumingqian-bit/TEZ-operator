@@ -106,6 +106,13 @@ class Settings(BaseSettings):
     # ───────── 告警（企微 webhook，空则只 log） ─────────
     wecom_webhook: str = Field(default="", description="企业微信群机器人 webhook URL，空则只打日志")
 
+    # ───────── AI 助手 ─────────
+    # 支持任何兼容 OpenAI Chat API 格式的模型（混元/DeepSeek/GPT/CodeBuddy等）
+    ai_api_base: str = Field(default="", description="AI API base URL（如 https://api.hunyuan.cloud.tencent.com/v1）")
+    ai_api_key: str = Field(default="", description="API Key 或 Bearer Token")
+    ai_model: str = Field(default="hunyuan-lite", description="模型名称")
+    ai_max_tokens: int = Field(default=2000, description="最大输出 token 数")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

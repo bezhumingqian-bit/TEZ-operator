@@ -60,6 +60,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     from app.scheduler import start_scheduler, shutdown_scheduler
     start_scheduler()
 
+    # ── 重试未完成的腾讯文档推送 ──
+    try:
+        from app.services.workorder_service import WorkOrderService
+        pending = await WorkOrderService.retry_pending_pushes()
+        if pending:
+            log.info("startup.retrying_pushes", count=pending)
+    except Exception as exc:
+        log.warning("startup.retry_pushes_failed", error=str(exc))
+
     try:
         yield
     finally:
@@ -143,8 +152,35 @@ def create_app() -> FastAPI:
     app.include_router(knowledge_router.router, prefix="/api/v1")
     app.include_router(workorders_router.router, prefix="/api/v1")
 
+    from app.routers import auth as auth_router
+    app.include_router(auth_router.router)
+
     from app.routers import cost as cost_router
     app.include_router(cost_router.router)
+
+    from app.routers import ai as ai_router
+    app.include_router(ai_router.router)
+
+    # ── 前端静态文件托管（SPA） ──
+    import os
+    from pathlib import Path
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    frontend_dist = Path(__file__).parent.parent / "web" / "dist"
+    if frontend_dist.exists():
+        # 静态资源（js/css/images）
+        app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="static-assets")
+
+        # SPA fallback：所有非 API 路径都返回 index.html，交给 Vue Router 处理
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_spa(full_path: str):
+            # 如果是具体的静态文件（如 favicon.ico），直接返回
+            file_path = frontend_dist / full_path
+            if file_path.is_file():
+                return FileResponse(str(file_path))
+            # 否则返回 index.html，让 Vue Router 处理前端路由
+            return FileResponse(str(frontend_dist / "index.html"))
 
     return app
 

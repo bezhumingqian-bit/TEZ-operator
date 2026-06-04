@@ -249,6 +249,30 @@ class TencentDocSkill:
             )
             log.info("tencent_doc.binary_search_result", target_row=target_row)
 
+            # 如果目标行 >= max_row，说明表格已满，需要先在底部添加新行
+            if target_row >= max_row:
+                log.info("tencent_doc.table_full, adding rows", target=target_row, max=max_row)
+                added = await self._add_rows_at_bottom(page)
+                if not added:
+                    # 备选方案：通过底部"在底部添加 N 行"输入框
+                    try:
+                        add_input = page.locator('input[placeholder*="行"]').last
+                        if await add_input.count() > 0:
+                            await add_input.fill("10")
+                            add_confirm = page.get_by_text("添加").last
+                            await add_confirm.click(timeout=3000)
+                            await asyncio.sleep(2)
+                            log.info("tencent_doc.rows_added_by_input")
+                            added = True
+                    except Exception:
+                        pass
+                if not added:
+                    return {
+                        "success": False,
+                        "message": f"表格已满（{max_row}行），且自动添加行失败，请手动在腾讯文档底部添加行",
+                    }
+                await asyncio.sleep(1)
+
             # 导航到目标行
             await name_box.click(timeout=2000)
             await asyncio.sleep(0.3)
@@ -428,15 +452,39 @@ class TencentDocSkill:
     async def _add_rows_at_bottom(self, page) -> bool:
         """点击腾讯文档底部的"添加"按钮来新增行。"""
         try:
-            # 尝试找到底部的"添加"按钮
-            add_btn = page.get_by_text("添加", exact=False).last
+            # 先滚动到底部
+            await page.keyboard.press("Meta+End")
+            await asyncio.sleep(2)
+
+            # 方法1：找底部的"添加"按钮
+            add_btn = page.locator('button:has-text("添加"), a:has-text("添加")').last
             if await add_btn.count() > 0 and await add_btn.is_visible():
                 await add_btn.click(timeout=3000)
-                await asyncio.sleep(1)
+                await asyncio.sleep(2)
                 log.info("tencent_doc.rows_added_by_button")
                 return True
         except Exception as exc:
-            log.debug("tencent_doc.add_rows_button_failed", error=str(exc))
+            log.debug("tencent_doc.add_rows_button_v1_failed", error=str(exc))
+
+        try:
+            # 方法2：通过 JS 找底部添加区域并点击
+            clicked = await page.evaluate("""() => {
+                // 找包含"添加"文字的可点击元素
+                const els = [...document.querySelectorAll('*')];
+                const addEl = els.find(el => {
+                    const text = el.innerText || '';
+                    return text.includes('添加') && el.offsetHeight > 0 && el.offsetHeight < 50;
+                });
+                if (addEl) { addEl.click(); return true; }
+                return false;
+            }""")
+            if clicked:
+                await asyncio.sleep(2)
+                log.info("tencent_doc.rows_added_by_js")
+                return True
+        except Exception as exc:
+            log.debug("tencent_doc.add_rows_button_v2_failed", error=str(exc))
+
         return False
 
     async def _dismiss_overlays(self, page) -> None:

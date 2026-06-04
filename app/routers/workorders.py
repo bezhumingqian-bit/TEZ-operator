@@ -106,11 +106,11 @@ class StatsResponse(BaseModel):
 
 # ─── Endpoints ───
 
-@router.post("", response_model=OrderInfo, status_code=201, summary="创建工单")
+@router.post("", status_code=201, summary="创建工单")
 async def create_order(
     payload: OrderCreate,
     service: WorkOrderService = Depends(_get_service),
-) -> OrderInfo:
+):
     order = await service.create_order(
         order_type=payload.order_type,
         title=payload.title,
@@ -120,9 +120,30 @@ async def create_order(
         priority=payload.priority,
     )
     await service.session.commit()
+
+    # 获取推送结果
+    push_result = getattr(order, '_push_result', None)
+
     # 重新查询带 logs
     order = await service.get_order(order.id)
-    return order
+
+    # 构建响应（包含推送状态）
+    resp = {
+        "id": order.id,
+        "order_no": order.order_no,
+        "order_type": order.order_type,
+        "title": order.title,
+        "status": order.status,
+        "creator": order.creator,
+        "assignee": order.assignee,
+        "priority": order.priority,
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+    }
+    if push_result:
+        resp["push_success"] = push_result.get("success", False)
+        if not push_result.get("success"):
+            resp["push_error"] = push_result.get("error", "未知错误")
+    return resp
 
 
 @router.get("", response_model=OrderListResponse, summary="工单列表")
@@ -208,3 +229,56 @@ async def delete_order(
         raise HTTPException(status_code=404, detail="工单不存在")
     await service.session.delete(order)
     await service.session.commit()
+
+
+# ─── 公开需求提单（免登录） ───
+
+
+class DemandCreate(BaseModel):
+    """行业同事搬迁需求表单。"""
+    requester: str = Field(..., min_length=1, max_length=50, description="提单人姓名")
+    contact: str = Field(..., min_length=1, max_length=100, description="联系方式（企微/手机）")
+    source_zone: str = Field("", description="来源区域（可不填）")
+    target_zone: str = Field(..., min_length=1, description="目标区域")
+    device_count: int = Field(..., gt=0, le=10000, description="设备数量")
+    machine_type: str = Field("", description="机型要求")
+    appid: str = Field("", description="AppID 或客户名")
+    expected_date: str = Field("", description="期望完成时间")
+    purpose: str = Field("", max_length=500, description="业务用途说明")
+    remark: str = Field("", max_length=500, description="备注")
+
+
+@router.post("/demand", status_code=201, summary="公开需求提单（免登录）")
+async def submit_demand(
+    payload: DemandCreate,
+    service: WorkOrderService = Depends(_get_service),
+):
+    """行业同事免登录提交搬迁需求。写入工单表但不走流转，仅通知运维。"""
+
+    if payload.source_zone:
+        title = f"搬迁需求：{payload.source_zone} → {payload.target_zone}（{payload.device_count}台）"
+    else:
+        title = f"搬迁需求：→ {payload.target_zone}（{payload.device_count}台）"
+
+    order = await service.create_demand(
+        requester=payload.requester,
+        contact=payload.contact,
+        title=title,
+        detail={
+            "source_zone": payload.source_zone,
+            "target_zone": payload.target_zone,
+            "device_count": payload.device_count,
+            "machine_type": payload.machine_type,
+            "appid": payload.appid,
+            "expected_date": payload.expected_date,
+            "purpose": payload.purpose,
+            "remark": payload.remark,
+            "contact": payload.contact,
+        },
+    )
+    await service.session.commit()
+
+    return {
+        "order_no": order.order_no,
+        "message": "需求已提交，运维团队将尽快处理",
+    }

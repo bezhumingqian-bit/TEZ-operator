@@ -47,9 +47,19 @@ class ZoneResourceService:
             if snapshot.last_sync_at and (datetime.now() - snapshot.last_sync_at) < timedelta(days=SYNC_EXPIRE_DAYS):
                 # 未过期，直接返回本地数据
                 devices = await self._get_devices(zone)
+                log.info("zone_resource.cache_hit", zone=zone, age_hours=round((datetime.now() - snapshot.last_sync_at).total_seconds() / 3600, 1))
                 return self._build_response(snapshot, devices, from_cache=True)
 
         # 2. 过期或无数据 → 从云端同步
+        # 安全检查：再确认一次是否真的没有缓存（防止 session 初始化延迟导致误判）
+        if not snapshot and not force_refresh:
+            await self._session.flush()
+            snapshot = await self._get_snapshot(zone)
+            if snapshot and snapshot.last_sync_at and (datetime.now() - snapshot.last_sync_at) < timedelta(days=SYNC_EXPIRE_DAYS):
+                devices = await self._get_devices(zone)
+                log.info("zone_resource.cache_hit_retry", zone=zone)
+                return self._build_response(snapshot, devices, from_cache=True)
+
         log.info("zone_resource.sync_needed", zone=zone, force=force_refresh)
         result = await self._sync_from_cloud(zone)
 
@@ -135,7 +145,15 @@ class ZoneResourceService:
                     "message": pos_result.get("message", "该可用区尚未开区"),
                 }
 
+            # 校验：运营中的区域不应该返回 0 机位，说明查询异常
+            total_positions = pos_result.get("total_positions", 0)
+            free_count = pos_result.get("free_count")
             all_assets = pos_result.get("all_assets", [])
+
+            if total_positions == 0 and free_count is None and not all_assets:
+                log.warning("zone_resource.empty_result_skipped", zone=zone, idc=idc,
+                            hint="IDCRM 返回空数据，可能登录态失效或页面解析异常，不覆盖已有缓存")
+                return None  # 返回 None 让调用方 fallback 到旧缓存
 
             # Step 2: TCUM 批量查
             online_devices: list[dict] = []
@@ -209,11 +227,84 @@ class ZoneResourceService:
                         dev["reason"] = reason
                         offline_devices.append(dev)
 
+            # Step 2.5: CMDB 补查 — 找出 IDCRM 没覆盖到的设备（如上线中/待分配的）
+            # IDCRM 只返回已占用机位的设备，部分"上线中"设备可能还没录机位
+            existing_asset_ids = {d.get("asset_id", "").upper() for d in online_devices + offline_devices + non_tez_devices}
+            try:
+                if settings.cmdb_mode in ("browser", "http"):
+                    from app.clients.cmdb import CMDBClient
+                    cmdb = CMDBClient()
+                    cmdb_zone_devices = await cmdb.list_by_zone(zone, limit=200)
+
+                    supplement_assets = []
+                    for cd in cmdb_zone_devices:
+                        aid = (cd.get("asset_id") or "").upper()
+                        if aid and aid not in existing_asset_ids:
+                            supplement_assets.append(aid)
+
+                    if supplement_assets:
+                        log.info("zone_resource.cmdb_supplement", zone=zone, count=len(supplement_assets))
+                        # 用 TCUM 查这些补充设备的详细状态
+                        supplement_devices = await tcum.batch_search(supplement_assets[:50])
+                        for dev in supplement_devices:
+                            module = dev.get("module", "") or ""
+                            status = dev.get("status", "") or ""
+                            module_lower = module.lower()
+                            aid = (dev.get("asset_id") or "").upper()
+                            if aid in existing_asset_ids:
+                                continue
+                            existing_asset_ids.add(aid)
+
+                            is_core_tez = any(kw in module for kw in TEZ_CORE_KEYWORDS)
+                            has_edge_compute = "边缘计算" in module
+                            is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
+
+                            if is_core_tez:
+                                is_tez = True
+                            elif has_edge_compute and is_transitional:
+                                is_tez = True
+                            else:
+                                is_tez = False
+
+                            if not is_tez:
+                                non_tez_devices.append(dev)
+                                continue
+
+                            if is_transitional:
+                                reason = "未知"
+                                if "待上线" in module or "未上线" in module:
+                                    reason = "模块状态：待上线"
+                                elif "上线中" in module:
+                                    reason = "模块状态：上线中"
+                                elif "搬迁" in module:
+                                    reason = "模块状态：搬迁中"
+                                elif "待搬迁" in module:
+                                    reason = "模块状态：待搬迁"
+                                elif "buffer" in module_lower:
+                                    reason = "模块状态：buffer（待分配）"
+                                dev["reason"] = reason
+                                offline_devices.append(dev)
+                            elif status == "online":
+                                online_devices.append(dev)
+                            else:
+                                reason = "未知"
+                                if status == "maintenance":
+                                    reason = "设备状态：上线中/维护"
+                                elif status == "offline":
+                                    reason = "设备状态：离线/故障"
+                                else:
+                                    reason = f"设备状态：{status or '未知'}"
+                                dev["reason"] = reason
+                                offline_devices.append(dev)
+            except Exception as exc:
+                log.warning("zone_resource.cmdb_supplement_failed", zone=zone, error=str(exc))
+
             # Step 3: 写入本地数据库
+            total_asset_count = len(online_devices) + len(offline_devices) + len(non_tez_devices)
             await self._save_snapshot(
                 zone, idc, pos_result,
                 online_devices, offline_devices, non_tez_devices,
-                len(all_assets),
+                total_asset_count,
             )
 
             # 返回结果

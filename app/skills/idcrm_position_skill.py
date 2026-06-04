@@ -92,24 +92,16 @@ class IDCRMPositionSkill:
                 # 1.6 设置每页显示100条
                 await self._set_page_size(page, "100 条/ 页")
 
-                # 2. 填筛选条件（不限机位状态，查全量虚拟化机位）
-                ok1 = await self._ant_select_with_search(
-                    page, self.IDX_LOGIC_AREA,
-                    search_text=self.LOGIC_AREA_VALUE,
-                    exact_match=self.LOGIC_AREA_VALUE,
-                )
+                # 2. 填筛选条件
+                # 2.1 选择机房管理单元（下拉选择）
                 idc_search = idc[:8] if len(idc) > 8 else idc
-                ok2 = await self._ant_select_with_search(
+                ok_idc = await self._ant_select_with_search(
                     page, self.IDX_IDC_UNIT,
                     search_text=idc_search,
                     exact_match=idc,
                 )
-                # 不再筛选机位状态，查全量
 
-                await asyncio.sleep(1)
-
-                # 2.5 如果机房管理单元选择失败，说明该机房在数全通未录入，直接返回
-                if not ok2:
+                if not ok_idc:
                     log.warning("idcrm_skill.idc_not_found", idc=idc)
                     return {
                         "free_count": None,
@@ -117,25 +109,38 @@ class IDCRMPositionSkill:
                         "message": f"机房管理单元「{idc}」在数全通中未录入，该可用区可能尚未开区",
                     }
 
-                # 2.6 校验：读取 select 选中值（只校验前两个，不再校验状态）
-                verify_ok = await self._verify_selections_no_status(page, idc)
-                if not verify_ok:
-                    log.error(
-                        "idcrm_skill.verify_failed",
-                        attempt=attempt + 1,
-                        select_ok=[ok1, ok2],
-                    )
-                    if attempt < self.MAX_RETRY:
-                        continue  # 重试
-                    else:
-                        return {
-                            "free_count": None,
-                            "message": f"筛选条件校验失败（重试{self.MAX_RETRY}次），请检查数全通页面状态",
-                        }
+                # 2.2 点"展开"按钮展开更多筛选项
+                await self._click_expand_button(page)
+                await asyncio.sleep(1)
+
+                # 2.3 在展开后的"机位逻辑区域"输入框中输入"虚拟化"
+                await self._fill_logic_area_input(page, "虚拟化")
+                await asyncio.sleep(1)
 
                 # 3. 点查询按钮
                 await self._click_query_button(page)
-                await asyncio.sleep(self.WAIT_AFTER_FILTER)
+
+                # 等待表格加载（最多等 20 秒，每秒检查一次）
+                await asyncio.sleep(3)
+                for _wait in range(17):
+                    try:
+                        row_count = await page.evaluate(
+                            "() => document.querySelectorAll('table tbody tr').length"
+                        )
+                        if row_count > 0:
+                            await asyncio.sleep(1)
+                            log.info("idcrm_skill.table_rows_found", count=row_count, wait_s=3 + _wait)
+                            break
+                    except Exception:
+                        pass
+                    await asyncio.sleep(1)
+                else:
+                    # 检查页面是否显示"共 0 条记录"
+                    page_text = await page.evaluate("() => document.body.innerText")
+                    if "共 0 条" in page_text:
+                        log.info("idcrm_skill.zero_records_confirmed", idc=idc)
+                    else:
+                        log.warning("idcrm_skill.table_not_loaded", idc=idc)
 
                 # 4. 提取结果（支持翻页）
                 rows = await self._extract_all_pages(page)
@@ -145,11 +150,18 @@ class IDCRMPositionSkill:
                 free_count = 0
                 used_count = 0
                 other_count = 0
+                unavailable_count = 0
                 all_assets: list[str] = []
                 free_assets: list[str] = []
 
                 for row in rows:
                     row_text = " ".join(row)
+
+                    # 跳过不可用的机位（不计入总数）
+                    if "不可用" in row_text:
+                        unavailable_count += 1
+                        continue
+
                     assets = re.findall(r"TYSV[0-9A-Z]{6,}", row_text, re.IGNORECASE)
                     all_assets.extend(assets)
 
@@ -162,8 +174,13 @@ class IDCRMPositionSkill:
                     else:
                         other_count += 1
 
+                # 总机位数 = 排除不可用后的数量
+                total_positions = free_count + used_count + other_count
                 all_assets = list(set(all_assets))
                 free_assets = list(set(free_assets))
+
+                if unavailable_count:
+                    log.info("idcrm_skill.unavailable_filtered", count=unavailable_count)
 
                 return {
                     "total_positions": total_positions,
@@ -225,7 +242,22 @@ class IDCRMPositionSkill:
 
             # 4. 点查询
             await self._click_query_button(page)
-            await asyncio.sleep(self.WAIT_AFTER_FILTER)
+
+            # 等待表格加载
+            await asyncio.sleep(3)
+            for _wait in range(12):
+                try:
+                    row_count = await page.evaluate(
+                        "() => document.querySelectorAll('table tbody tr, .ant-table-row').length"
+                    )
+                    if row_count > 0:
+                        await asyncio.sleep(1)
+                        break
+                except Exception:
+                    pass
+                await asyncio.sleep(1)
+            else:
+                await asyncio.sleep(5)
 
             # 5. 提取所有分页（最多50页 = 5000条，足够覆盖全部区域）
             rows = await self._extract_all_pages(page, max_pages=50)
@@ -458,6 +490,94 @@ class IDCRMPositionSkill:
         except Exception as exc:
             log.error("idcrm_skill.select_direct_error", idx=idx, error=str(exc))
             return False
+
+    async def _click_expand_button(self, page) -> None:
+        """点击"展开"按钮展开更多筛选条件。"""
+        try:
+            expand_btn = page.locator('a:has-text("展开"), span:has-text("展开")').first
+            if await expand_btn.count() > 0:
+                await expand_btn.click(timeout=3000)
+                log.info("idcrm_skill.expand_clicked")
+                await asyncio.sleep(1)
+                return
+        except Exception:
+            pass
+        # 备选：查找含"展开"文字的可点击元素
+        try:
+            await page.evaluate("""() => {
+                const els = [...document.querySelectorAll('a, span, div')];
+                const btn = els.find(el => el.innerText.trim() === '展开');
+                if (btn) btn.click();
+            }""")
+            log.info("idcrm_skill.expand_clicked_js")
+        except Exception:
+            log.warning("idcrm_skill.expand_not_found")
+
+    async def _fill_logic_area_input(self, page, text: str = "虚拟化") -> None:
+        """在展开后的"机位逻辑区域"输入框中输入筛选文本。"""
+        # 展开后的筛选区有多个输入框，找"机位逻辑区域"旁边的 input
+        try:
+            # 方式1: 通过 placeholder 定位
+            input_sel = page.locator('input[placeholder*="机位逻辑区域"]').first
+            if await input_sel.count() > 0:
+                await input_sel.fill(text)
+                log.info("idcrm_skill.logic_area_filled", text=text, method="placeholder")
+                return
+        except Exception:
+            pass
+
+        try:
+            # 方式2: 通过 label 文本 + 相邻 input
+            filled = await page.evaluate(f"""() => {{
+                const labels = [...document.querySelectorAll('span, label, div')];
+                const label = labels.find(el => el.innerText.trim().includes('机位逻辑区域'));
+                if (!label) return false;
+                // 向上找父容器再找 input
+                let parent = label.parentElement;
+                for (let i = 0; i < 3 && parent; i++) {{
+                    const input = parent.querySelector('input');
+                    if (input) {{
+                        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+                        nativeInputValueSetter.call(input, '{text}');
+                        input.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                        input.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                        return true;
+                    }}
+                    parent = parent.parentElement;
+                }}
+                return false;
+            }}""")
+            if filled:
+                log.info("idcrm_skill.logic_area_filled", text=text, method="label_sibling")
+                return
+        except Exception:
+            pass
+
+        # 方式3：找所有空的 input，根据位置顺序填第一个（展开后机位逻辑区域通常是第一个新增输入框）
+        try:
+            inputs = page.locator('input[type="text"], input:not([type])')
+            count = await inputs.count()
+            for i in range(count):
+                inp = inputs.nth(i)
+                val = await inp.input_value()
+                placeholder = await inp.get_attribute("placeholder") or ""
+                if not val and "逻辑区域" in placeholder:
+                    await inp.fill(text)
+                    log.info("idcrm_skill.logic_area_filled", text=text, method="scan", idx=i)
+                    return
+            # 没找到含"逻辑区域"的，找第一个空的 input placeholder 含 "输入"
+            for i in range(count):
+                inp = inputs.nth(i)
+                val = await inp.input_value()
+                placeholder = await inp.get_attribute("placeholder") or ""
+                if not val and "逻辑" in placeholder:
+                    await inp.fill(text)
+                    log.info("idcrm_skill.logic_area_filled", text=text, method="fuzzy", idx=i)
+                    return
+        except Exception:
+            pass
+
+        log.warning("idcrm_skill.logic_area_input_not_found")
 
     async def _click_query_button(self, page) -> bool:
         """点击查询按钮，多策略确保点到。"""
