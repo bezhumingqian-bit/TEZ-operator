@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import JSON, Boolean, DateTime, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -20,19 +20,19 @@ class HostCache(Base, TimestampMixin):
     __tablename__ = "host_cache"
 
     asset_id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    zone: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    machine_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    status: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    idc: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    cabinet: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    position: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    module: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    customer: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    app_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    has_tpc: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    raw_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    zone: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    machine_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    idc: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    cabinet: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    position: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    module: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    customer: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    app_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    has_tpc: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    raw_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    last_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     __table_args__ = (
         Index("ix_host_cache_ip", "ip"),
@@ -50,10 +50,10 @@ class HostHistory(Base):
     asset_id: Mapped[str] = mapped_column(String(64), nullable=False)
     event_type: Mapped[str] = mapped_column(String(32), nullable=False)
     event_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    from_module: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    to_module: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    source: Mapped[str | None] = mapped_column(
+    from_module: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    to_module: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(
         String(32), nullable=True, comment="cmdb/tcum/manual"
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -71,10 +71,10 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    user_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     action: Mapped[str] = mapped_column(String(64), nullable=False, comment="search/export/...")
-    payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    payload: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
