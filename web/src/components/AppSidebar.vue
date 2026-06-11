@@ -26,7 +26,7 @@
     </el-menu>
 
     <div class="app-sidebar__footer">
-      <div>TEZ Operator v1.2.0</div>
+      <div>TEZ Operator v{{ appVersion }}</div>
       <div class="app-sidebar__hint">{{ authStore.role }} · {{ authStore.displayName }}</div>
     </div>
   </aside>
@@ -36,6 +36,9 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { roleLabel } from '@/utils/role'
+
+const appVersion = __APP_VERSION__
 
 interface MenuItem {
   path: string

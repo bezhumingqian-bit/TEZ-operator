@@ -15,6 +15,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.zone_snapshot import ZoneDevice, ZoneSnapshot
+from app.utils.device_classifier import classify_device
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -169,62 +170,23 @@ class ZoneResourceService:
                     tcum = TCUMBrowserImpl()
                 devices = await tcum.batch_search(all_assets[:100])
 
-                # TEZ 设备识别规则：
-                # 1. 模块含 "腾讯云边缘可用区" 或 "TEZ" → 一定是 TEZ
-                # 2. 模块含 "边缘计算" + 过渡关键词(搬迁/buffer/待上线) → TEZ（过渡中）
-                # 3. 模块含 "边缘计算" 但无过渡词 → 非 TEZ（ECM 设备）
-                TEZ_CORE_KEYWORDS = ["腾讯云边缘可用区", "TEZ"]
-                TRANSITIONAL_KEYWORDS = ["待上线", "上线中", "搬迁", "待搬迁", "buffer", "未上线"]
-
                 for dev in devices:
                     module = dev.get("module", "") or ""
                     status = dev.get("status", "") or ""
-                    module_lower = module.lower()
 
-                    # 判断是否 TEZ
-                    is_core_tez = any(kw in module for kw in TEZ_CORE_KEYWORDS)
-                    has_edge_compute = "边缘计算" in module
-                    is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
-
-                    if is_core_tez:
-                        # 明确的 TEZ 设备
-                        is_tez = True
-                    elif has_edge_compute and is_transitional:
-                        # 边缘计算 + 过渡状态 = TEZ 搬迁中
-                        is_tez = True
-                    else:
-                        is_tez = False
-
-                    if not is_tez:
+                    clf = classify_device(module, status)
+                    if not clf["is_tez"]:
                         non_tez_devices.append(dev)
                         continue
 
                     # TEZ 设备：按模块状态分类
-                    if is_transitional:
-                        reason = "未知"
-                        if "待上线" in module or "未上线" in module:
-                            reason = "模块状态：待上线"
-                        elif "上线中" in module:
-                            reason = "模块状态：上线中"
-                        elif "搬迁" in module:
-                            reason = "模块状态：搬迁中"
-                        elif "待搬迁" in module:
-                            reason = "模块状态：待搬迁"
-                        elif "buffer" in module_lower:
-                            reason = "模块状态：buffer（待分配）"
-                        dev["reason"] = reason
+                    if clf["is_transitional"]:
+                        dev["reason"] = clf["reason"]
                         offline_devices.append(dev)
                     elif status == "online":
                         online_devices.append(dev)
                     else:
-                        reason = "未知"
-                        if status == "maintenance":
-                            reason = "设备状态：维护中"
-                        elif status == "offline":
-                            reason = "设备状态：离线/故障"
-                        else:
-                            reason = f"设备状态：{status or '未知'}"
-                        dev["reason"] = reason
+                        dev["reason"] = clf["reason"]
                         offline_devices.append(dev)
 
             # Step 2.5: CMDB 补查 — 找出 IDCRM 没覆盖到的设备（如上线中/待分配的）
@@ -249,51 +211,26 @@ class ZoneResourceService:
                         for dev in supplement_devices:
                             module = dev.get("module", "") or ""
                             status = dev.get("status", "") or ""
-                            module_lower = module.lower()
                             aid = (dev.get("asset_id") or "").upper()
                             if aid in existing_asset_ids:
                                 continue
                             existing_asset_ids.add(aid)
 
-                            is_core_tez = any(kw in module for kw in TEZ_CORE_KEYWORDS)
-                            has_edge_compute = "边缘计算" in module
-                            is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
-
-                            if is_core_tez:
-                                is_tez = True
-                            elif has_edge_compute and is_transitional:
-                                is_tez = True
-                            else:
-                                is_tez = False
-
-                            if not is_tez:
+                            clf = classify_device(module, status)
+                            if not clf["is_tez"]:
                                 non_tez_devices.append(dev)
                                 continue
 
-                            if is_transitional:
-                                reason = "未知"
-                                if "待上线" in module or "未上线" in module:
-                                    reason = "模块状态：待上线"
-                                elif "上线中" in module:
-                                    reason = "模块状态：上线中"
-                                elif "搬迁" in module:
-                                    reason = "模块状态：搬迁中"
-                                elif "待搬迁" in module:
-                                    reason = "模块状态：待搬迁"
-                                elif "buffer" in module_lower:
-                                    reason = "模块状态：buffer（待分配）"
-                                dev["reason"] = reason
+                            if clf["is_transitional"]:
+                                dev["reason"] = clf["reason"]
                                 offline_devices.append(dev)
                             elif status == "online":
                                 online_devices.append(dev)
                             else:
-                                reason = "未知"
+                                reason = clf["reason"]
+                                # 保留 CMDB 补查特有的差异
                                 if status == "maintenance":
                                     reason = "设备状态：上线中/维护"
-                                elif status == "offline":
-                                    reason = "设备状态：离线/故障"
-                                else:
-                                    reason = f"设备状态：{status or '未知'}"
                                 dev["reason"] = reason
                                 offline_devices.append(dev)
             except Exception as exc:

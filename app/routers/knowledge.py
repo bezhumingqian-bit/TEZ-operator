@@ -213,20 +213,32 @@ async def get_article_content(
 
     content = ""
     if article.source_file:
-        # source_file 格式如 "docs/01-tez-product-background.md"
-        file_path = Path(__file__).resolve().parent.parent.parent / article.source_file.replace("docs/", ".codebuddy/teams/tez-ops/docs/")
+        # source_file 格式如 "docs/01-tez-product-background.md" 或 "uploads/knowledge/xxx.docx"
+        file_path = (
+            Path(__file__).resolve().parent.parent.parent
+            / article.source_file.replace("docs/", ".codebuddy/teams/tez-ops/docs/")
+        )
         if not file_path.exists():
-            # 尝试直接在 DOCS_DIR 下找
             fname = Path(article.source_file).name
             file_path = DOCS_DIR / fname
-        if file_path.exists():
+        if not file_path.exists():
+            file_path = UPLOAD_DIR / fname
+
+        # 二进制文档（.docx/.pdf）不要直接 read_text，回退到数据库中的解析后内容
+        is_binary = file_path.suffix.lower() in {".docx", ".pdf"}
+
+        if file_path.exists() and not is_binary:
             content = file_path.read_text(encoding="utf-8")
+        elif article.content:
+            content = article.content
+        elif is_binary:
+            content = f"*{file_path.suffix.upper()[1:]} 原始文档无法直接预览，请下载查看*"
         else:
             content = f"*文件未找到: {article.source_file}*"
     elif article.content:
         content = article.content
     else:
-        content = "*暂无内容*"
+        content = "*暂无内容*";
 
     return ArticleContentResponse(
         id=article.id,

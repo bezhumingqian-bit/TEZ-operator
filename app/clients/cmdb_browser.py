@@ -23,17 +23,15 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-from urllib.parse import urlencode
 
-from app.clients.base import BrowserAuthExpired
+from app.clients.base_browser import BaseBrowserImpl, BrowserAuthExpired
 from app.clients.browser_session import BrowserSession, is_login_url
-from app.config import get_settings
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 
-class CMDBBrowserImpl:
+class CMDBBrowserImpl(BaseBrowserImpl):
     """CMDB 浏览器自动化实现。
 
     Note:
@@ -41,14 +39,8 @@ class CMDBBrowserImpl:
     """
 
     name = "cmdb-browser"
-
-    SELECTOR_TABLE = ".tea-table tbody tr"
-    SELECTOR_FALLBACKS = (
-        ".tea-table tbody tr",
-        ".ant-table-row",
-        "table tbody tr",
-    )
-    DEFAULT_WAIT_AFTER_GOTO_MS = 3500
+    _log_prefix = "cmdb_browser"
+    _sso_deadline = 30
 
     # ── 列序（真实页面校准 2026-05-21）──
     # [0] 空/复选框  [1] 固资号  [2] SN号  [3] 状态(带箭头格式)  [4] 子状态
@@ -68,9 +60,6 @@ class CMDBBrowserImpl:
     COL_CABINET = -1
     COL_APP_ID = -1
     COL_HAS_TPC = -1
-
-    def __init__(self) -> None:
-        self._settings = get_settings()
 
     # ──────────────── public ────────────────
 
@@ -104,9 +93,6 @@ class CMDBBrowserImpl:
         parsed = [self._parse_row(r) for r in rows[:limit]]
         return [p for p in parsed if p.get("asset_id")]
 
-    async def close(self) -> None:
-        return None
-
     async def get_instance_stats_by_zone(self, zone: str) -> dict[str, Any]:
         """区域实例统计 — browser 模式暂不支持（云霄数据源待接入）。"""
 
@@ -134,7 +120,11 @@ class CMDBBrowserImpl:
 
         async with BrowserSession.page() as page:
             try:
-                await page.goto(self._base_query_url(), wait_until="domcontentloaded", timeout=timeout_ms)
+                await page.goto(
+                    self._base_query_url(),
+                    wait_until="domcontentloaded",
+                    timeout=timeout_ms,
+                )
             except Exception as exc:  # noqa: BLE001
                 log.debug("cmdb_browser.goto_warn", error=str(exc))
 
@@ -151,7 +141,12 @@ class CMDBBrowserImpl:
 
             # 填入搜索关键词
             filled = False
-            for sel in ('input[placeholder*="多个"]', '.t-input__inner', '.t-textarea__inner', 'textarea'):
+            for sel in (
+                'input[placeholder*="多个"]',
+                '.t-input__inner',
+                '.t-textarea__inner',
+                'textarea',
+            ):
                 try:
                     inp = page.locator(sel).first
                     if await inp.is_visible(timeout=2000):
@@ -222,81 +217,7 @@ class CMDBBrowserImpl:
                     return hits
             return cleaned
 
-    async def _try_finish_sso_flow(self, page) -> None:
-        """处理扫码后还需点击确认的 SSO 中转流程。"""
-
-        import re as _re
-
-        click_terms = ("登录", "确认", "确定", "继续", "继续访问", "进入", "进入系统", "授权", "同意")
-        deadline = asyncio.get_running_loop().time() + 30
-        while is_login_url(page.url) and asyncio.get_running_loop().time() < deadline:
-            clicked = False
-            for term in click_terms:
-                locators = (
-                    page.get_by_role("button", name=_re.compile(term, _re.I)),
-                    page.get_by_text(_re.compile(term, _re.I)),
-                )
-                for loc in locators:
-                    try:
-                        if await loc.count() > 0 and await loc.first.is_visible(timeout=500):
-                            await loc.first.click(timeout=3000)
-                            await asyncio.sleep(3)
-                            clicked = True
-                            break
-                    except Exception:  # noqa: BLE001
-                        pass
-                if clicked:
-                    break
-            if not clicked:
-                await asyncio.sleep(3)
-
     # ──────────────── 解析 ────────────────
-
-    @classmethod
-    def _safe_cell(cls, cells: list[str], idx: int) -> str | None:
-        if 0 <= idx < len(cells):
-            v = (cells[idx] or "").strip()
-            if not v or v == "-":
-                return None
-            return v
-        return None
-
-    # ── status 中英文映射 ──
-    _STATUS_CN_TO_EN: dict[str, str] = {
-        "运营中": "online",
-        "在线": "online",
-        "维护中": "maintenance",
-        "维修中": "maintenance",
-        "待运营": "maintenance",
-        "待上线": "maintenance",
-        "故障": "offline",
-        "离线": "offline",
-        "下线": "offline",
-    }
-    _VALID_STATUSES = frozenset({"online", "offline", "maintenance"})
-
-    @classmethod
-    def _normalize_status(cls, raw: str | None) -> str | None:
-        """解析 CMDB 的 status 字段。
-
-        真实格式示例: ``--->运营中[需告警]`` / ``运营中`` / ``维护中``。
-        需要：去除 ``--->`` 前缀、``[...]`` 后缀，提取核心状态。
-        """
-        if not raw:
-            return None
-        import re
-
-        # 去除前缀箭头 和 后缀方括号标注
-        v = re.sub(r"^[-=>{>]*", "", raw).strip()
-        v = re.sub(r"\[.*?\]", "", v).strip()
-        if not v:
-            return None
-        if v in cls._VALID_STATUSES:
-            return v
-        if v in cls._STATUS_CN_TO_EN:
-            return cls._STATUS_CN_TO_EN[v]
-        log.warning("cmdb_browser.unknown_status", value=raw)
-        return None
 
     @staticmethod
     def _parse_bool(s: str | None) -> bool | None:

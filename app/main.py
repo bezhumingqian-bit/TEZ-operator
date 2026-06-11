@@ -15,6 +15,7 @@ from app.deps import get_host_service
 from app.routers import hosts as hosts_router
 from app.routers import contacts as contacts_router
 from app.routers import knowledge as knowledge_router
+from app.routers import op_logs as op_logs_router
 from app.routers import workorders as workorders_router
 from app.services.cache_service import cache as default_cache
 from app.utils.logger import get_logger, setup_logging
@@ -142,14 +143,15 @@ def create_app() -> FastAPI:
         return {"status": "ok", "service": "tez-operator", "version": __version__}
 
     @app.get("/", tags=["meta"], include_in_schema=False)
-    def root() -> dict[str, str]:
-        return {"message": "TEZ Operator API. See /docs for OpenAPI."}
+    async def root() -> FileResponse:
+        return FileResponse(str(frontend_dist / "index.html"))
 
     # ── 业务路由 ──
     app.include_router(hosts_router.router, prefix="/api/v1")
     app.include_router(hosts_router.zone_router, prefix="/api/v1")
     app.include_router(contacts_router.router, prefix="/api/v1")
     app.include_router(knowledge_router.router, prefix="/api/v1")
+    app.include_router(op_logs_router.router, prefix="/api/v1")
     app.include_router(workorders_router.router, prefix="/api/v1")
 
     from app.routers import auth as auth_router

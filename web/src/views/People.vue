@@ -93,7 +93,7 @@
         <h3 class="block-title"><el-icon><QuestionFilled /></el-icon> 常见问答</h3>
         <el-collapse>
           <el-collapse-item v-for="faq in faqResults" :key="faq.id" :title="faq.question">
-            <div v-html="faq.answer" class="faq-answer"></div>
+            <div v-html="md.render(faq.answer)" class="faq-answer"></div>
           </el-collapse-item>
         </el-collapse>
       </div>
@@ -231,7 +231,7 @@ import MarkdownIt from 'markdown-it'
 import { routeContacts, type RouteResult } from '@/api/contacts'
 import { searchKnowledge, getArticleContent, listLinks, type ArticleInfo, type LinkInfo, type FAQInfo } from '@/api/knowledge'
 
-const md = new MarkdownIt({ html: true, breaks: true, linkify: true })
+const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 
 const query = ref('')
 const loading = ref(false)

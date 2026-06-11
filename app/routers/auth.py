@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from typing import Any
+import base64
+import hashlib
+import hmac
+import json
+import time
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.deps import get_db_session
-from app.models.user import User, ROLE_PERMISSIONS, has_permission
+from app.models.user import ROLE_PERMISSIONS, User
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -20,19 +25,26 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 # ─── JWT 工具 ───
 
-import hashlib
-import hmac
-import json
-import base64
-import time
-
-SECRET_KEY = "tez-operator-jwt-secret-2026"  # 生产环境应从环境变量读取
+_auth_settings = get_settings()
+SECRET_KEY = _auth_settings.jwt_secret_key
+if not SECRET_KEY:
+    log.warning(
+        "auth.jwt_secret_key_not_set",
+        hint="请在 .env 中设置 TEZ_JWT_SECRET_KEY，否则使用临时密钥",
+    )
+    SECRET_KEY = "tez-operator-jwt-secret-2026"  # noqa: S105
 TOKEN_EXPIRE_DAYS = 7
 
 
 def _hash_password(password: str) -> str:
     """简单的密码哈希（SHA256 + salt）。"""
-    salt = "tez_salt_2026"
+    salt = _auth_settings.password_salt
+    if not salt:
+        log.warning(
+            "auth.password_salt_not_set",
+            hint="请在 .env 中设置 TEZ_PASSWORD_SALT，否则使用临时 salt",
+        )
+        salt = "tez_salt_2026"  # noqa: S105
     return hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
 
 
@@ -49,7 +61,9 @@ def _create_token(user_id: int, username: str, role: str) -> str:
         "exp": int(time.time()) + TOKEN_EXPIRE_DAYS * 86400,
     }
     payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
-    sig = hmac.HMAC(SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()[:32]
+    sig = hmac.HMAC(
+        SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256
+    ).hexdigest()[:32]
     return f"{payload_b64}.{sig}"
 
 
@@ -60,7 +74,9 @@ def _decode_token(token: str) -> dict | None:
         if len(parts) != 2:
             return None
         payload_b64, sig = parts
-        expected_sig = hmac.HMAC(SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256).hexdigest()[:32]
+        expected_sig = hmac.HMAC(
+            SECRET_KEY.encode(), payload_b64.encode(), hashlib.sha256
+        ).hexdigest()[:32]
         if sig != expected_sig:
             return None
         payload = json.loads(base64.urlsafe_b64decode(payload_b64))
@@ -73,10 +89,10 @@ def _decode_token(token: str) -> dict | None:
 
 # ─── 依赖注入：获取当前用户 ───
 
-from fastapi import Request
 
-
-async def get_current_user(request: Request, session: AsyncSession = Depends(get_db_session)) -> User:
+async def get_current_user(
+    request: Request, session: AsyncSession = Depends(get_db_session),
+) -> User:
     """从请求头中提取 token，验证并返回当前用户。"""
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):

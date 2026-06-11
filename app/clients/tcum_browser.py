@@ -18,15 +18,14 @@ import asyncio
 from typing import Any
 from urllib.parse import urlencode
 
-from app.clients.base import BrowserAuthExpired
+from app.clients.base_browser import BaseBrowserImpl, BrowserAuthExpired
 from app.clients.browser_session import BrowserSession, is_login_url
-from app.config import get_settings
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 
-class TCUMBrowserImpl:
+class TCUMBrowserImpl(BaseBrowserImpl):
     """TCUM 浏览器自动化实现。
 
     Note:
@@ -34,20 +33,8 @@ class TCUMBrowserImpl:
     """
 
     name = "tcum-browser"
-
-    # PoC 已验证（docs/15）
-    SELECTOR_TABLE = ".tea-table tbody tr"
-    # 备选：万一页面切到 ant-table 也能命中
-    SELECTOR_FALLBACKS = (
-        ".tea-table tbody tr",
-        ".ant-table-row",
-        "table tbody tr",
-    )
-
-    DEFAULT_WAIT_AFTER_GOTO_MS = 3500  # SPA 渲染等待
-
-    def __init__(self) -> None:
-        self._settings = get_settings()
+    _log_prefix = "tcum_browser"
+    _sso_deadline = 120
 
     # ──────────────── public ────────────────
 
@@ -130,11 +117,14 @@ class TCUMBrowserImpl:
 
                 # 检查是否有下一页
                 try:
-                    next_btn = page.locator(".tea-pagination__btn--next, .ant-pagination-next").first
+                    next_btn = page.locator(
+                        ".tea-pagination__btn--next, .ant-pagination-next"
+                    ).first
                     if await next_btn.count() == 0:
                         break
                     is_disabled = await next_btn.evaluate(
-                        "el => el.disabled || el.classList.contains('disabled') || el.classList.contains('tea-pagination__btn--disabled')"
+                        "el => el.disabled || el.classList.contains('disabled') "
+                        "|| el.classList.contains('tea-pagination__btn--disabled')"
                     )
                     if is_disabled:
                         break
@@ -144,7 +134,11 @@ class TCUMBrowserImpl:
                 except Exception:
                     break
 
-            log.info("tcum_browser.batch_search_done", total_rows=len(all_rows), asset_count=len(asset_ids))
+            log.info(
+                "tcum_browser.batch_search_done",
+                total_rows=len(all_rows),
+                asset_count=len(asset_ids),
+            )
 
             # 解析每行
             results = []
@@ -158,13 +152,17 @@ class TCUMBrowserImpl:
         """在 TCUM 结果页点击设置齿轮 → 勾选'机器状态' → 确定。"""
         try:
             # 点击齿轮/设置按钮
-            gear_btn = page.locator("svg[data-icon='setting'], .tea-icon-setting, button:has-text('设置')").first
+            gear_btn = page.locator(
+                "svg[data-icon='setting'], .tea-icon-setting, button:has-text('设置')"
+            ).first
             # 备选：右上角的齿轮图标
             if await gear_btn.count() == 0:
                 gear_btn = page.locator("[class*='setting'], [class*='gear']").first
             if await gear_btn.count() == 0:
                 # 再试试通过位置找
-                gear_btn = page.locator(".tc-15-table-panel-head .tc-15-bubble-icon, .tea-icon-cog").first
+                gear_btn = page.locator(
+                    ".tc-15-table-panel-head .tc-15-bubble-icon, .tea-icon-cog"
+                ).first
 
             if await gear_btn.count() > 0:
                 await gear_btn.click(timeout=3000)
@@ -175,7 +173,9 @@ class TCUMBrowserImpl:
                 if await status_cb.count() > 0:
                     # 检查是否已经勾选
                     is_checked = await page.evaluate('''() => {
-                        const labels = document.querySelectorAll('label, .ant-checkbox-wrapper, .tea-checkbox');
+                        const labels = document.querySelectorAll(
+                            'label, .ant-checkbox-wrapper, .tea-checkbox'
+                        );
                         for (const l of labels) {
                             if (l.innerText.includes('机器状态')) {
                                 const input = l.querySelector('input[type=checkbox]');
@@ -209,105 +209,11 @@ class TCUMBrowserImpl:
             return None
         return self._parse_row(rows[0])
 
-    async def close(self) -> None:
-        # BrowserSession 是全局单例，由 lifespan 统一关闭
-        return None
-
     # ──────────────── 内部 ────────────────
 
     def _build_search_url(self, key: str) -> str:
         base = self._settings.tcum_base_url.rstrip("/")
         return f"{base}/cmdb/product/search?{urlencode({'key': key})}"
-
-    async def _try_finish_sso_flow(self, page: Any) -> None:
-        """处理扫码后还需点击“登录/确认/进入”的 SSO 中转流程。
-
-        有些内部 SSO 扫码后不会立刻跳转到业务页，需要用户再点一次按钮。
-        这里做非侵入式自动点击：仅在当前 URL 仍像登录页时尝试，成功后等待跳转。
-        """
-
-        click_terms = ("登录", "确认", "确定", "继续", "继续访问", "进入", "进入系统", "授权", "同意")
-        deadline = asyncio.get_running_loop().time() + 120  # 首次登录可能需要扫码，等待最多 120 秒
-        while is_login_url(page.url) and asyncio.get_running_loop().time() < deadline:
-            clicked = False
-            for term in click_terms:
-                locators = (
-                    page.get_by_role("button", name=term),
-                    page.get_by_text(term),
-                )
-                for loc in locators:
-                    try:
-                        if await loc.count() > 0 and await loc.first.is_visible(timeout=500):
-                            log.info("tcum_browser.sso_click", text=term)
-                            await loc.first.click(timeout=3000)
-                            await asyncio.sleep(3)
-                            clicked = True
-                            break
-                    except Exception as exc:  # noqa: BLE001
-                        log.debug("tcum_browser.sso_click_failed", text=term, error=str(exc))
-                if clicked:
-                    break
-            if not clicked:
-                await asyncio.sleep(3)
-
-    async def _fetch_rows(
-        self,
-        url: str,
-        target_keyword: str = "",
-    ) -> list[list[str]]:
-        """打开 URL → 等渲染 → 提取 ``.tea-table tbody tr`` 行。
-
-        返回每行的 cells 文本数组。失败 / 无结果 → ``[]``。
-        """
-        timeout_ms = self._settings.browser_page_timeout_ms
-
-        async with BrowserSession.page() as page:
-            try:
-                await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
-            except Exception as exc:  # noqa: BLE001
-                # networkidle 经常 timeout 但页面其实加载完了，PoC 也是这么处理
-                log.debug("tcum_browser.goto_networkidle_warn", error=str(exc))
-
-            # SPA 渲染留点时间；如落到 SSO 登录/中转页，尝试自动点击登录后的确认按钮。
-            await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
-            await self._try_finish_sso_flow(page)
-
-            current_url = page.url
-            if is_login_url(current_url):
-                log.warning("tcum_browser.auth_expired", url=current_url)
-                raise BrowserAuthExpired("TCUM 登录态失效（被踢回 SSO），请重新扫码登录")
-
-            # 多选择器降级
-            rows: list[list[str]] = []
-            for selector in self.SELECTOR_FALLBACKS:
-                try:
-                    rows = await page.eval_on_selector_all(
-                        selector,
-                        """rows => rows.slice(0, 16).map(r =>
-                            Array.from(r.cells || r.children || []).slice(0, 16).map(
-                                c => (c.innerText || '').trim()
-                            )
-                        )""",
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    log.debug("tcum_browser.selector_failed", selector=selector, error=str(exc))
-                    continue
-                if rows:
-                    log.debug("tcum_browser.selector_hit", selector=selector, count=len(rows))
-                    break
-
-            if not rows:
-                log.info("tcum_browser.no_rows", url=url)
-                return []
-
-            # 过滤掉空行 / 表头干扰
-            cleaned = [r for r in rows if any(c for c in r)]
-            if target_keyword:
-                # 优先返回包含目标关键字的行，避免拿到无关的表头/空行
-                hits = [r for r in cleaned if any(target_keyword.upper() in c.upper() for c in r)]
-                if hits:
-                    return hits
-            return cleaned
 
     # ──────────────── 解析 ────────────────
 
@@ -334,54 +240,6 @@ class TCUMBrowserImpl:
             if v:
                 items.append(v)
         return items
-
-    @classmethod
-    def _safe_cell(cls, cells: list[str], idx: int) -> str | None:
-        if 0 <= idx < len(cells):
-            v = (cells[idx] or "").strip()
-            # "-" 视为空
-            if not v or v == "-":
-                return None
-            return v
-        return None
-
-    # ── status 中英文映射（W3 与前端对齐）──
-    # 数据净化在采集层完成（越靠近源头越好），下游 HostService 不做转换。
-    _STATUS_CN_TO_EN: dict[str, str] = {
-        "运营中": "online",
-        "在线": "online",
-        "维护中": "maintenance",
-        "维修中": "maintenance",
-        "待运营": "maintenance",
-        "待上线": "maintenance",
-        "故障": "offline",
-        "离线": "offline",
-        "下线": "offline",
-    }
-    _VALID_STATUSES = frozenset({"online", "offline", "maintenance"})
-
-    @classmethod
-    def _normalize_status(cls, raw: str | None) -> str | None:
-        """把 TCUM 列表页的中文状态归一化到 ``online/offline/maintenance``。
-
-        真实格式示例: ``--->运营中[需告警]`` / ``运营中`` / ``维护中``。
-        处理：去除 ``--->`` 前缀、``[...]`` 后缀，提取核心状态。
-        """
-        if not raw:
-            return None
-        import re
-
-        # 去除前缀箭头 和 后缀方括号标注
-        v = re.sub(r"^[-=>{>]*", "", raw).strip()
-        v = re.sub(r"\[.*?\]", "", v).strip()
-        if not v:
-            return None
-        if v in cls._VALID_STATUSES:
-            return v
-        if v in cls._STATUS_CN_TO_EN:
-            return cls._STATUS_CN_TO_EN[v]
-        log.warning("tcum_browser.unknown_status", value=raw)
-        return None
 
     @classmethod
     def _parse_row(cls, cells: list[str]) -> dict[str, Any]:

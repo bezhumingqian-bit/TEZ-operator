@@ -16,25 +16,19 @@ import asyncio
 from typing import Any
 from urllib.parse import urlencode
 
-from app.clients.base import BrowserAuthExpired
+from app.clients.base_browser import BaseBrowserImpl, BrowserAuthExpired
 from app.clients.browser_session import BrowserSession, is_login_url
-from app.config import get_settings
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 
-class IDCRMBrowserImpl:
+class IDCRMBrowserImpl(BaseBrowserImpl):
     """数全通浏览器自动化实现（框架占位 —— 真实解析等 W4 联调）。"""
 
     name = "idcrm-browser"
-
-    SELECTOR_FALLBACKS = (
-        ".tea-table tbody tr",
-        ".ant-table-row",
-        "table tbody tr",
-    )
-    DEFAULT_WAIT_AFTER_GOTO_MS = 3500
+    _log_prefix = "idcrm_browser"
+    _fetch_enable_sso = False
 
     # W4 真实页面样本：0 机位ID / 1 一级机房 / 2 机房管理单元 / 3 机架编号
     # 4 机位编号 / 5 Module / 6 机位逻辑区域 / 7 机位状态
@@ -43,9 +37,6 @@ class IDCRMBrowserImpl:
     COL_POSITION = 4
     COL_STATUS = 7
     COL_HAS_TPC = -1
-
-    def __init__(self) -> None:
-        self._settings = get_settings()
 
     async def get_position(
         self,
@@ -78,9 +69,6 @@ class IDCRMBrowserImpl:
             fallback_idc=idc,
             fallback_cabinet=cabinet,
         )
-
-    async def close(self) -> None:
-        return None
 
     # ──────────────── 内部 ────────────────
 
@@ -156,15 +144,6 @@ class IDCRMBrowserImpl:
             return cleaned
 
     # ──────────────── 解析 ────────────────
-
-    @classmethod
-    def _safe_cell(cls, cells: list[str], idx: int) -> str | None:
-        if 0 <= idx < len(cells):
-            v = (cells[idx] or "").strip()
-            if not v or v == "-":
-                return None
-            return v
-        return None
 
     @staticmethod
     def _parse_has_tpc(status: str | None) -> bool | None:

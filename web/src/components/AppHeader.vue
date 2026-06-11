@@ -6,7 +6,7 @@
       </div>
       <div class="app-header__title">{{ appStore.appName }}</div>
       <el-tag size="small" type="info" effect="plain" class="app-header__env"
-        >内部使用 · v1.2.0</el-tag
+        >内部使用 · v{{ appVersion }}</el-tag
       >
     </div>
     <div class="app-header__right">
@@ -23,7 +23,7 @@
           <el-dropdown-menu>
             <el-dropdown-item disabled>
               <el-icon><User /></el-icon>
-              角色: {{ roleLabel }}
+              角色: {{ roleLabelText }}
             </el-dropdown-item>
             <el-dropdown-item command="settings">
               <el-icon><Setting /></el-icon>
@@ -51,12 +51,11 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const router = useRouter()
 
-const avatarText = computed(() => (authStore.displayName?.[0] || 'U').toUpperCase())
+import { roleLabel } from '@/utils/role'
 
-const roleLabel = computed(() => {
-  const map: Record<string, string> = { admin: '管理员', ops: '运维', viewer: '只读' }
-  return map[authStore.role] || authStore.role
-})
+const appVersion = __APP_VERSION__
+const avatarText = computed(() => (authStore.displayName?.[0] || 'U').toUpperCase())
+const roleLabelText = computed(() => roleLabel(authStore.role))
 
 function handleCommand(cmd: string) {
   if (cmd === 'logout') {

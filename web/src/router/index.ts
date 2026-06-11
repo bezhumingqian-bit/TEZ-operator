@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '工单流转', icon: 'Tickets', module: 'workorder' },
   },
   {
+    path: '/ops-logs',
+    name: 'ops-logs',
+    component: () => import('@/views/OpsLogs.vue'),
+    meta: { title: '运维日志', icon: 'Notebook', module: 'ops' },
+  },
+  {
     path: '/demand-request',
     name: 'demand-request',
     component: () => import('@/views/DemandRequest.vue'),

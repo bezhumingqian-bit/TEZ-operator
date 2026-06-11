@@ -155,28 +155,8 @@ const dialogRules = computed<FormRules>(() => ({
   role: [{ required: true, message: '请选择角色', trigger: 'change' }],
 }))
 
-function roleLabel(role: string): string {
-  const map: Record<string, string> = { admin: '管理员', ops: '运维', viewer: '只读' }
-  return map[role] || role
-}
-
-function roleTagType(role: string): '' | 'success' | 'warning' | 'info' | 'danger' {
-  const map: Record<string, '' | 'success' | 'warning' | 'info' | 'danger'> = {
-    admin: 'danger',
-    ops: '',
-    viewer: 'info',
-  }
-  return map[role] || 'info'
-}
-
-function formatTime(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-  } catch {
-    return iso
-  }
-}
+import { formatTime } from '@/utils/formatters'
+import { roleLabel, roleTagType } from '@/utils/role'
 
 async function fetchUsers() {
   loading.value = true

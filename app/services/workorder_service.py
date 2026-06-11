@@ -136,7 +136,7 @@ class WorkOrderService:
             self._remove_pending_push(order_id)
         except Exception as exc:
             log.warning("workorder.onepage_push_failed", order_id=order_id, error=str(exc))
-            await self._update_push_note(order_id, success=False, error=str(exc)[:100])
+            await self._update_push_note(order_id, success=False, error=str(exc)[:500])
 
     async def _update_push_note(self, order_id: int, success: bool, error: str = "") -> None:
         """更新工单备注里的推送状态。"""
@@ -248,7 +248,7 @@ class WorkOrderService:
 
         接收快照 dict 而非 ORM 对象，确保异步执行时数据可靠。
         """
-        from app.skills.tencent_doc_skill import TencentDocSkill
+        from app.skills.tencent_doc_skill import SHEET_DEPLOYMENT, SHEET_MIGRATION, TencentDocSkill
 
         skill = TencentDocSkill()
         detail = snapshot.get("detail", {})
@@ -288,7 +288,7 @@ class WorkOrderService:
                 "reinstall": detail.get("reinstall", ""),
                 "vs_type": detail.get("vs_type", ""),
                 "requirement": title,
-                "migration_ref": detail.get("migration_ref", ""),
+                "migration_ref": detail.get("related_demand", ""),
                 "zone": detail.get("zone", ""),
                 "remark": f"工单 {order_no}",
             }
@@ -300,9 +300,46 @@ class WorkOrderService:
             success=result.get("success"),
             data_snapshot={k: v[:20] if isinstance(v, str) and len(v) > 20 else v for k, v in data.items()},
         )
+
+        # 写运维日志
+        sheet = SHEET_DEPLOYMENT if order_type == "host_deploy" else SHEET_MIGRATION
+        await self._write_push_log(
+            order_no=order_no,
+            sheet_name=sheet,
+            row=result.get("row", 0),
+            success=result.get("success", False),
+            message=result.get("message", ""),
+            mismatches=result.get("mismatches"),
+        )
+
         if not result.get("success"):
             error_msg = result.get("message", result.get("error", "写入失败"))
             raise RuntimeError(f"腾讯文档写入失败: {error_msg}")
+
+    async def _write_push_log(
+        self, order_no: str, sheet_name: str, row: int,
+        success: bool, message: str, mismatches: list | None = None,
+    ) -> None:
+        """写入运维操作日志。"""
+        try:
+            from app.models.op_log import OperationLog
+            status = "fail" if not success else ("warn" if mismatches else "ok")
+            target = f"{sheet_name}:{row}" if row else sheet_name
+            detail = None
+            if mismatches:
+                detail = {"mismatches": mismatches[:10]}  # 最多10个
+            entry = OperationLog(
+                action="push_doc",
+                target=target,
+                status=status,
+                message=message[:500] if message else None,
+                detail=detail,
+                workorder_no=order_no,
+            )
+            self.session.add(entry)
+            await self.session.flush()
+        except Exception:
+            pass
 
     # ─── 查询 ───
 

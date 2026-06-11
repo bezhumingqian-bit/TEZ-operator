@@ -71,7 +71,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 from app.clients.browser_session import BrowserSession, is_login_url
 from app.config import get_settings
@@ -80,11 +80,9 @@ from app.utils.logger import get_logger
 log = get_logger(__name__)
 
 
-# OnePage 文档 URL
-ONEPAGE_URL = (
-    "https://doc.weixin.qq.com/sheet/e3_ARoAXAZbAKAVzsF8h3sTqONbQmUrD"
-    "?scode=AJEAIQdfAAojsFN6C4ARQA7QYwAGY&tab=BB08J2"
-)
+# OnePage 文档 URL（从环境变量读取，避免敏感信息入仓）
+_settings = get_settings()
+ONEPAGE_URL = _settings.tencent_doc_url
 
 # Sheet 名称
 SHEET_MIGRATION = "搬迁记录"
@@ -391,12 +389,15 @@ class TencentDocSkill:
                     break
 
             if mismatches:
-                log.warning(
-                    "tencent_doc.write_mismatch",
-                    sheet=sheet_name,
-                    row=actual_row,
-                    mismatches=mismatches,
-                )
+                log.warning("tencent_doc.dom_mismatch", sheet=sheet_name, row=actual_row, count=len(mismatches))
+
+            # wecom-cli 附加验证（始终执行，综合判断）
+            cli_result = await self._verify_via_wecom_cli(sheet_name, row_data, actual_row)
+            if cli_result:
+                mismatches.extend(cli_result)
+                log.warning("tencent_doc.cli_mismatch", sheet=sheet_name, count=len(cli_result))
+
+            if mismatches:
                 return {
                     "success": True,
                     "message": f"已写入 {sheet_name} 第 {actual_row} 行，但部分列可能未正确填入",
@@ -414,6 +415,125 @@ class TencentDocSkill:
                 "row": actual_row,
                 "verified": True,
             }
+
+    @staticmethod
+    async def _write_op_log(
+        action: str, target: str, status: str, message: str = "",
+        detail: dict | None = None, workorder_no: str = "",
+    ) -> None:
+        """写一条运维操作日志到数据库。"""
+        try:
+            from app.deps import _get_session_factory
+            from app.models.op_log import OperationLog
+            factory = _get_session_factory()
+            async with factory() as session:
+                entry = OperationLog(
+                    action=action,
+                    target=target,
+                    status=status,
+                    message=message[:500] if message else None,
+                    detail=detail,
+                    workorder_no=workorder_no or None,
+                )
+                session.add(entry)
+                await session.commit()
+        except Exception:
+            pass  # 日志写入失败不阻塞主流程
+
+    async def _verify_via_wecom_cli(
+        self, sheet_name: str, row_data: list[str], actual_row: int
+    ) -> list[dict] | None:
+        """用 wecom-cli 读腾讯文档，对比写入的数据是否正确。
+
+        返回 mismatches 列表，如果全部匹配或 CLI 不可用返回 None。
+        """
+        import json
+        import subprocess
+        import time
+        url = ONEPAGE_URL
+        try:
+            # 调 wecom-cli（类型 2 获取表格内容）
+            p = subprocess.run(
+                ["wecom-cli", "doc", "get_doc_content", json.dumps({"url": url, "type": 2})],
+                capture_output=True, text=True, timeout=30,
+            )
+            # 解析 MCP 包装
+            outer = json.loads(p.stdout)
+            text = outer["result"]["content"][0]["text"]
+            inner = json.loads(text) if isinstance(text, str) else text
+            if inner.get("errcode") != 0 or not inner.get("content"):
+                return None
+
+            # 轮询直到 task_done
+            task_id = inner.get("task_id")
+            for _ in range(10):
+                if inner.get("task_done"):
+                    break
+                time.sleep(2)
+                p2 = subprocess.run(
+                    ["wecom-cli", "doc", "get_doc_content",
+                     json.dumps({"url": url, "type": 2, "task_id": task_id})],
+                    capture_output=True, text=True, timeout=30,
+                )
+                text2 = json.loads(p2.stdout)["result"]["content"][0]["text"]
+                inner = json.loads(text2) if isinstance(text2, str) else text2
+
+            content = inner.get("content", "")
+            if not content:
+                return None
+
+            # 找 sheet section
+            lines = content.split("\n")
+            section_start = None
+            for i, line in enumerate(lines):
+                if line.strip() == sheet_name:
+                    section_start = i
+                    break
+            if section_start is None:
+                return None
+
+            # 找最后一行数据（section_start 后第3行开始是数据）
+            data_lines = []
+            for i in range(section_start + 3, len(lines)):
+                line = lines[i].strip()
+                if not line or not line.startswith("|"):
+                    if data_lines:
+                        break
+                    continue
+                data_lines.append(line)
+
+            if not data_lines:
+                return None
+
+            # 取最后一行并解析列值
+            last_row = data_lines[-1]
+            cols = [c.strip() for c in last_row.split("|")[1:-1]]
+
+            # 对比关键列
+            mismatches = []
+            key_indices = {0: "日期", 1: "是否紧急", 2: "需求类型", 3: "固资",
+                           6: "设备型号", 7: "关联需求", 9: "可用区"}
+            for idx, label in key_indices.items():
+                if idx >= len(cols):
+                    continue
+                cli_val = cols[idx].replace("\t", " ").strip()
+                expected_val = (row_data[idx] if idx < len(row_data) else "").replace("\t", " ").strip()
+                if not expected_val:
+                    continue
+                if expected_val and cli_val and expected_val not in cli_val and cli_val not in expected_val:
+                    mismatches.append({
+                        "col": chr(65 + idx),
+                        "label": label,
+                        "expected": expected_val[:40],
+                        "actual": cli_val[:40],
+                    })
+
+            log.info("tencent_doc.wecom_cli_verify", sheet=sheet_name, row=actual_row,
+                     mismatches=len(mismatches))
+            return mismatches if mismatches else None
+        except Exception as exc:
+            log.debug("tencent_doc.wecom_cli_verify_failed", error=str(exc))
+            return None
 
     async def _binary_search_first_empty_row(
         self, page, name_box, formula_bar, start: int, end: int

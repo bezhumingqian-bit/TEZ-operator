@@ -1,7 +1,7 @@
 {
   "name": "tez-operator-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "边缘云资源运维平台 Web 前端 (M1 资源查询)",
   "scripts": {

@@ -17,6 +17,15 @@ done
 
 echo "🚀 启动 TEZ Operator..."
 
+# 0) 清理可能占用 8000 端口的旧进程（防止僵尸 uvicorn 干扰）
+OLD_PIDS=$(lsof -t -i:8000 2>/dev/null || true)
+if [[ -n "$OLD_PIDS" ]]; then
+    echo "⚠️  发现占用 8000 端口的旧进程: $OLD_PIDS，正在清理..."
+    kill -9 $OLD_PIDS 2>/dev/null || true
+    sleep 1
+    echo "✅ 端口 8000 已释放"
+fi
+
 # 1) 检查 Docker 在跑
 if ! docker info > /dev/null 2>&1; then
     echo "❌ Docker 未启动，请先打开 Docker Desktop / 启动 docker 守护进程"
@@ -58,7 +67,7 @@ done
 # 6) 应用层迁移（仅 with-app 时）
 if [[ "$WITH_APP" == "1" ]]; then
     echo "📦 执行数据库迁移..."
-    docker exec tez-backend uv run alembic upgrade head || \
+    docker exec tez-backend python -m alembic upgrade head || \
         echo "⚠️  alembic 未配置或失败，请检查 backend"
 fi
 

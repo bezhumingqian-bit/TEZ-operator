@@ -25,6 +25,7 @@ from app.schemas.host import (
     ZoneInstanceStatsResponse,
 )
 from app.services.host_service import HostService
+from app.utils.device_classifier import classify_device
 from app.utils.logger import get_logger
 from app.utils.parser import detect_query_type, normalize_query
 
@@ -268,8 +269,8 @@ async def get_free_positions(
     数据来源：数全通（IDCRM）机位列表
     筛选条件：机位逻辑区域=虚拟化bonding + 机位状态=空闲
     """
-    from app.data.zone_mapping import ZONE_IDC_MAPPING
     from app.config import get_settings
+    from app.data.zone_mapping import ZONE_IDC_MAPPING
 
     idc = ZONE_IDC_MAPPING.get(zone)
     if not idc:
@@ -319,8 +320,8 @@ async def get_offline_devices(
     3. 模块不含"现网运营"的就是未上线设备
     4. 根据模块路径判断未上线原因
     """
-    from app.data.zone_mapping import ZONE_IDC_MAPPING
     from app.config import get_settings
+    from app.data.zone_mapping import ZONE_IDC_MAPPING
 
     idc = ZONE_IDC_MAPPING.get(zone)
     if not idc:
@@ -364,8 +365,6 @@ async def get_offline_devices(
         # Step 3: 按模块过滤 TEZ 设备 + 分类
         # TEZ 模块特征：[N][腾讯云边缘可用区]
         # ECM 模块特征：[腾讯云][边缘计算]
-        TEZ_MODULE_KEYWORDS = ["腾讯云边缘可用区", "TEZ"]
-
         online_devices = []  # 已上线（运营中）
         offline_devices = []  # 未上线
         non_tez_devices = []  # 非 TEZ 设备
@@ -374,9 +373,8 @@ async def get_offline_devices(
             module = dev.get("module", "") or ""
             status_raw = dev.get("status", "") or ""
 
-            # 判断是否 TEZ 模块
-            is_tez = any(kw in module for kw in TEZ_MODULE_KEYWORDS)
-            if not is_tez:
+            clf = classify_device(module, status_raw)
+            if not clf["is_tez"]:
                 non_tez_devices.append({
                     "asset_id": dev.get("asset_id", ""),
                     "ip": dev.get("ip", ""),
@@ -395,22 +393,12 @@ async def get_offline_devices(
                     "module": module[:50],
                 })
             else:
-                # 判断未上线原因
-                reason = "未知"
-                if "待上线" in module:
-                    reason = "模块状态：待上线"
+                reason = clf["reason"]
+                # 保留 get_offline_devices 特有的差异
+                if "compute_未上线" in module:
+                    reason = "ECM 计算母机未上线"
                 elif "上线中" in module:
                     reason = "模块状态：上线中（等待投放）"
-                elif "搬迁中" in module:
-                    reason = "模块状态：搬迁中"
-                elif "待搬迁" in module:
-                    reason = "模块状态：待搬迁"
-                elif "compute_未上线" in module:
-                    reason = "ECM 计算母机未上线"
-                elif status_raw == "maintenance":
-                    reason = "设备状态：维护中"
-                elif status_raw == "offline":
-                    reason = "设备状态：离线/故障"
 
                 offline_devices.append({
                     "asset_id": dev.get("asset_id", ""),
@@ -475,12 +463,10 @@ async def sync_all_zones(
     耗时约 2-5 分钟（取决于设备数量），前端可用 AbortController 取消。
     HTTP 模式下 IDCRM 查询仅需数秒。
     """
-    from app.services.zone_resource_service import ZoneResourceService
+
     from app.clients.tcum_browser import TCUMBrowserImpl
-    from app.models.zone_snapshot import ZoneSnapshot
     from app.config import get_settings
-    from datetime import datetime
-    import re
+    from app.services.zone_resource_service import ZoneResourceService
 
     settings = get_settings()
     log = get_logger(__name__)
@@ -541,9 +527,6 @@ async def sync_all_zones(
     svc = ZoneResourceService(session)
     updated_zones = []
 
-    TEZ_CORE_KEYWORDS = ["腾讯云边缘可用区", "TEZ"]
-    TRANSITIONAL_KEYWORDS = ["待上线", "上线中", "搬迁", "待搬迁", "buffer", "未上线"]
-
     for idc, data in result.get("results", {}).items():
         zone = data.get("zone", "")
         if not zone:
@@ -561,35 +544,17 @@ async def sync_all_zones(
 
             module = dev.get("module", "") or ""
             status = dev.get("status", "") or ""
-            module_lower = module.lower()
 
-            is_core_tez = any(kw in module for kw in TEZ_CORE_KEYWORDS)
-            has_edge_compute = "边缘计算" in module
-            is_transitional = any(kw in module for kw in TRANSITIONAL_KEYWORDS) or "buffer" in module_lower
-
-            if is_core_tez:
-                is_tez = True
-            elif has_edge_compute and is_transitional:
-                is_tez = True
-            else:
-                is_tez = False
-
-            if not is_tez:
+            clf = classify_device(module, status)
+            if not clf["is_tez"]:
                 non_tez_devices.append(dev)
-            elif is_transitional:
-                reason = "搬迁/待上线"
-                if "待上线" in module or "未上线" in module:
-                    reason = "模块状态：待上线"
-                elif "搬迁" in module:
-                    reason = "模块状态：搬迁中"
-                elif "buffer" in module_lower:
-                    reason = "模块状态：buffer"
-                dev["reason"] = reason
+            elif clf["is_transitional"]:
+                dev["reason"] = clf["reason"]
                 offline_devices.append(dev)
             elif status == "online":
                 online_devices.append(dev)
             else:
-                dev["reason"] = f"设备状态：{status or '未知'}"
+                dev["reason"] = clf["reason"]
                 offline_devices.append(dev)
 
         # 保存快照
@@ -661,6 +626,7 @@ async def query_devices_by_type(
 ) -> dict[str, Any]:
     """按机型从本地 zone_devices 表查询，按区域分组返回。"""
     from sqlalchemy import select
+
     from app.models.zone_snapshot import ZoneDevice
 
     stmt = select(ZoneDevice).where(ZoneDevice.machine_type == machine_type)
@@ -703,7 +669,8 @@ async def list_device_types(
     session: AsyncSession = Depends(get_db_session),
 ) -> dict[str, Any]:
     """从本地 zone_devices 表获取所有去重机型列表。"""
-    from sqlalchemy import select, distinct
+    from sqlalchemy import distinct, select
+
     from app.models.zone_snapshot import ZoneDevice
 
     stmt = select(distinct(ZoneDevice.machine_type)).where(ZoneDevice.machine_type.isnot(None))
@@ -726,35 +693,44 @@ async def lookup_assets(
     查不到再 fallback 到 asset_cache 静态文件。
     """
     from sqlalchemy import select
+
     from app.models.zone_snapshot import ZoneDevice
 
     asset_ids = payload.get("asset_ids", [])
     if isinstance(asset_ids, str):
         asset_ids = [a.strip() for a in asset_ids.replace("\n", ",").split(",") if a.strip()]
 
+    # 标准化输入（去重、大写、限制 100 条）
+    raw_ids = [aid.strip().upper() for aid in asset_ids[:100] if aid.strip()]
+    unique_ids = list(dict.fromkeys(raw_ids))  # 保持顺序去重
+
+    # 批量查询：一次 SELECT ... WHERE asset_id IN (...)
+    stmt = select(ZoneDevice).where(ZoneDevice.asset_id.in_(unique_ids))
+    result = await session.execute(stmt)
+    devices = result.scalars().all()
+
+    # 用字典映射，O(1) 查找
+    db_map = {
+        d.asset_id: {
+            "machine_type": d.machine_type,
+            "zone": d.zone,
+            "ip": d.ip,
+            "status": d.status,
+        }
+        for d in devices
+    }
+
+    # 组装结果：DB 命中直接取，未命中 fallback 到静态缓存
     results = {}
-    for aid in asset_ids[:100]:
-        aid_upper = aid.strip().upper()
-
-        # 优先从 zone_devices 表查
-        stmt = select(ZoneDevice).where(ZoneDevice.asset_id == aid_upper).limit(1)
-        result = await session.execute(stmt)
-        device = result.scalar_one_or_none()
-
-        if device:
-            results[aid_upper] = {
-                "machine_type": device.machine_type,
-                "zone": device.zone,
-                "ip": device.ip,
-                "status": device.status,
-            }
+    for aid in raw_ids:
+        if aid in db_map:
+            results[aid] = db_map[aid]
         else:
-            # fallback 到静态缓存
             try:
                 from app.data.asset_cache import ASSET_CACHE
-                results[aid_upper] = ASSET_CACHE.get(aid_upper)
+                results[aid] = ASSET_CACHE.get(aid)
             except ImportError:
-                results[aid_upper] = None
+                results[aid] = None
 
     found = sum(1 for v in results.values() if v)
     return {"results": results, "found": found, "total": len(results)}

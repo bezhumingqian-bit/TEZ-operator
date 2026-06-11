@@ -109,7 +109,7 @@ class TestUrlBuilder:
         monkeypatch.setenv("TEZ_TCUM_BASE_URL", "http://tcum.example.com/")
         get_settings.cache_clear()  # type: ignore[attr-defined]
         impl2 = TCUMBrowserImpl()
-        assert impl2._build_search_url("X")[-len("/cmdb/product/search?key=X") :] == (
+        assert impl2._build_search_url("X")[-len("/cmdb/product/search?key=X"):] == (
             "/cmdb/product/search?key=X"
         )
 
@@ -120,6 +120,8 @@ class TestFetchRows:
 
     async def test_auth_expired_raises(self) -> None:
         impl = TCUMBrowserImpl()
+        # 加速：SSO 自动点击等待时间置 0，避免 mock 下循环 120s
+        TCUMBrowserImpl._sso_deadline = 0
 
         page = MagicMock()
         page.goto = AsyncMock()
@@ -127,11 +129,13 @@ class TestFetchRows:
         page.eval_on_selector_all = AsyncMock(return_value=[])
 
         with patch(
-            "app.clients.tcum_browser.BrowserSession.page",
+            "app.clients.base_browser.BrowserSession.page",
             _fake_page_ctx(page),
         ):
             with pytest.raises(BrowserAuthExpired):
                 await impl._fetch_rows("http://tcum.example.com/q?key=X")
+
+        TCUMBrowserImpl._sso_deadline = 120
 
     async def test_no_rows_returns_empty(self) -> None:
         impl = TCUMBrowserImpl()
@@ -141,7 +145,7 @@ class TestFetchRows:
         page.eval_on_selector_all = AsyncMock(return_value=[])
 
         with patch(
-            "app.clients.tcum_browser.BrowserSession.page",
+            "app.clients.base_browser.BrowserSession.page",
             _fake_page_ctx(page),
         ):
             rows = await impl._fetch_rows("http://tcum.example.com/q?key=X")
@@ -156,7 +160,7 @@ class TestFetchRows:
         page.eval_on_selector_all = AsyncMock(return_value=[SAMPLE_CELLS])
 
         with patch(
-            "app.clients.tcum_browser.BrowserSession.page",
+            "app.clients.base_browser.BrowserSession.page",
             _fake_page_ctx(page),
         ):
             data = await impl.get_by_asset("TYSV00000001")

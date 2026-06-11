@@ -106,12 +106,19 @@ class Settings(BaseSettings):
     # ───────── 告警（企微 webhook，空则只 log） ─────────
     wecom_webhook: str = Field(default="", description="企业微信群机器人 webhook URL，空则只打日志")
 
+    # ───────── 认证 ─────────
+    jwt_secret_key: str = Field(default="", description="JWT 签名密钥，生产环境必须设置强密钥")
+    password_salt: str = Field(default="", description="密码哈希 salt，生产环境必须设置")
+
     # ───────── AI 助手 ─────────
     # 支持任何兼容 OpenAI Chat API 格式的模型（混元/DeepSeek/GPT/CodeBuddy等）
     ai_api_base: str = Field(default="", description="AI API base URL（如 https://api.hunyuan.cloud.tencent.com/v1）")
     ai_api_key: str = Field(default="", description="API Key 或 Bearer Token")
     ai_model: str = Field(default="hunyuan-lite", description="模型名称")
     ai_max_tokens: int = Field(default=2000, description="最大输出 token 数")
+
+    # ───────── 腾讯文档（工单同步）─────────
+    tencent_doc_url: str = Field(default="", description="OnePage 腾讯文档 URL")
 
 
 @lru_cache(maxsize=1)

@@ -12,7 +12,7 @@
           <el-input :model-value="authStore.user?.username" disabled />
         </el-form-item>
         <el-form-item label="角色">
-          <el-tag :type="roleTagType">{{ roleLabel }}</el-tag>
+          <el-tag :type="roleTagTypeValue">{{ roleLabelText }}</el-tag>
         </el-form-item>
         <el-form-item label="显示名">
           <div class="settings-inline">
@@ -154,16 +154,10 @@ async function changePassword() {
   }
 }
 
-// ─── 角色显示 ───
-const roleLabel = computed(() => {
-  const map: Record<string, string> = { admin: '管理员', ops: '运维', viewer: '只读' }
-  return map[authStore.role] || authStore.role
-})
+import { roleLabel, roleTagType } from '@/utils/role'
 
-const roleTagType = computed(() => {
-  const map: Record<string, string> = { admin: 'danger', ops: '', viewer: 'info' }
-  return (map[authStore.role] || 'info') as '' | 'success' | 'warning' | 'info' | 'danger'
-})
+const roleLabelText = computed(() => roleLabel(authStore.role))
+const roleTagTypeValue = computed(() => roleTagType(authStore.role))
 </script>
 
 <style scoped>

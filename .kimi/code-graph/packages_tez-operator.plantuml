@@ -1,0 +1,293 @@
+@startuml packages_tez-operator
+set namespaceSeparator none
+package "app" as app {
+}
+package "app.clients" as app.clients {
+}
+package "app.clients.base" as app.clients.base {
+}
+package "app.clients.base_browser" as app.clients.base_browser {
+}
+package "app.clients.browser_session" as app.clients.browser_session {
+}
+package "app.clients.cmdb" as app.clients.cmdb {
+}
+package "app.clients.cmdb_browser" as app.clients.cmdb_browser {
+}
+package "app.clients.cmdb_mock" as app.clients.cmdb_mock {
+}
+package "app.clients.idcrm" as app.clients.idcrm {
+}
+package "app.clients.idcrm_browser" as app.clients.idcrm_browser {
+}
+package "app.clients.idcrm_http" as app.clients.idcrm_http {
+}
+package "app.clients.idcrm_mock" as app.clients.idcrm_mock {
+}
+package "app.clients.tcum" as app.clients.tcum {
+}
+package "app.clients.tcum_browser" as app.clients.tcum_browser {
+}
+package "app.clients.tcum_http" as app.clients.tcum_http {
+}
+package "app.clients.tcum_mock" as app.clients.tcum_mock {
+}
+package "app.config" as app.config {
+}
+package "app.deps" as app.deps {
+}
+package "app.main" as app.main {
+}
+package "app.models" as app.models {
+}
+package "app.models.base" as app.models.base {
+}
+package "app.models.contact" as app.models.contact {
+}
+package "app.models.host" as app.models.host {
+}
+package "app.models.knowledge" as app.models.knowledge {
+}
+package "app.models.op_log" as app.models.op_log {
+}
+package "app.models.user" as app.models.user {
+}
+package "app.models.workorder" as app.models.workorder {
+}
+package "app.models.zone_snapshot" as app.models.zone_snapshot {
+}
+package "app.routers" as app.routers {
+}
+package "app.routers.ai" as app.routers.ai {
+}
+package "app.routers.auth" as app.routers.auth {
+}
+package "app.routers.contacts" as app.routers.contacts {
+}
+package "app.routers.cost" as app.routers.cost {
+}
+package "app.routers.hosts" as app.routers.hosts {
+}
+package "app.routers.knowledge" as app.routers.knowledge {
+}
+package "app.routers.op_logs" as app.routers.op_logs {
+}
+package "app.routers.workorders" as app.routers.workorders {
+}
+package "app.scheduler" as app.scheduler {
+}
+package "app.schemas" as app.schemas {
+}
+package "app.schemas.common" as app.schemas.common {
+}
+package "app.schemas.contact" as app.schemas.contact {
+}
+package "app.schemas.host" as app.schemas.host {
+}
+package "app.services" as app.services {
+}
+package "app.services.ai_service" as app.services.ai_service {
+}
+package "app.services.cache_service" as app.services.cache_service {
+}
+package "app.services.contact_service" as app.services.contact_service {
+}
+package "app.services.document_parser" as app.services.document_parser {
+}
+package "app.services.export_service" as app.services.export_service {
+}
+package "app.services.host_service" as app.services.host_service {
+}
+package "app.services.knowledge_service" as app.services.knowledge_service {
+}
+package "app.services.workorder_service" as app.services.workorder_service {
+}
+package "app.services.zone_resource_service" as app.services.zone_resource_service {
+}
+package "app.skills" as app.skills {
+}
+package "app.skills.idcrm_position_skill" as app.skills.idcrm_position_skill {
+}
+package "app.skills.tencent_doc_skill" as app.skills.tencent_doc_skill {
+}
+package "app.skills.ui_skill" as app.skills.ui_skill {
+}
+package "app.utils" as app.utils {
+}
+package "app.utils.alert" as app.utils.alert {
+}
+package "app.utils.device_classifier" as app.utils.device_classifier {
+}
+package "app.utils.logger" as app.utils.logger {
+}
+package "app.utils.normalize" as app.utils.normalize {
+}
+package "app.utils.parser" as app.utils.parser {
+}
+app.clients --> app.clients.base
+app.clients --> app.clients.browser_session
+app.clients --> app.clients.cmdb
+app.clients --> app.clients.idcrm
+app.clients --> app.clients.tcum
+app.clients.base --> app.utils.logger
+app.clients.base_browser --> app.clients.base
+app.clients.base_browser --> app.clients.browser_session
+app.clients.base_browser --> app.config
+app.clients.base_browser --> app.utils.logger
+app.clients.base_browser --> app.utils.normalize
+app.clients.browser_session --> app.config
+app.clients.browser_session --> app.utils.logger
+app.clients.cmdb --> app.clients.base
+app.clients.cmdb --> app.clients.cmdb_browser
+app.clients.cmdb --> app.clients.cmdb_mock
+app.clients.cmdb --> app.config
+app.clients.cmdb --> app.utils.logger
+app.clients.cmdb_browser --> app.clients.base_browser
+app.clients.cmdb_browser --> app.clients.browser_session
+app.clients.cmdb_browser --> app.utils.logger
+app.clients.idcrm --> app.clients.base
+app.clients.idcrm --> app.clients.idcrm_browser
+app.clients.idcrm --> app.clients.idcrm_mock
+app.clients.idcrm --> app.config
+app.clients.idcrm --> app.utils.logger
+app.clients.idcrm_browser --> app.clients.base_browser
+app.clients.idcrm_browser --> app.clients.browser_session
+app.clients.idcrm_browser --> app.utils.logger
+app.clients.idcrm_http --> app.clients.browser_session
+app.clients.idcrm_http --> app.config
+app.clients.idcrm_http --> app.utils.logger
+app.clients.tcum --> app.clients.base
+app.clients.tcum --> app.clients.tcum_browser
+app.clients.tcum --> app.clients.tcum_mock
+app.clients.tcum --> app.config
+app.clients.tcum --> app.utils.logger
+app.clients.tcum_browser --> app.clients.base_browser
+app.clients.tcum_browser --> app.clients.browser_session
+app.clients.tcum_browser --> app.utils.logger
+app.clients.tcum_http --> app.clients.browser_session
+app.clients.tcum_http --> app.config
+app.clients.tcum_http --> app.utils.logger
+app.deps --> app.config
+app.deps --> app.services.host_service
+app.main --> app
+app.main --> app.clients.browser_session
+app.main --> app.config
+app.main --> app.deps
+app.main --> app.routers
+app.main --> app.routers.ai
+app.main --> app.routers.auth
+app.main --> app.routers.contacts
+app.main --> app.routers.cost
+app.main --> app.routers.hosts
+app.main --> app.routers.knowledge
+app.main --> app.routers.op_logs
+app.main --> app.routers.workorders
+app.main --> app.scheduler
+app.main --> app.services.cache_service
+app.main --> app.services.workorder_service
+app.main --> app.utils.logger
+app.models --> app.models.base
+app.models --> app.models.contact
+app.models --> app.models.knowledge
+app.models --> app.models.op_log
+app.models --> app.models.workorder
+app.models --> app.models.zone_snapshot
+app.models.contact --> app.models.base
+app.models.host --> app.models.base
+app.models.knowledge --> app.models.base
+app.models.op_log --> app.models.base
+app.models.user --> app.models.base
+app.models.workorder --> app.models.base
+app.models.zone_snapshot --> app.models.base
+app.routers.ai --> app.deps
+app.routers.ai --> app.models.knowledge
+app.routers.ai --> app.services.ai_service
+app.routers.auth --> app.config
+app.routers.auth --> app.deps
+app.routers.auth --> app.models.user
+app.routers.auth --> app.utils.logger
+app.routers.contacts --> app.deps
+app.routers.contacts --> app.schemas.contact
+app.routers.contacts --> app.services.contact_service
+app.routers.hosts --> app.clients.browser_session
+app.routers.hosts --> app.clients.idcrm_http
+app.routers.hosts --> app.clients.tcum_browser
+app.routers.hosts --> app.clients.tcum_http
+app.routers.hosts --> app.config
+app.routers.hosts --> app.deps
+app.routers.hosts --> app.models.zone_snapshot
+app.routers.hosts --> app.schemas.host
+app.routers.hosts --> app.services.export_service
+app.routers.hosts --> app.services.host_service
+app.routers.hosts --> app.services.zone_resource_service
+app.routers.hosts --> app.skills.idcrm_position_skill
+app.routers.hosts --> app.utils.device_classifier
+app.routers.hosts --> app.utils.logger
+app.routers.hosts --> app.utils.parser
+app.routers.knowledge --> app.deps
+app.routers.knowledge --> app.models.knowledge
+app.routers.knowledge --> app.services.document_parser
+app.routers.knowledge --> app.services.knowledge_service
+app.routers.op_logs --> app.deps
+app.routers.op_logs --> app.models.op_log
+app.routers.workorders --> app.deps
+app.routers.workorders --> app.services.workorder_service
+app.scheduler --> app.clients.tcum_browser
+app.scheduler --> app.config
+app.scheduler --> app.deps
+app.scheduler --> app.models.zone_snapshot
+app.scheduler --> app.services.zone_resource_service
+app.scheduler --> app.skills.idcrm_position_skill
+app.scheduler --> app.utils.logger
+app.services.ai_service --> app.config
+app.services.ai_service --> app.utils.logger
+app.services.cache_service --> app.config
+app.services.cache_service --> app.utils.logger
+app.services.contact_service --> app.models.contact
+app.services.contact_service --> app.schemas.contact
+app.services.contact_service --> app.utils.logger
+app.services.export_service --> app.schemas.host
+app.services.host_service --> app.clients.base
+app.services.host_service --> app.clients.cmdb
+app.services.host_service --> app.clients.idcrm
+app.services.host_service --> app.clients.tcum
+app.services.host_service --> app.config
+app.services.host_service --> app.deps
+app.services.host_service --> app.models.host
+app.services.host_service --> app.schemas.host
+app.services.host_service --> app.services.cache_service
+app.services.host_service --> app.utils.alert
+app.services.host_service --> app.utils.logger
+app.services.host_service --> app.utils.normalize
+app.services.knowledge_service --> app.models.knowledge
+app.services.knowledge_service --> app.utils.logger
+app.services.workorder_service --> app.deps
+app.services.workorder_service --> app.models.contact
+app.services.workorder_service --> app.models.op_log
+app.services.workorder_service --> app.models.workorder
+app.services.workorder_service --> app.skills.tencent_doc_skill
+app.services.workorder_service --> app.utils.logger
+app.services.zone_resource_service --> app.clients.cmdb
+app.services.zone_resource_service --> app.clients.idcrm_http
+app.services.zone_resource_service --> app.clients.tcum_browser
+app.services.zone_resource_service --> app.clients.tcum_http
+app.services.zone_resource_service --> app.config
+app.services.zone_resource_service --> app.models.zone_snapshot
+app.services.zone_resource_service --> app.skills.idcrm_position_skill
+app.services.zone_resource_service --> app.utils.device_classifier
+app.services.zone_resource_service --> app.utils.logger
+app.skills.idcrm_position_skill --> app.clients.browser_session
+app.skills.idcrm_position_skill --> app.skills.ui_skill
+app.skills.idcrm_position_skill --> app.utils.logger
+app.skills.tencent_doc_skill --> app.clients.browser_session
+app.skills.tencent_doc_skill --> app.config
+app.skills.tencent_doc_skill --> app.deps
+app.skills.tencent_doc_skill --> app.models.op_log
+app.skills.tencent_doc_skill --> app.utils.logger
+app.skills.ui_skill --> app.clients.browser_session
+app.skills.ui_skill --> app.config
+app.skills.ui_skill --> app.utils.logger
+app.utils.alert --> app.config
+app.utils.alert --> app.utils.logger
+app.utils.normalize --> app.utils.logger
+@enduml

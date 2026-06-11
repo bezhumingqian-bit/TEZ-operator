@@ -9,7 +9,7 @@
       <div class="dashboard__search">
         <el-input
           v-model="assistantQuery"
-          placeholder="有问题？输入关键词快速找答案（如：母机故障 / 搬迁 / 找机器）"
+          placeholder="搜索母机故障、搬迁、找机器等关键词"
           size="large"
           clearable
           @keyup.enter="goAssistant"
@@ -53,7 +53,7 @@
               <el-button text type="primary" size="small" @click="$router.push('/workorder')">查看全部 →</el-button>
             </div>
           </template>
-          <el-table :data="recentOrders" size="small" v-loading="ordersLoading" :show-header="true" class="order-table">
+          <el-table v-if="recentOrders.length" :data="recentOrders" size="small" v-loading="ordersLoading" :show-header="true" class="order-table" @row-click="() => $router.push('/workorder')">
             <el-table-column width="4">
               <template #default="{ row }">
                 <div class="status-bar" :class="'status-bar--' + row.status"></div>
@@ -64,7 +64,6 @@
                 <span class="order-no">{{ row.order_no }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="title" label="标题" min-width="150" show-overflow-tooltip />
             <el-table-column prop="order_type" label="类型" width="70" align="center">
               <template #default="{ row }">
                 <el-tag size="small" :type="row.order_type === 'migration' ? 'warning' : 'primary'" effect="plain">
@@ -72,9 +71,25 @@
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column label="固资号" width="120" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="key-info">{{ extractAssets(row) || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="型号" width="100" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="key-info">{{ extractVsType(row) || '-' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="可用区" width="95" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-tag size="small" type="success" effect="plain" v-if="extractZone(row)">{{ extractZone(row) }}</el-tag>
+                <span v-else style="color:#c0c4cc">-</span>
+              </template>
+            </el-table-column>
             <el-table-column prop="status" label="状态" width="80" align="center">
               <template #default="{ row }">
-                <el-tag size="small" :type="statusType(row.status)" effect="dark" round>{{ statusLabel(row.status) }}</el-tag>
+                <el-tag size="small" :type="orderStatusType(row.status)" effect="dark" round>{{ orderStatusLabel(row.status) }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="created_at" label="时间" width="120">
@@ -83,7 +98,7 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-empty v-if="!ordersLoading && recentOrders.length === 0" description="暂无工单" :image-size="60" />
+          <el-empty v-else-if="!ordersLoading" description="暂无工单" :image-size="60" />
         </el-card>
       </el-col>
 
@@ -113,7 +128,7 @@
         </el-card>
 
         <!-- 行业需求单 -->
-        <el-card v-if="demandOrders.length" shadow="never" class="content-card" style="margin-bottom: 16px">
+        <el-card shadow="never" class="content-card" style="margin-bottom: 16px">
           <template #header>
             <div class="card-header">
               <b>行业需求单</b>
@@ -123,7 +138,7 @@
               </div>
             </div>
           </template>
-          <div class="demand-list">
+          <div v-if="demandOrders.length" class="demand-list">
             <div v-for="d in demandOrders" :key="d.order_no" class="demand-item">
               <div class="demand-item__title">{{ d.title }}</div>
               <div class="demand-item__meta">
@@ -132,6 +147,9 @@
               </div>
             </div>
           </div>
+          <el-empty v-else description="暂无行业需求单" :image-size="60">
+            <el-button type="primary" size="small" @click="openDemandForm">去提单</el-button>
+          </el-empty>
         </el-card>
 
         <!-- 节点概览 -->
@@ -141,29 +159,57 @@
               <b>节点资源</b>
               <div>
                 <el-button size="small" :loading="syncAllLoading" @click="syncAllZones">
-                  🔄 刷新全部
+                  <el-icon><Refresh /></el-icon> 刷新全部
                 </el-button>
                 <el-button text type="primary" size="small" @click="$router.push('/hosts')">详细 →</el-button>
               </div>
             </div>
           </template>
-          <el-table :data="zoneSnapshots" size="small" v-loading="zonesLoading" class="zone-table">
-            <el-table-column prop="zone" label="可用区" min-width="130" show-overflow-tooltip />
-            <el-table-column prop="free_count" label="空闲" width="60" align="center">
-              <template #default="{ row }">
-                <span class="cell-highlight" :class="{ 'cell-highlight--danger': row.free_count === 0, 'cell-highlight--success': row.free_count > 0 }">
-                  {{ row.free_count }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="total_positions" label="总位" width="60" align="center" />
-            <el-table-column prop="online_count" label="在线" width="60" align="center">
-              <template #default="{ row }">
-                <span style="color:#67c23a">{{ row.online_count }}</span>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-empty v-if="!zonesLoading && zoneSnapshots.length === 0" description="暂无数据" :image-size="50">
+
+          <div v-if="zonesLoading" v-loading="zonesLoading" style="min-height: 80px"></div>
+
+          <template v-else-if="zoneSnapshots.length">
+            <!-- Zone 数量 ≤ 3：紧凑卡片模式 -->
+            <div v-if="zoneSnapshots.length <= 3" class="zone-cards">
+              <div v-for="z in zoneSnapshots" :key="z.zone" class="zone-card">
+                <div class="zone-card__name" :title="z.zone">{{ z.zone }}</div>
+                <div class="zone-card__stats">
+                  <span class="zone-card__stat">
+                    <span class="zone-card__label">空闲</span>
+                    <span class="zone-card__value" :class="z.free_count === 0 ? 'text-danger' : 'text-success'">{{ z.free_count }}</span>
+                  </span>
+                  <span class="zone-card__stat">
+                    <span class="zone-card__label">总位</span>
+                    <span class="zone-card__value">{{ z.total_positions }}</span>
+                  </span>
+                  <span class="zone-card__stat">
+                    <span class="zone-card__label">在线</span>
+                    <span class="zone-card__value text-success">{{ z.online_count }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Zone 数量 > 3：表格模式 -->
+            <el-table v-else :data="zoneSnapshots" size="small" class="zone-table">
+              <el-table-column prop="zone" label="可用区" min-width="130" show-overflow-tooltip />
+              <el-table-column prop="free_count" label="空闲" width="60" align="center">
+                <template #default="{ row }">
+                  <span class="cell-highlight" :class="{ 'cell-highlight--danger': row.free_count === 0, 'cell-highlight--success': row.free_count > 0 }">
+                    {{ row.free_count }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="total_positions" label="总位" width="60" align="center" />
+              <el-table-column prop="online_count" label="在线" width="60" align="center">
+                <template #default="{ row }">
+                  <span style="color:#67c23a">{{ row.online_count }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+
+          <el-empty v-else description="暂无数据" :image-size="50">
             <template #description>
               <span style="color:#909399;font-size:12px">在「资源查询 → 节点资源概况」中查询后自动缓存</span>
             </template>
@@ -177,19 +223,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose, ChatDotRound } from '@element-plus/icons-vue'
+import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose, ChatDotRound, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 
-// ─── 运维助手搜索 ───
+// ─── AI 助手搜索 ───
 const assistantQuery = ref('')
 function goAssistant() {
   const q = assistantQuery.value.trim()
   if (q) {
-    router.push({ path: '/assistant', query: { q } })
+    router.push({ path: '/ai', query: { q } })
   } else {
-    router.push('/assistant')
+    router.push('/ai')
   }
 }
 
@@ -256,22 +302,20 @@ const statCards = computed(() => [
 ])
 
 // ─── 最近工单 ───
-interface OrderBrief { order_no: string; title: string; order_type: string; status: string; created_at: string; creator: string }
+interface OrderBrief { order_no: string; title: string; order_type: string; status: string; created_at: string; creator: string; detail?: Record<string, any> }
 const recentOrders = ref<OrderBrief[]>([])
 const demandOrders = ref<OrderBrief[]>([])
 
-function statusType(s: string) {
-  const map: Record<string, string> = { submitted: 'warning', pending: 'info', processing: '', verifying: 'info', completed: 'success', rejected: 'danger' }
-  return map[s] || ''
+// 从 detail 提取关键字段
+function extractAssets(row: OrderBrief): string {
+  const d = row.detail || {}
+  const raw = d.asset_ids || ''
+  // 取前两行固资号，每行截断
+  const lines = String(raw).split('\n').filter(Boolean)
+  const preview = lines.slice(0, 2).map((l: string) => l.trim().slice(0, 18)).join(', ')
+  return lines.length > 2 ? preview + '…' : preview
 }
-function statusLabel(s: string) {
-  const map: Record<string, string> = { submitted: '待受理', pending: '待处理', processing: '处理中', verifying: '待验证', completed: '已完成', rejected: '已驳回' }
-  return map[s] || s
-}
-function formatTime(t: string) {
-  if (!t) return ''
-  return new Date(t).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
+import { formatTime, orderStatusType, orderStatusLabel, extractZone } from '@/utils/formatters'
 
 // ─── 节点概览 ───
 interface ZoneSnapshotBrief { zone: string; idc: string; total_positions: number; free_count: number; online_count: number; offline_count: number }
@@ -443,6 +487,56 @@ onMounted(async () => {
 .quick-item:hover {
   background: var(--tez-bg);
 }
+
+/* ─── 节点紧凑卡片 ─── */
+.zone-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.zone-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #f3f4f6;
+  transition: background 0.15s;
+}
+.zone-card:hover {
+  background: #f0f4ff;
+}
+.zone-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.zone-card__stats {
+  display: flex;
+  gap: 20px;
+}
+.zone-card__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.zone-card__label {
+  font-size: 11px;
+  color: #9ca3af;
+}
+.zone-card__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #374151;
+}
+.text-danger { color: var(--tez-danger) !important; }
+.text-success { color: var(--tez-success) !important; }
 
 /* ─── 节点表格 ─── */
 .cell-highlight {

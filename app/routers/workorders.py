@@ -74,7 +74,7 @@ class OrderInfo(BaseModel):
 
 
 class OrderBrief(BaseModel):
-    """列表用简版（不含 logs）。"""
+    """列表用简版（不含 logs，含 detail 关键字段）。"""
     id: int
     order_no: str
     order_type: str
@@ -82,6 +82,7 @@ class OrderBrief(BaseModel):
     status: str
     creator: str
     assignee: str | None = None
+    detail: dict | None = None   # 前端从中读取 asset_ids / vs_type / zone
     priority: int
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -140,8 +141,14 @@ async def create_order(
         "created_at": order.created_at.isoformat() if order.created_at else None,
     }
     if push_result:
-        resp["push_success"] = push_result.get("success", False)
-        if not push_result.get("success"):
+        if push_result.get("queued"):
+            # 后台异步推送，API 响应时任务还没完成 → 不算失败
+            resp["push_success"] = True
+            resp["push_pending"] = True
+        elif push_result.get("success"):
+            resp["push_success"] = True
+        else:
+            resp["push_success"] = False
             resp["push_error"] = push_result.get("error", "未知错误")
     return resp
 

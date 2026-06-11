@@ -40,49 +40,7 @@ CACHE_KEY_ZONE_INSTANCE_STATS = "zone:{zone}:instance_stats"
 
 CACHE_DUMP_KW = {"by_alias": True, "mode": "json", "exclude": {"raw_json"}}
 
-# ── status 映射兜底（W3 与前端对齐）──
-# 主映射在 TCUMBrowserImpl._parse_row 完成（数据净化在采集层做，越靠近源头越好）。
-# 这里仅作为兜底：万一某 client 漏配映射，HostService 层不让脏数据穿透到前端。
-STATUS_MAP_CN_TO_EN: dict[str, str] = {
-    "运营中": "online",
-    "在线": "online",
-    "维护中": "maintenance",
-    "维修中": "maintenance",
-    "待运营": "maintenance",
-    "待上线": "maintenance",
-    "故障": "offline",
-    "离线": "offline",
-    "下线": "offline",
-}
-_VALID_STATUSES = {"online", "offline", "maintenance"}
-
-
-def _normalize_status(raw: str | None) -> str | None:
-    """归一化兜底：把任意来源的 status 收敛到 ``online/offline/maintenance``。
-
-    采集层（TCUMBrowserImpl/CMDBBrowserImpl）已做主映射，这里只兜底：
-    - 已是合法英文 → 返回
-    - 带前缀箭头/后缀标注 → 清洗后再匹配
-    - 中文映射命中 → 翻译
-    - 其他 → 记 warning + 返回 None（schema 是 Literal，传脏数据会 422）
-    """
-    if not raw:
-        return None
-    import re
-
-    v = raw.strip()
-    if v in _VALID_STATUSES:
-        return v
-    # 清洗箭头前缀和方括号标注
-    v = re.sub(r"^[-=>{>]*", "", v).strip()
-    v = re.sub(r"\[.*?\]", "", v).strip()
-    if v in _VALID_STATUSES:
-        return v
-    if v in STATUS_MAP_CN_TO_EN:
-        return STATUS_MAP_CN_TO_EN[v]
-    log.warning("host.unknown_status", value=raw)
-    return None
-
+from app.utils.normalize import normalize_status
 
 # ── 占位 zone 列表（mock 模式时 GET /api/v1/zones 用）──
 # 严格脱敏：不带任何真实城市/产品代号（docs/16 § 二），
@@ -405,7 +363,7 @@ class HostService:
                     ip=row.ip,
                     zone=row.zone,
                     machine_type=row.machine_type,
-                    status=_normalize_status(row.status),
+                    status=normalize_status(row.status),
                     idc=row.idc,
                     cabinet=row.cabinet,
                     position=row.position,
@@ -549,7 +507,7 @@ class HostService:
             ip=cmdb.get("ip") or tcum.get("ip"),
             zone=cmdb.get("zone") or tcum.get("zone"),
             machine_type=cmdb.get("machine_type") or tcum.get("machine_type"),
-            status=_normalize_status(cmdb.get("status") or tcum.get("status")),
+            status=normalize_status(cmdb.get("status") or tcum.get("status")),
             idc=tcum.get("idc") or cmdb.get("idc"),
             cabinet=idc.get("cabinet") or tcum.get("cabinet") or cmdb.get("cabinet"),
             position=idc.get("position"),

@@ -60,8 +60,11 @@
 
 <script setup lang="ts">
 import { ref, nextTick, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+
+const route = useRoute()
 import apiClient from '@/api/client'
 import MarkdownIt from 'markdown-it'
 
@@ -133,6 +136,13 @@ onMounted(async () => {
     const resp = await apiClient.get('/api/v1/ai/status')
     aiConfigured.value = resp.data.configured
   } catch {}
+
+  // 如果从驾驶舱搜索跳转过来，自动发送问题
+  const q = route.query.q as string | undefined
+  if (q && q.trim()) {
+    await nextTick()
+    sendMessage(q.trim())
+  }
 })
 </script>
 

@@ -36,7 +36,7 @@
       <el-table-column prop="machine_type" label="机型" width="140" />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag size="small" :type="statusType(row.status)" effect="plain">
+          <el-tag size="small" :type="hostStatusType(row.status)" effect="plain">
             {{ row.status || '未知' }}
           </el-tag>
         </template>
@@ -73,13 +73,7 @@ function onSelectionChange(rows: HostInfo[]) {
   selected.value = rows
 }
 
-function statusType(s?: string | null): 'success' | 'warning' | 'danger' | 'info' {
-  const v = (s || '').toLowerCase()
-  if (v === 'online' || v === '运营中') return 'success'
-  if (v === 'maintenance' || v === '维护中') return 'warning'
-  if (v === 'offline' || v === '故障') return 'danger'
-  return 'info'
-}
+import { hostStatusType } from '@/utils/formatters'
 </script>
 
 <style scoped>

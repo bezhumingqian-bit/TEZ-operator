@@ -181,23 +181,60 @@ import { getArticleContent, listArticles, uploadDocument, type ArticleInfo } fro
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 
-const md = new MarkdownIt({ html: true, breaks: true, linkify: true })
+const md = new MarkdownIt({ html: false, breaks: true, linkify: true })
 
 const searchQuery = ref('')
 const activeTab = ref('manuals')
 const activeFaq = ref<number[]>([])
 
-// ─── 知识手册数据 ───
-const manuals = ref([
-  { id: 1, title: 'TEZ 产品背景', description: 'TEZ与ECM/CDC/CDZ关系、网络架构、支持能力', icon: 'Document', color: '#409EFF', tag: '必读', tagType: 'danger' as const },
-  { id: 2, title: '周边系统集成', description: 'CMDB表结构、vstation API、云API 3.0', icon: 'Connection', color: '#67C23A', tag: '开发', tagType: '' as const },
-  { id: 3, title: 'FAQ与使用', description: '运营FAQ、调账规则、大客户坑、报价折扣', icon: 'Document', color: '#E6A23C', tag: '运营', tagType: 'warning' as const },
-  { id: 4, title: '接口人与协作', description: '30+接口人清单、场景化找人指南', icon: 'Connection', color: '#F56C6C', tag: '高频', tagType: 'danger' as const },
-  { id: 5, title: '机型与成本', description: '机型成本表、计费标签、规格、适配流程', icon: 'Coin', color: '#909399', tag: '成本', tagType: 'info' as const },
-  { id: 6, title: '机房与可用区规划', description: '32个TEZ节点分布、25年资源规划', icon: 'Grid', color: '#409EFF', tag: '规划', tagType: '' as const },
-  { id: 7, title: '资源运营SOP', description: '找机器/投放/搬迁/模块ID速查', icon: 'Setting', color: '#67C23A', tag: 'SOP', tagType: 'success' as const },
-  { id: 8, title: '交接清单与权限', description: '24个待办、26个系统入口、特殊红线', icon: 'DataAnalysis', color: '#E6A23C', tag: '接手', tagType: 'warning' as const },
-])
+// ─── 知识手册数据（从 API 动态加载，避免硬编码 id 与数据库实际数据不一致）───
+interface ManualItem {
+  id: number
+  title: string
+  description: string
+  icon: string
+  color: string
+  tag: string
+  tagType: '' | 'success' | 'warning' | 'info' | 'danger'
+}
+
+const manuals = ref<ManualItem[]>([])
+const manualsLoading = ref(false)
+
+function _mapCategoryToMeta(category: string, tags?: string | null) {
+  const tag = tags?.split(',')[0] || category
+  const map: Record<string, { icon: string; color: string; tagType: ManualItem['tagType'] }> = {
+    manual: { icon: 'Document', color: '#409EFF', tagType: '' },
+    competitive: { icon: 'DataAnalysis', color: '#E6A23C', tagType: 'warning' },
+    sop: { icon: 'Setting', color: '#67C23A', tagType: 'success' },
+    faq: { icon: 'Document', color: '#E6A23C', tagType: 'warning' },
+  }
+  const meta = map[category] || map.manual
+  return { ...meta, tag }
+}
+
+async function fetchManuals() {
+  manualsLoading.value = true
+  try {
+    const articles = await listArticles('manual')
+    manuals.value = articles.map(art => {
+      const meta = _mapCategoryToMeta(art.category, art.tags)
+      return {
+        id: art.id,
+        title: art.title,
+        description: art.summary || '',
+        icon: meta.icon,
+        color: meta.color,
+        tag: meta.tag,
+        tagType: meta.tagType,
+      }
+    })
+  } catch {
+    // 静默失败，保持空列表
+  } finally {
+    manualsLoading.value = false
+  }
+}
 
 // ─── 平台链接数据（URL 从环境变量/配置加载，此处为占位）───
 const platformLinks = ref([
@@ -360,6 +397,7 @@ async function handleUpload() {
 }
 
 onMounted(() => {
+  fetchManuals()
   fetchCompetitiveArticles()
 })
 </script>

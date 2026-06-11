@@ -13,7 +13,8 @@ from app.config import get_settings
 from app.schemas.host import HostInfo, HostMeta
 from app.services.cache_service import CacheService
 from app.services.export_service import COLUMNS, build_hosts_xlsx
-from app.services.host_service import HostService, _normalize_status
+from app.services.host_service import HostService
+from app.utils.normalize import normalize_status
 
 
 def _fake_host(asset_id: str = "TYSV00000001") -> HostInfo:
@@ -39,23 +40,23 @@ def _fake_host(asset_id: str = "TYSV00000001") -> HostInfo:
 
 class TestNormalizeStatusFallback:
     def test_already_english(self) -> None:
-        assert _normalize_status("online") == "online"
-        assert _normalize_status("offline") == "offline"
-        assert _normalize_status("maintenance") == "maintenance"
+        assert normalize_status("online") == "online"
+        assert normalize_status("offline") == "offline"
+        assert normalize_status("maintenance") == "maintenance"
 
     def test_chinese_fallback(self) -> None:
         # 兜底：万一某 client 漏配映射，HostService 仍能收敛
-        assert _normalize_status("运营中") == "online"
-        assert _normalize_status("维护中") == "maintenance"
-        assert _normalize_status("故障") == "offline"
+        assert normalize_status("运营中") == "online"
+        assert normalize_status("维护中") == "maintenance"
+        assert normalize_status("故障") == "offline"
 
     def test_unknown_returns_none(self) -> None:
         # 未识别值不能穿透到前端
-        assert _normalize_status("奇怪状态") is None
+        assert normalize_status("奇怪状态") is None
 
     def test_empty(self) -> None:
-        assert _normalize_status("") is None
-        assert _normalize_status(None) is None
+        assert normalize_status("") is None
+        assert normalize_status(None) is None
 
 
 # ─────────────────────────── HostInfo.status Literal 校验 ───────────────────────────

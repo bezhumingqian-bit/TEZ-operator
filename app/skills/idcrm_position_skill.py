@@ -21,20 +21,18 @@ import asyncio
 import re
 from typing import Any
 
-from app.clients.browser_session import BrowserSession, is_login_url
-from app.config import get_settings
+from app.clients.browser_session import is_login_url
+from app.skills.ui_skill import UiSkill
 from app.utils.logger import get_logger
 
 log = get_logger(__name__)
 
 
-class IDCRMPositionSkill:
-    """数全通机位查询自动化。"""
+class IDCRMPositionSkill(UiSkill):
+    """数全通机位查询自动化（继承 UiSkill 通用 UI 操作）。"""
 
     WAIT_AFTER_GOTO = 4
     WAIT_AFTER_FILTER = 8
-    LOGIN_WAIT_TIMEOUT = 120  # 等待登录最多 120 秒
-    LOGIN_POLL_INTERVAL = 3   # 每 3 秒检查一次
 
     # ant-select 在页面上的索引（从0开始）
     IDX_LOGIC_AREA = 3   # 机位逻辑区域属性
@@ -55,7 +53,7 @@ class IDCRMPositionSkill:
         base_url = self._settings.idcrm_base_url.rstrip("/") + "/db/positions"
         timeout_ms = self._settings.browser_page_timeout_ms
 
-        async with BrowserSession.page() as page:
+        async with self._get_browser_page() as page:
             # 1. 打开页面
             try:
                 await page.goto(base_url, wait_until="domcontentloaded", timeout=timeout_ms)
@@ -90,12 +88,12 @@ class IDCRMPositionSkill:
                 await self._enable_device_column(page)
 
                 # 1.6 设置每页显示100条
-                await self._set_page_size(page, "100 条/ 页")
+                await self.set_page_size(page, "100 条/ 页")
 
                 # 2. 填筛选条件
                 # 2.1 选择机房管理单元（下拉选择）
                 idc_search = idc[:8] if len(idc) > 8 else idc
-                ok_idc = await self._ant_select_with_search(
+                ok_idc = await self.ant_select_search(
                     page, self.IDX_IDC_UNIT,
                     search_text=idc_search,
                     exact_match=idc,
@@ -109,16 +107,27 @@ class IDCRMPositionSkill:
                         "message": f"机房管理单元「{idc}」在数全通中未录入，该可用区可能尚未开区",
                     }
 
-                # 2.2 点"展开"按钮展开更多筛选项
-                await self._click_expand_button(page)
-                await asyncio.sleep(1)
+                # 2.2 设置逻辑区（优先展开后输入，降级到 ant-select）
+                logic_ok = False
+                try:
+                    await self.click_expand(page)
+                    await asyncio.sleep(1)
+                    logic_ok = await self._fill_logic_area_input(page, "虚拟化")
+                except Exception:
+                    pass
 
-                # 2.3 在展开后的"机位逻辑区域"输入框中输入"虚拟化"
-                await self._fill_logic_area_input(page, "虚拟化")
+                if not logic_ok:
+                    # 降级：直接用 ant-select 设置逻辑区
+                    log.info("idcrm_skill.logic_area_fallback_to_select")
+                    await self.ant_select_search(
+                        page, self.IDX_LOGIC_AREA,
+                        search_text="虚拟化",
+                        exact_match=self.LOGIC_AREA_VALUE,
+                    )
                 await asyncio.sleep(1)
 
                 # 3. 点查询按钮
-                await self._click_query_button(page)
+                await self.click_with_fallback(page, ["button:has-text(\"查 询\")", "button:has-text(\"查询\")", ".ant-btn-primary:has-text(\"查\")", "button.ant-btn-primary"])
 
                 # 等待表格加载（最多等 20 秒，每秒检查一次）
                 await asyncio.sleep(3)
@@ -143,7 +152,7 @@ class IDCRMPositionSkill:
                         log.warning("idcrm_skill.table_not_loaded", idc=idc)
 
                 # 4. 提取结果（支持翻页）
-                rows = await self._extract_all_pages(page)
+                rows = await self.extract_all_pages(page)
                 total_positions = len(rows)
 
                 # 统计各状态分布 + 提取设备固资号
@@ -209,7 +218,7 @@ class IDCRMPositionSkill:
         base_url = self._settings.idcrm_base_url.rstrip("/") + "/db/positions"
         timeout_ms = self._settings.browser_page_timeout_ms
 
-        async with BrowserSession.page() as page:
+        async with self._get_browser_page() as page:
             # 1. 打开页面
             try:
                 await page.goto(base_url, wait_until="domcontentloaded", timeout=timeout_ms)
@@ -230,10 +239,10 @@ class IDCRMPositionSkill:
 
             # 2. 展开设备列 + 设置每页100
             await self._enable_device_column(page)
-            await self._set_page_size(page, "100 条/ 页")
+            await self.set_page_size(page, "100 条/ 页")
 
             # 3. 只筛选逻辑区域 = 通用虚拟化bonding区（不筛选具体机房）
-            await self._ant_select_with_search(
+            await self.ant_select_search(
                 page, self.IDX_LOGIC_AREA,
                 search_text=self.LOGIC_AREA_VALUE,
                 exact_match=self.LOGIC_AREA_VALUE,
@@ -241,7 +250,7 @@ class IDCRMPositionSkill:
             await asyncio.sleep(1)
 
             # 4. 点查询
-            await self._click_query_button(page)
+            await self.click_with_fallback(page, ["button:has-text(\"查 询\")", "button:has-text(\"查询\")", ".ant-btn-primary:has-text(\"查\")", "button.ant-btn-primary"])
 
             # 等待表格加载
             await asyncio.sleep(3)
@@ -260,7 +269,7 @@ class IDCRMPositionSkill:
                 await asyncio.sleep(5)
 
             # 5. 提取所有分页（最多50页 = 5000条，足够覆盖全部区域）
-            rows = await self._extract_all_pages(page, max_pages=50)
+            rows = await self.extract_all_pages(page, max_pages=50)
             log.info("idcrm_skill.all_positions_fetched", total=len(rows))
 
             # 6. 按机房分组统计
@@ -347,25 +356,7 @@ class IDCRMPositionSkill:
         except Exception as exc:
             log.warning("idcrm_skill.enable_device_column_error", error=str(exc))
 
-    async def _set_page_size(self, page, size_text: str = "100 条/ 页") -> None:
-        """将分页大小设置为指定值（如100条/页），确保一次获取全部数据。"""
-        try:
-            page_size_el = page.locator("text=/条.*页/").first
-            if await page_size_el.count() > 0:
-                current = (await page_size_el.inner_text()).strip()
-                if current == size_text:
-                    log.debug("idcrm_skill.page_size_already_set", size=size_text)
-                    return
-                await page_size_el.click(timeout=3000)
-                await asyncio.sleep(1)
-                opt = page.locator(".ant-select-dropdown-menu-item").filter(has_text=size_text).first
-                if await opt.count() > 0:
-                    await opt.click(timeout=3000)
-                    await asyncio.sleep(1)
-                    log.info("idcrm_skill.page_size_set", size=size_text)
-        except Exception as exc:
-            log.warning("idcrm_skill.set_page_size_error", error=str(exc))
-
+    # ══════════════════════════════════════════════════
     async def _verify_selections(self, page, idc: str) -> bool:
         """校验 3 个筛选框的选中值是否正确。返回 True 表示全部正确。"""
         expected = {
@@ -408,121 +399,20 @@ class IDCRMPositionSkill:
                 all_ok = False
         return all_ok
 
-    async def _ant_select_with_search(
-        self, page, idx: int, search_text: str, exact_match: str
-    ) -> bool:
-        """操作搜索型 Ant Design Select：点击展开 → type 输入搜索词 → 精确点选选项。
-        
-        如果首次搜索未找到精确匹配，会尝试用更短的前缀重新搜索。
-        """
-        # 生成搜索词候选列表（从长到短）
-        search_candidates = [search_text]
-        if search_text != exact_match:
-            search_candidates.append(exact_match)
-        # 对于较长的精确值，生成更短的前缀候选
-        if len(exact_match) > 6:
-            for prefix_len in [len(exact_match), 10, 6, 4]:
-                candidate = exact_match[:prefix_len]
-                if candidate not in search_candidates:
-                    search_candidates.append(candidate)
-
-        for attempt_search in search_candidates:
-            try:
-                sel = page.locator(".ant-select").nth(idx)
-                await sel.click(timeout=3000)
-                await asyncio.sleep(0.5)
-                inp = sel.locator("input").first
-                # 先清空之前可能残留的输入
-                await inp.press("Control+a")
-                await inp.press("Backspace")
-                await asyncio.sleep(0.3)
-                await inp.type(attempt_search, delay=50)
-                await asyncio.sleep(2)
-
-                # 精确匹配选项
-                items = await page.locator(".ant-select-dropdown-menu-item").all()
-                for item in items:
-                    text = (await item.inner_text()).strip()
-                    if text == exact_match:
-                        await item.click(timeout=3000)
-                        await asyncio.sleep(1)
-                        log.info("idcrm_skill.select_search_ok", idx=idx, value=exact_match, search=attempt_search)
-                        return True
-
-                # 退而求其次：包含匹配
-                for item in items:
-                    text = (await item.inner_text()).strip()
-                    if exact_match in text:
-                        await item.click(timeout=3000)
-                        await asyncio.sleep(1)
-                        log.info("idcrm_skill.select_search_approx", idx=idx, value=text, search=attempt_search)
-                        return True
-
-                # 当前搜索词没匹配到，关闭下拉菜单，尝试下一个候选
-                await page.keyboard.press("Escape")
-                await asyncio.sleep(0.5)
-                log.debug("idcrm_skill.select_search_miss", idx=idx, search=attempt_search)
-
-            except Exception as exc:
-                log.error("idcrm_skill.select_search_error", idx=idx, search=attempt_search, error=str(exc))
-
-        log.warning("idcrm_skill.select_search_failed", idx=idx, exact_match=exact_match)
-        return False
-
-    async def _ant_select_direct(self, page, idx: int, exact_match: str) -> bool:
-        """操作简单 Ant Design Select：点击展开 → 直接点选选项（不输入搜索词）。"""
-        try:
-            sel = page.locator(".ant-select").nth(idx)
-            await sel.click(timeout=3000)
-            await asyncio.sleep(1)
-
-            items = await page.locator(".ant-select-dropdown-menu-item").all()
-            for item in items:
-                text = (await item.inner_text()).strip()
-                if text == exact_match:
-                    await item.click(timeout=3000)
-                    await asyncio.sleep(1)
-                    log.info("idcrm_skill.select_direct_ok", idx=idx, value=exact_match)
-                    return True
-
-            log.warning("idcrm_skill.select_direct_failed", idx=idx, target=exact_match)
-            return False
-        except Exception as exc:
-            log.error("idcrm_skill.select_direct_error", idx=idx, error=str(exc))
-            return False
-
-    async def _click_expand_button(self, page) -> None:
-        """点击"展开"按钮展开更多筛选条件。"""
-        try:
-            expand_btn = page.locator('a:has-text("展开"), span:has-text("展开")').first
-            if await expand_btn.count() > 0:
-                await expand_btn.click(timeout=3000)
-                log.info("idcrm_skill.expand_clicked")
-                await asyncio.sleep(1)
-                return
-        except Exception:
-            pass
-        # 备选：查找含"展开"文字的可点击元素
-        try:
-            await page.evaluate("""() => {
-                const els = [...document.querySelectorAll('a, span, div')];
-                const btn = els.find(el => el.innerText.trim() === '展开');
-                if (btn) btn.click();
-            }""")
-            log.info("idcrm_skill.expand_clicked_js")
-        except Exception:
-            log.warning("idcrm_skill.expand_not_found")
-
-    async def _fill_logic_area_input(self, page, text: str = "虚拟化") -> None:
-        """在展开后的"机位逻辑区域"输入框中输入筛选文本。"""
+    async def _fill_logic_area_input(self, page, text: str = "虚拟化") -> bool:
+        """在展开后的"机位逻辑区域"输入框中输入筛选文本。返回是否成功。"""
         # 展开后的筛选区有多个输入框，找"机位逻辑区域"旁边的 input
         try:
             # 方式1: 通过 placeholder 定位
             input_sel = page.locator('input[placeholder*="机位逻辑区域"]').first
             if await input_sel.count() > 0:
                 await input_sel.fill(text)
-                log.info("idcrm_skill.logic_area_filled", text=text, method="placeholder")
-                return
+                await asyncio.sleep(0.3)
+                # 验证输入是否生效
+                actual = await input_sel.input_value()
+                if actual:
+                    log.info("idcrm_skill.logic_area_filled", text=text, method="placeholder", actual=actual)
+                    return True
         except Exception:
             pass
 
@@ -549,11 +439,11 @@ class IDCRMPositionSkill:
             }}""")
             if filled:
                 log.info("idcrm_skill.logic_area_filled", text=text, method="label_sibling")
-                return
+                return True
         except Exception:
             pass
 
-        # 方式3：找所有空的 input，根据位置顺序填第一个（展开后机位逻辑区域通常是第一个新增输入框）
+        # 方式3：扫描所有 input 找 placeholder 含 "逻辑"
         try:
             inputs = page.locator('input[type="text"], input:not([type])')
             count = await inputs.count()
@@ -561,102 +451,18 @@ class IDCRMPositionSkill:
                 inp = inputs.nth(i)
                 val = await inp.input_value()
                 placeholder = await inp.get_attribute("placeholder") or ""
-                if not val and "逻辑区域" in placeholder:
+                if not val and ("逻辑区域" in placeholder or "逻辑" in placeholder):
                     await inp.fill(text)
-                    log.info("idcrm_skill.logic_area_filled", text=text, method="scan", idx=i)
-                    return
-            # 没找到含"逻辑区域"的，找第一个空的 input placeholder 含 "输入"
-            for i in range(count):
-                inp = inputs.nth(i)
-                val = await inp.input_value()
-                placeholder = await inp.get_attribute("placeholder") or ""
-                if not val and "逻辑" in placeholder:
-                    await inp.fill(text)
-                    log.info("idcrm_skill.logic_area_filled", text=text, method="fuzzy", idx=i)
-                    return
+                    await asyncio.sleep(0.3)
+                    actual = await inp.input_value()
+                    if actual:
+                        log.info("idcrm_skill.logic_area_filled", text=text, method="scan", idx=i)
+                        return True
         except Exception:
             pass
 
-        log.warning("idcrm_skill.logic_area_input_not_found")
-
-    async def _click_query_button(self, page) -> bool:
-        """点击查询按钮，多策略确保点到。"""
-        query_selectors = [
-            'button:has-text("查 询")',
-            'button:has-text("查询")',
-            '.ant-btn-primary:has-text("查")',
-            'button.ant-btn-primary',
-        ]
-        for sel in query_selectors:
-            try:
-                btn = page.locator(sel).first
-                if await btn.count() > 0:
-                    await btn.click(timeout=5000)
-                    log.info("idcrm_skill.query_btn_clicked", selector=sel)
-                    return True
-            except Exception:
-                continue
-
-        # 兜底：回车
-        log.warning("idcrm_skill.query_btn_not_found, trying Enter")
-        await page.keyboard.press("Enter")
+        log.warning("idcrm_skill.logic_area_fill_failed")
         return False
 
-    async def _extract_all_pages(self, page, max_pages: int = 10) -> list[list[str]]:
-        """提取所有分页的表格数据。如果超过100条会自动翻页。"""
-        all_rows: list[list[str]] = []
+        log.warning("idcrm_skill.logic_area_input_not_found")
 
-        for page_num in range(max_pages):
-            rows = await self._extract_table(page)
-            if not rows:
-                break
-            all_rows.extend(rows)
-
-            # 检查是否有下一页按钮且可点击
-            try:
-                next_btn = page.locator(".ant-pagination-next").first
-                if await next_btn.count() == 0:
-                    break
-                # 检查是否禁用
-                is_disabled = await next_btn.evaluate(
-                    "el => el.classList.contains('ant-pagination-disabled')"
-                )
-                if is_disabled:
-                    break
-                # 翻页
-                await next_btn.click(timeout=3000)
-                await asyncio.sleep(3)
-                log.info("idcrm_skill.next_page", page=page_num + 2, rows_so_far=len(all_rows))
-            except Exception:
-                break
-
-        log.info("idcrm_skill.extract_complete", total_rows=len(all_rows))
-        return all_rows
-
-    async def _extract_table(self, page) -> list[list[str]]:
-        """提取结果表格（排除操作列等无效行）。"""
-        selectors = [
-            "table tbody tr",
-            ".ant-table-row",
-        ]
-        for sel in selectors:
-            try:
-                rows = await page.eval_on_selector_all(
-                    sel,
-                    """rows => rows.slice(0, 200).map(r =>
-                        Array.from(r.cells || r.children || []).slice(0, 20).map(
-                            c => (c.innerText || '').trim()
-                        )
-                    )""",
-                )
-                if rows:
-                    # 过滤掉无效行（如只有"操作日志 编辑 删除"等操作按钮的行）
-                    valid = []
-                    for r in rows:
-                        if any(c for c in r) and not all("操作" in c or "编辑" in c or "删除" in c for c in r if c):
-                            valid.append(r)
-                    if valid:
-                        return valid
-            except Exception:
-                continue
-        return []

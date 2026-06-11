@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/Users/darkngiht/Desktop/TEZ operator/.venv/bin/pyan3", line 8, in <module>
+    sys.exit(main())
+  File "/Users/darkngiht/Desktop/TEZ operator/.venv/lib/python3.9/site-packages/pyan/main.py", line 206, in main
+    v = CallGraphVisitor(filenames, logger, root=root)
+TypeError: __init__() got multiple values for argument 'root'

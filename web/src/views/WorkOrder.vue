@@ -30,25 +30,41 @@
     <!-- 工单列表 -->
     <el-table :data="orders" stripe style="width: 100%" v-loading="listLoading" @row-click="openDetail" empty-text="暂无工单，点击上方按钮提交新工单">
       <el-table-column prop="order_no" label="工单号" width="160" />
-      <el-table-column prop="order_type" label="类型" width="100">
+      <el-table-column prop="order_type" label="类型" width="80">
         <template #default="{ row }">
           <el-tag size="small" :type="typeTagMap[row.order_type] || ''">{{ typeLabel[row.order_type] || row.order_type }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="200" />
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column prop="title" label="标题" min-width="160" show-overflow-tooltip />
+      <el-table-column label="固资号" width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span class="cell-key">{{ extractField(row, 'asset_ids') || '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="型号" width="110" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span class="cell-key">{{ extractField(row, 'vs_type') || '-' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="可用区" width="100" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-tag size="small" type="success" effect="plain" v-if="extractZone(row)">{{ extractZone(row) }}</el-tag>
+          <span v-else style="color:#c0c4cc">-</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }">
           <el-tag size="small" :type="statusTagMap[row.status]">{{ statusLabel[row.status] }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="creator" label="提交人" width="110" />
-      <el-table-column prop="assignee" label="处理人" width="110" />
-      <el-table-column prop="priority" label="优先级" width="80">
+      <el-table-column prop="creator" label="提交人" width="100" />
+      <el-table-column prop="assignee" label="处理人" width="100" />
+      <el-table-column prop="priority" label="优先级" width="70">
         <template #default="{ row }">
           <span :class="'priority-' + row.priority">{{ priorityLabel[row.priority] }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="创建时间" width="160">
+      <el-table-column prop="created_at" label="创建时间" width="150">
         <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="80" fixed="right">
@@ -601,7 +617,9 @@ async function handleCreate() {
     })
 
     // 检查推送结果
-    if (resp.push_success === false) {
+    if (resp.push_pending) {
+      ElMessage.info('工单已创建，后台正在同步到腾讯文档…')
+    } else if (resp.push_success === false) {
       ElMessage.warning(`工单已保存，但腾讯文档推送失败：${resp.push_error || '未知错误'}`)
     } else {
       ElMessage.success('工单创建成功，后台正在同步到腾讯文档')
@@ -675,10 +693,7 @@ async function onAssetIdsBlur() {
   } catch {}
 }
 
-function formatTime(t: string) {
-  if (!t) return '-'
-  return t.replace('T', ' ').slice(0, 16)
-}
+import { formatTimeShort as formatTime, extractField, extractZone } from '@/utils/formatters'
 
 // ─── 生命周期 ───
 const route = useRoute()

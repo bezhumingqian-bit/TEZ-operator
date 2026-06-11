@@ -71,4 +71,4 @@ markers = [
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["app/main.py", "alembic/*"]
+omit = ["alembic/*"]

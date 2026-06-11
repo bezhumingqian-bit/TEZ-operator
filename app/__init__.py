@@ -1,3 +1,3 @@
 """TEZ Operator 后端服务包。"""
 
-__version__ = "1.1.0-alpha"
+__version__ = "0.3.0a0"
