@@ -104,7 +104,8 @@ backup/.backup_key
 !backup/*.sh
 
 # 5. 应用本地数据
-app/data/
+# app/data/ 放的是 Python 源码模块(zone_mapping等)，必须入仓
+# 运行时生成的 .db 文件由上面的 *.db 全局规则覆盖
 storage/
 
 # 6. nginx 运行日志
