@@ -19,8 +19,13 @@ from app.config import get_settings
 
 
 def _hash_password(password: str) -> str:
-    """简单的密码哈希（SHA256 + salt）。"""
-    salt = "tez_salt_2026"
+    """密码哈希（SHA256 + salt）。
+
+    必须与 app/routers/auth.py 的 _hash_password 保持一致：
+    优先读 .env 的 TEZ_PASSWORD_SALT，未设置时才回退到默认盐。
+    否则初始化写入的哈希与登录验证用的盐不一致，会导致密码永远验证失败。
+    """
+    salt = get_settings().password_salt or "tez_salt_2026"
     return hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
 
 
