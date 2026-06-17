@@ -40,25 +40,16 @@ echo [=] 已放行 8000 端口入站
 echo.
 
 :: ---------- 3. 获取本机内网 IPv4 ----------
-echo [3/3] 本机内网 IP 地址：
+:: 注意：PowerShell 命令必须直接执行，不能套在 for /f('...') 的单引号里，
+:: 否则管道符 | 和花括号 {} 会被 cmd 错误解析（曾导致 Where-Object 报错）。
+echo [3/3] 本机内网 IP 地址（把 9.x 或 10.x 开头的发给同事）：
 echo -------------------------------------------------------------------
-set "FOUND_IP="
-for /f "tokens=*" %%i in ('powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 ^| Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254*' } ^| Select-Object -ExpandProperty IPAddress"') do (
-    echo    http://%%i:8000
-    if not defined FOUND_IP set "FOUND_IP=%%i"
-)
+powershell -NoProfile -Command "Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -ne '127.0.0.1' -and $_.IPAddress -notlike '169.254*' } | ForEach-Object { '   http://' + $_.IPAddress + ':8000' }"
 echo -------------------------------------------------------------------
 echo.
-
-if defined FOUND_IP (
-    echo ===================================================================
-    echo   把上面任意一个地址发给同事即可访问（同一内网）。
-    echo   常见内网网段优先选 9.x / 10.x 开头的地址。
-    echo   首选地址：http://!FOUND_IP!:8000
-    echo ===================================================================
-) else (
-    echo [!] 未检测到内网 IP，请手动执行 ipconfig 查看
-)
+echo ===================================================================
+echo   把上面 9.x 或 10.x 开头的地址发给同事即可访问（同一内网）。
+echo ===================================================================
 echo.
 echo 提示：如果同事仍访问不到，多半是云桌面平台做了网络隔离，
 echo       需联系 OpenClaw 平台管理员开放互访，或换内网普通机器部署。
