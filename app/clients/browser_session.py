@@ -65,12 +65,17 @@ class BrowserSession:
             )
 
             cls._playwright = await async_playwright().start()
+            # 若启用 headless，追加 --headless=new 以使用 Chromium 新 headless 模式
+            # （旧 headless 使用简化引擎，无法复用 SAML / iOA 登录态；新 headless 与 headful 共用引擎）
+            args = ["--disable-blink-features=AutomationControlled"]
+            if s.browser_headless:
+                args.append("--headless=new")
             cls._ctx = await cls._playwright.chromium.launch_persistent_context(
                 user_data_dir=str(profile_dir),
                 headless=s.browser_headless,
                 ignore_https_errors=s.browser_ignore_https_errors,
                 viewport={"width": 1440, "height": 900},
-                args=["--disable-blink-features=AutomationControlled"],
+                args=args,
             )
         return cls._ctx
 

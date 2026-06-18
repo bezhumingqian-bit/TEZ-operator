@@ -136,12 +136,12 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=2, max_length=50)
     password: str = Field(..., min_length=4)
     display_name: str = ""
-    role: str = Field(default="viewer", pattern="^(admin|ops|viewer)$")
+    role: str = Field(default="viewer", pattern="^(admin|ops|operator|viewer)$")
 
 
 class UserUpdate(BaseModel):
     display_name: str | None = None
-    role: str | None = Field(None, pattern="^(admin|ops|viewer)$")
+    role: str | None = Field(None, pattern="^(admin|ops|operator|viewer)$")
     is_active: bool | None = None
     password: str | None = None
 

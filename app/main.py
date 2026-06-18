@@ -163,6 +163,9 @@ def create_app() -> FastAPI:
     from app.routers import ai as ai_router
     app.include_router(ai_router.router)
 
+    from app.routers import yunxiao as yunxiao_router
+    app.include_router(yunxiao_router.router, prefix="/api/v1")
+
     # ── 前端静态文件托管（SPA） ──
     import os
     from pathlib import Path

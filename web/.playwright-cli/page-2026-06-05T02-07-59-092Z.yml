@@ -1,0 +1,135 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e8]
+      - generic [ref=e10]: 边缘云资源运维平台
+      - generic:
+        - generic: 内部使用 · v1.2.0
+    - generic [ref=e11]:
+      - button [ref=e12] [cursor=pointer]:
+        - img [ref=e14]
+      - button "管 管理员" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 管
+        - generic [ref=e20]: 管理员
+        - img [ref=e22]
+  - generic [ref=e24]:
+    - complementary [ref=e25]:
+      - menubar [ref=e26]:
+        - menuitem "运维驾驶舱" [ref=e27] [cursor=pointer]:
+          - img [ref=e29]
+          - generic [ref=e32]: 运维驾驶舱
+        - menuitem "资源查询" [ref=e33] [cursor=pointer]:
+          - img [ref=e35]
+          - generic [ref=e38]: 资源查询
+        - menuitem "工单流转" [ref=e39] [cursor=pointer]:
+          - img [ref=e41]
+          - generic [ref=e44]: 工单流转
+        - menuitem "成本一览" [ref=e45] [cursor=pointer]:
+          - img [ref=e47]
+          - generic [ref=e52]: 成本一览
+        - menuitem "运维助手" [ref=e53] [cursor=pointer]:
+          - img [ref=e55]
+          - generic [ref=e58]: 运维助手
+        - menuitem "知识库" [ref=e59] [cursor=pointer]:
+          - img [ref=e61]
+          - generic [ref=e65]: 知识库
+        - menuitem "竞争分析" [ref=e66] [cursor=pointer]:
+          - img [ref=e68]
+          - generic [ref=e71]: 竞争分析
+        - menuitem "AI 助手" [ref=e72] [cursor=pointer]:
+          - img [ref=e74]
+          - generic [ref=e78]: AI 助手
+        - menuitem "用户管理" [ref=e79] [cursor=pointer]:
+          - img [ref=e81]
+          - generic [ref=e84]: 用户管理
+      - generic [ref=e85]:
+        - generic [ref=e86]: TEZ Operator v1.2.0
+        - generic [ref=e87]: admin · 管理员
+    - main [ref=e88]:
+      - generic [ref=e89]:
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - heading "运维驾驶舱" [level=2] [ref=e92]
+            - generic [ref=e93]: 6月5日星期五 10:07
+          - generic [ref=e95]:
+            - generic [ref=e96]:
+              - img [ref=e99]
+              - textbox "搜索母机故障、搬迁、找机器等关键词" [ref=e101]
+            - button "搜索" [ref=e104] [cursor=pointer]:
+              - generic [ref=e105]: 搜索
+        - generic [ref=e106]:
+          - generic [ref=e107] [cursor=pointer]:
+            - img [ref=e110]
+            - generic [ref=e112]:
+              - generic [ref=e113]: "0"
+              - generic [ref=e114]: 总工单
+          - generic [ref=e115] [cursor=pointer]:
+            - img [ref=e118]
+            - generic [ref=e122]:
+              - generic [ref=e123]: "0"
+              - generic [ref=e124]: 待受理
+          - generic [ref=e125] [cursor=pointer]:
+            - img [ref=e128]
+            - generic [ref=e130]:
+              - generic [ref=e131]: "0"
+              - generic [ref=e132]: 处理中
+          - generic [ref=e133] [cursor=pointer]:
+            - img [ref=e136]
+            - generic [ref=e139]:
+              - generic [ref=e140]: "0"
+              - generic [ref=e141]: 行业需求
+          - generic [ref=e142] [cursor=pointer]:
+            - img [ref=e145]
+            - generic [ref=e147]:
+              - generic [ref=e148]: "0"
+              - generic [ref=e149]: 已完成
+          - generic [ref=e150] [cursor=pointer]:
+            - img [ref=e153]
+            - generic [ref=e156]:
+              - generic [ref=e157]: "0"
+              - generic [ref=e158]: 已驳回
+        - generic [ref=e159]:
+          - generic [ref=e163]:
+            - generic [ref=e164]: 最近工单
+            - button "查看全部 →" [ref=e165] [cursor=pointer]:
+              - generic [ref=e166]: 查看全部 →
+          - generic [ref=e168]:
+            - generic [ref=e169]:
+              - generic [ref=e170]: 快捷操作
+              - generic [ref=e172]:
+                - generic [ref=e173] [cursor=pointer]:
+                  - img [ref=e175]
+                  - generic [ref=e177]: 提交工单
+                - generic [ref=e178] [cursor=pointer]:
+                  - img [ref=e180]
+                  - generic [ref=e182]: 资源查询
+                - generic [ref=e183] [cursor=pointer]:
+                  - img [ref=e185]
+                  - generic [ref=e188]: 行业提单
+                - generic [ref=e189] [cursor=pointer]:
+                  - img [ref=e191]
+                  - generic [ref=e194]: 知识库
+            - generic [ref=e195]:
+              - generic [ref=e197]:
+                - generic [ref=e198]: 行业需求单
+                - generic [ref=e199]:
+                  - button "复制提单链接" [ref=e200] [cursor=pointer]:
+                    - generic [ref=e201]: 复制提单链接
+                  - button "查看全部 →" [ref=e202] [cursor=pointer]:
+                    - generic [ref=e203]: 查看全部 →
+              - generic [ref=e205]:
+                - img [ref=e207]
+                - paragraph [ref=e224]: 暂无行业需求单
+                - button "去提单" [ref=e226] [cursor=pointer]:
+                  - generic [ref=e227]: 去提单
+            - generic [ref=e228]:
+              - generic [ref=e230]:
+                - generic [ref=e231]: 节点资源
+                - generic [ref=e232]:
+                  - button "刷新全部" [ref=e233] [cursor=pointer]:
+                    - generic [ref=e234]:
+                      - img [ref=e236]
+                      - text: 刷新全部
+                  - button "详细 →" [ref=e238] [cursor=pointer]:
+                    - generic [ref=e239]: 详细 →
+              - img [ref=e244]

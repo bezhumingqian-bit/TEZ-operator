@@ -170,6 +170,145 @@ class HostService:
             )
         return merged
 
+    # ─────────────────── 本地优先（不触发浏览器） ───────────────────
+    # W3 增强：用于 AI Agent 等自动调用场景。
+    # 数据可能略陈旧（DB 7 天内有效），但响应快、可控,不会抢浏览器锁。
+
+    async def get_host_local(self, asset_id: str) -> HostInfo | None:
+        """本地优先查询（按固资号）：只查内存缓存和本地 DB,绝不触发浏览器。"""
+        if not asset_id:
+            return None
+
+        key = CACHE_KEY_HOST.format(asset_id=asset_id.upper())
+        cached = await self.cache.get(key)
+        if cached:
+            log.debug("host.local.cache_hit", asset_id=asset_id)
+            return self._dict_to_host(cached, from_cache=True)
+
+        db_result = await self._get_from_db(asset_id)
+        if db_result:
+            log.debug("host.local.db_hit", asset_id=asset_id)
+            # 回写内存缓存,后续同 key 直返
+            await self.cache.set(key, db_result.model_dump(**CACHE_DUMP_KW))
+            return db_result
+
+        log.info("host.local.miss", asset_id=asset_id)
+        return None
+
+    async def get_host_by_ip_local(self, ip: str) -> HostInfo | None:
+        """本地优先查询（按 IP）：只查内存缓存和本地 DB,绝不触发浏览器。"""
+        if not ip:
+            return None
+
+        key = CACHE_KEY_HOST_BY_IP.format(ip=ip)
+        cached = await self.cache.get(key)
+        if cached:
+            log.debug("host.local.cache_hit_by_ip", ip=ip)
+            return self._dict_to_host(cached, from_cache=True)
+
+        # 本地 DB 按 IP 字段查
+        try:
+            from sqlalchemy import select
+
+            from app.deps import _get_session_factory
+            from app.models.host import HostCache
+
+            factory = _get_session_factory()
+            async with factory() as session:
+                stmt = select(HostCache).where(HostCache.ip == ip).limit(1)
+                result = await session.execute(stmt)
+                row = result.scalar_one_or_none()
+                if not row:
+                    log.info("host.local.miss_by_ip", ip=ip)
+                    return None
+
+                host = HostInfo(
+                    asset_id=row.asset_id,
+                    ip=row.ip,
+                    zone=row.zone,
+                    machine_type=row.machine_type,
+                    status=normalize_status(row.status),
+                    idc=row.idc,
+                    cabinet=row.cabinet,
+                    position=row.position,
+                    module=row.module,
+                    customer=row.customer,
+                    app_id=row.app_id,
+                    has_tpc=row.has_tpc,
+                    _meta=HostMeta(
+                        from_cache=True,
+                        data_sources=["local_db"],
+                        last_sync_at=row.last_sync_at,
+                    ),
+                )
+                await self.cache.set(key, host.model_dump(**CACHE_DUMP_KW))
+                log.debug("host.local.db_hit_by_ip", ip=ip, asset_id=host.asset_id)
+                return host
+        except Exception as exc:  # noqa: BLE001
+            log.warning("host.local.db_error_by_ip", ip=ip, error=str(exc))
+            return None
+
+    async def list_zone_hosts_local(self, zone: str) -> list[HostInfo]:
+        """本地优先查询（按可用区）：只查内存缓存和本地 DB,绝不触发浏览器。"""
+        if not zone:
+            return []
+
+        key = CACHE_KEY_ZONE.format(zone=zone)
+        cached = await self.cache.get(key)
+        if cached:
+            log.debug("host.local.cache_hit_zone", zone=zone)
+            return [self._dict_to_host(d, from_cache=True) for d in cached]
+
+        # 本地 DB 按 zone 查
+        try:
+            from sqlalchemy import select
+
+            from app.deps import _get_session_factory
+            from app.models.host import HostCache
+
+            factory = _get_session_factory()
+            async with factory() as session:
+                stmt = select(HostCache).where(HostCache.zone == zone).limit(500)
+                result = await session.execute(stmt)
+                rows = result.scalars().all()
+
+            hosts: list[HostInfo] = []
+            for row in rows:
+                hosts.append(
+                    HostInfo(
+                        asset_id=row.asset_id,
+                        ip=row.ip,
+                        zone=row.zone,
+                        machine_type=row.machine_type,
+                        status=normalize_status(row.status),
+                        idc=row.idc,
+                        cabinet=row.cabinet,
+                        position=row.position,
+                        module=row.module,
+                        customer=row.customer,
+                        app_id=row.app_id,
+                        has_tpc=row.has_tpc,
+                        _meta=HostMeta(
+                            from_cache=True,
+                            data_sources=["local_db"],
+                            last_sync_at=row.last_sync_at,
+                        ),
+                    )
+                )
+
+            if hosts:
+                await self.cache.set(
+                    key,
+                    [h.model_dump(**CACHE_DUMP_KW) for h in hosts],
+                    ttl=get_settings().cache_zone_ttl,
+                )
+            log.info("host.local.zone_listed", zone=zone, count=len(hosts))
+            return hosts
+        except Exception as exc:  # noqa: BLE001
+            log.warning("host.local.zone_list_error", zone=zone, error=str(exc))
+            return []
+
+
     async def list_zone_hosts(self, zone: str) -> list[HostInfo]:
         if not zone:
             return []

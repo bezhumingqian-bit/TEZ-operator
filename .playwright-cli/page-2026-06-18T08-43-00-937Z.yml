@@ -1,0 +1,284 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - button "全部应用" [ref=e3] [cursor=pointer]:
+      - img [ref=e4]
+    - link "云霄平台" [ref=e10] [cursor=pointer]:
+      - /url: /
+      - img [ref=e12]
+      - generic [ref=e14]: 云霄平台
+    - generic [ref=e15]:
+      - button "切换主题" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+      - generic [ref=e20] [cursor=pointer]:
+        - generic [ref=e22]: m
+        - generic [ref=e23]: mingqianzhu
+        - img [ref=e24]
+  - generic [ref=e27]:
+    - navigation [ref=e28]:
+      - generic [ref=e29]:
+        - heading "资源规划" [level=2] [ref=e32]
+        - list [ref=e34]:
+          - listitem [ref=e35] [cursor=pointer]:
+            - generic [ref=e36]:
+              - generic [ref=e37]: 安全水位管控
+              - img [ref=e38]
+            - list [ref=e41]:
+              - listitem [ref=e42]:
+                - generic [ref=e44]: 观测指标看板
+              - listitem [ref=e45]:
+                - generic [ref=e47]: 预测指标看板
+              - listitem [ref=e48]:
+                - generic [ref=e50]: 观测指标趋势
+              - listitem [ref=e51]:
+                - generic [ref=e53]: 预测指标趋势
+              - listitem [ref=e54]:
+                - generic [ref=e56]: 报警指标趋势
+              - listitem [ref=e57]:
+                - generic [ref=e59]: CMDB
+              - listitem [ref=e60]:
+                - generic [ref=e62]: 资源采购
+              - listitem [ref=e63]:
+                - generic [ref=e65]: 资源搬迁
+              - listitem [ref=e66]:
+                - generic [ref=e68]: 资源对冲
+              - listitem [ref=e69]:
+                - generic [ref=e71]: 运营数据看板
+              - listitem [ref=e72]:
+                - generic [ref=e74]: 模拟装箱
+              - listitem [ref=e75]:
+                - generic [ref=e77]: 库存健康报警
+              - listitem [ref=e78]:
+                - generic [ref=e80]: 采购搬迁看板
+              - listitem [ref=e81]:
+                - generic [ref=e83]: 库存冗余看板
+              - listitem [ref=e84]:
+                - generic [ref=e86]: 新机型库存查询
+              - listitem [ref=e87]:
+                - generic [ref=e89]: 库存查询（过期）
+              - listitem [ref=e90]:
+                - generic [ref=e92]: 库存聚合查询
+              - listitem [ref=e93]:
+                - generic [ref=e95]: 机器投放
+              - listitem [ref=e96]:
+                - generic [ref=e98]: 机器转模块
+          - listitem [ref=e99] [cursor=pointer]:
+            - generic [ref=e100]:
+              - generic [ref=e101]: 宿主机管理
+              - img [ref=e102]
+            - list [ref=e105]:
+              - listitem [ref=e106]:
+                - generic [ref=e108]: 母机管理
+              - listitem [ref=e109]:
+                - generic [ref=e111]: 母机标签
+              - listitem [ref=e112]:
+                - generic [ref=e114]: 操作审计
+              - listitem [ref=e115]:
+                - generic [ref=e117]: 故障预留查询
+              - listitem [ref=e118]:
+                - generic [ref=e120]: 故障预留配置
+              - listitem [ref=e121]:
+                - generic [ref=e123]: 关电节能看板
+              - listitem [ref=e124]:
+                - generic [ref=e126]: 故障预留看板
+              - listitem [ref=e127]:
+                - generic [ref=e129]: 线上母机看板
+              - listitem [ref=e130]:
+                - generic [ref=e132]: 腾挪资源任务管理
+              - listitem [ref=e133]:
+                - generic [ref=e135]: 逻辑区管理
+              - listitem [ref=e136]:
+                - generic [ref=e138]: 用户逻辑区
+              - listitem [ref=e139]:
+                - generic [ref=e141]: 母机开关电记录
+              - listitem [ref=e142]:
+                - generic [ref=e144]: 部件类型管理
+              - listitem [ref=e145]:
+                - generic [ref=e147]: 部件管理
+              - listitem [ref=e148]:
+                - generic [ref=e150]: 母机内存信息查询
+          - listitem [ref=e151] [cursor=pointer]:
+            - generic [ref=e152]:
+              - generic [ref=e153]: 指南针
+              - img [ref=e154]
+            - list [ref=e157]:
+              - listitem [ref=e158]:
+                - generic [ref=e160]: 售卖推荐看板
+          - listitem [ref=e161] [cursor=pointer]:
+            - generic [ref=e162]:
+              - generic [ref=e163]: 资源调度任务管理
+              - img [ref=e164]
+            - list [ref=e167]:
+              - listitem [ref=e168]:
+                - generic [ref=e170]: 调度计划
+              - listitem [ref=e171]:
+                - generic [ref=e173]: 任务流实例
+        - img "fold" [ref=e177] [cursor=pointer]
+    - main [ref=e184]:
+      - generic [ref=e185]:
+        - heading "母机管理" [level=2] [ref=e190]
+        - generic [ref=e192]:
+          - generic [ref=e195]:
+            - generic [ref=e197]:
+              - generic [ref=e200]:
+                - generic [ref=e202]: 地域
+                - generic [ref=e205] [cursor=pointer]:
+                  - generic [ref=e206]: 请选择
+                  - img [ref=e207]
+              - generic [ref=e212]:
+                - generic [ref=e214]: 可用区
+                - generic [ref=e217] [cursor=pointer]:
+                  - generic [ref=e218]: 请选择
+                  - img [ref=e219]
+              - generic [ref=e224]:
+                - generic [ref=e226]: 实例族
+                - generic [ref=e229] [cursor=pointer]:
+                  - generic [ref=e230]: 请选择
+                  - img [ref=e231]
+              - generic [ref=e236]:
+                - generic [ref=e238]: 机型
+                - generic [ref=e241] [cursor=pointer]:
+                  - generic [ref=e242]: 选择机型
+                  - img [ref=e243]
+            - button "更多搜索 arrowright" [ref=e248] [cursor=pointer]:
+              - button "更多搜索" [ref=e250]
+              - img "arrowright" [ref=e251]
+            - generic [ref=e254]:
+              - button "loading 查询" [disabled]:
+                - img "loading"
+                - text: 查询
+          - generic [ref=e257]:
+            - generic [ref=e259]:
+              - generic [ref=e260]:
+                - generic [ref=e261]:
+                  - button "开机" [disabled]
+                - generic [ref=e262]:
+                  - button "关机" [disabled]
+                - generic [ref=e263]:
+                  - button "创建标签" [disabled]
+                - generic [ref=e264]:
+                  - button "删除标签" [disabled]
+                - generic [ref=e265]:
+                  - button "迁移逻辑区" [disabled]
+                - generic [ref=e266]:
+                  - button "发起搬迁" [disabled]
+                - generic [ref=e267]:
+                  - button "关联母机到POC" [disabled]
+                - generic [ref=e268]:
+                  - button "CDH母机资源修改" [disabled]
+                - generic [ref=e269]:
+                  - button "发起母机重投" [disabled]
+              - generic [ref=e270]:
+                - button "refresh" [ref=e271] [cursor=pointer]:
+                  - img "refresh" [ref=e272]
+                - button "download" [ref=e275] [cursor=pointer]:
+                  - img "download" [ref=e276]
+            - generic [ref=e279]:
+              - table [ref=e281]:
+                - rowgroup [ref=e314]:
+                  - row "固资号 copy IP copy 实例族 设备类型 可用区 逻辑区 sort 资源池 售卖池 Module 可用/总GPU（卡） 可用/总CPU（核） sort 可用/总内存（G） sort 单个node可用/总CPU（核）info 单个node可用/总内存（G）info 可用/总磁盘大小（GB） sort 可用/总本地盘大小（GB） 空母机 CDH母机 独享母机owner 标签 机型 健康度 sort 在线状态 内核版本 内核版本识别 制作商模块 售卖池类型 装箱类型 更新时间 sort 操作" [ref=e315]:
+                    - columnheader [ref=e316]:
+                      - checkbox [ref=e319] [cursor=pointer]
+                    - columnheader "固资号 copy" [ref=e320]:
+                      - generic [ref=e322]:
+                        - text: 固资号
+                        - img "copy" [ref=e323] [cursor=pointer]
+                    - columnheader "IP copy" [ref=e327]:
+                      - generic [ref=e329]:
+                        - text: IP
+                        - img "copy" [ref=e330] [cursor=pointer]
+                    - columnheader "实例族" [ref=e334]:
+                      - generic "实例族" [ref=e336]
+                    - columnheader "设备类型" [ref=e337]:
+                      - generic "设备类型" [ref=e339]
+                    - columnheader "可用区" [ref=e340]:
+                      - generic "可用区" [ref=e342]
+                    - columnheader "逻辑区 sort" [ref=e343]:
+                      - generic [ref=e345] [cursor=pointer]:
+                        - generic "逻辑区" [ref=e347]
+                        - img "sort" [ref=e348]
+                    - columnheader "资源池" [ref=e353]:
+                      - generic "资源池" [ref=e355]
+                    - columnheader "售卖池" [ref=e356]:
+                      - generic "售卖池" [ref=e358]
+                    - columnheader "Module" [ref=e359]:
+                      - generic "Module" [ref=e361]
+                    - columnheader "可用/总GPU（卡）" [ref=e362]:
+                      - generic "可用/总GPU（卡）" [ref=e364]
+                    - columnheader "可用/总CPU（核） sort" [ref=e365]:
+                      - generic [ref=e367] [cursor=pointer]:
+                        - generic [ref=e369]: 可用/总CPU（核）
+                        - img "sort" [ref=e370]
+                    - columnheader "可用/总内存（G） sort" [ref=e375]:
+                      - generic [ref=e377] [cursor=pointer]:
+                        - generic [ref=e379]: 可用/总内存（G）
+                        - img "sort" [ref=e380]
+                    - columnheader "单个node可用/总CPU（核）info" [ref=e385]:
+                      - generic [ref=e386]:
+                        - text: 单个node可用/总CPU（核）
+                        - img "info" [ref=e387]
+                    - columnheader "单个node可用/总内存（G）info" [ref=e391]:
+                      - generic [ref=e392]:
+                        - text: 单个node可用/总内存（G）
+                        - img "info" [ref=e393]
+                    - columnheader "可用/总磁盘大小（GB） sort" [ref=e397]:
+                      - generic [ref=e399] [cursor=pointer]:
+                        - generic [ref=e401]: 可用/总磁盘大小（GB）
+                        - img "sort" [ref=e402]
+                    - columnheader "可用/总本地盘大小（GB）" [ref=e407]:
+                      - generic "可用/总本地盘大小（GB）" [ref=e409]
+                    - columnheader "空母机" [ref=e410]:
+                      - generic "空母机" [ref=e412]
+                    - columnheader "CDH母机" [ref=e413]:
+                      - generic "CDH母机" [ref=e415]
+                    - columnheader "独享母机owner" [ref=e416]:
+                      - generic "独享母机owner" [ref=e418]
+                    - columnheader "标签" [ref=e419]:
+                      - generic "标签" [ref=e421]
+                    - columnheader "机型" [ref=e422]:
+                      - generic "机型" [ref=e424]
+                    - columnheader "健康度 sort" [ref=e425]:
+                      - generic [ref=e427] [cursor=pointer]:
+                        - generic "健康度" [ref=e429]
+                        - img "sort" [ref=e430]
+                    - columnheader "在线状态" [ref=e435]:
+                      - generic "在线状态" [ref=e437]
+                    - columnheader "内核版本" [ref=e438]:
+                      - generic "内核版本" [ref=e440]
+                    - columnheader "内核版本识别" [ref=e441]:
+                      - generic "内核版本识别" [ref=e443]
+                    - columnheader "制作商模块" [ref=e444]:
+                      - generic "制作商模块" [ref=e446]
+                    - columnheader "售卖池类型" [ref=e447]:
+                      - generic "售卖池类型" [ref=e449]
+                    - columnheader "装箱类型" [ref=e450]:
+                      - generic "装箱类型" [ref=e452]
+                    - columnheader "更新时间 sort" [ref=e453]:
+                      - generic [ref=e455] [cursor=pointer]:
+                        - generic "更新时间" [ref=e457]
+                        - img "sort" [ref=e458]
+                    - columnheader "操作" [ref=e463]:
+                      - generic "操作" [ref=e465]
+              - table [ref=e467]:
+                - rowgroup [ref=e500]:
+                  - row "loading 加载中..." [ref=e501]:
+                    - cell "loading 加载中..." [ref=e502]:
+                      - generic [ref=e503]:
+                        - img "loading" [ref=e504]
+                        - generic "加载中..." [ref=e508]
+            - generic [ref=e509]:
+              - generic [ref=e511]:
+                - text: 共
+                - strong [ref=e512]: "0"
+                - text: 条
+              - generic [ref=e513]:
+                - generic [ref=e515] [cursor=pointer]:
+                  - generic [ref=e516]: "10"
+                  - img [ref=e517]
+                - generic [ref=e520]: 条 / 页
+                - img "firstpage" [ref=e522]
+                - img "arrowleft" [ref=e527]
+                - generic [ref=e530]:
+                  - textbox [ref=e531]: "1"
+                  - generic [ref=e532]: / 1 页
+                - img "arrowright" [ref=e534]
+                - img "lastpage" [ref=e538]

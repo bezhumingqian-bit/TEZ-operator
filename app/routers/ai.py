@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,6 +62,70 @@ async def ai_chat(
 
     result = await svc.chat(payload.message, context=context, history=payload.history)
     return ChatResponse(**result)
+
+
+class AgentChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000)
+    history: list[dict] | None = Field(None, description="多轮对话历史,格式 [{role, content}, ...]")
+
+
+class AgentToolCall(BaseModel):
+    name: str
+    args: dict
+    ok: bool
+    result_preview: str = ""
+    truncated: bool = False
+
+
+class AgentChatResponse(BaseModel):
+    reply: str
+    tool_calls: list[AgentToolCall] = Field(default_factory=list)
+    iterations: int = 0
+    model: str = ""
+    usage: dict = Field(default_factory=dict)
+    source: str = "agent"
+
+
+@router.post("/agent", response_model=AgentChatResponse, summary="AI Agent 智能问答（带工具调用）")
+async def ai_agent(
+    payload: AgentChatRequest,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Agent 模式：AI 可自主调用工具查询真实数据。"""
+    from app.services.agent import AgentService
+
+    svc = AgentService()
+    result = await svc.run(payload.message, session=session, history=payload.history)
+    return AgentChatResponse(**result)
+
+
+@router.post("/agent/stream", summary="AI Agent 流式问答（SSE）")
+async def ai_agent_stream(
+    payload: AgentChatRequest,
+    session: AsyncSession = Depends(get_db_session),
+):
+    """Agent 流式模式：SSE 事件流，逐字输出 + 工具调用进度。"""
+    from app.services.agent import AgentService, StreamingAgent
+
+    svc = AgentService()
+
+    async def event_generator():
+        async for event in StreamingAgent(
+            svc, payload.message, session=session, history=payload.history
+        ).run():
+            event_type = event["event"]
+            data = event.get("data", {})
+            yield f"event: {event_type}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "X-Accel-Buffering": "no",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @router.post("/analyze", summary="竞争分析（AI生成）")

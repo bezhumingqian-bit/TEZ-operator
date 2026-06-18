@@ -1,0 +1,19 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e8]
+      - generic [ref=e10]: 边缘云资源运维平台
+      - generic [ref=e12]: 内部使用 · v1.2.0
+    - generic [ref=e13]:
+      - button [ref=e14] [cursor=pointer]:
+        - img [ref=e16]
+      - button "U" [ref=e20] [cursor=pointer]:
+        - generic [ref=e21]: U
+        - img [ref=e23]
+  - generic [ref=e25]:
+    - complementary [ref=e26]:
+      - menubar [ref=e27]
+      - generic [ref=e28]:
+        - generic [ref=e29]: TEZ Operator v1.2.0
+        - generic [ref=e30]: ·
+    - main [ref=e31]

@@ -1,0 +1,251 @@
+{
+  "tcum": [
+    {
+      "url": "https://cas.tcum.woa.com/api/login/getEnterpriseLoginUrl",
+      "method": "POST",
+      "status": 200,
+      "req_body": "",
+      "resp_body": "{\"code\":\"0\",\"data\":{\"RequestId\":\"a83f175a-7f8a-49d7-ab7c-ff8be9682bdc\",\"Item\":{\"Data\":{\"List\":[]}}}}"
+    }
+  ],
+  "idcrm": [
+    {
+      "url": "https://idcrm.woa.com/db/positions",
+      "method": "GET",
+      "status": 302,
+      "req_body": "",
+      "resp_body": ""
+    },
+    {
+      "url": "https://std.passport.woa.com/modules/passport/signin.ashx?oauth=true&appkey=ngn&url=https%3A%2F%2Fidcrm.woa.com%2F_auth_login%2F%3Furl%3Dhttps%253A%252F%252Fidcrm.woa.com%252Fdb%252Fpositions%26app_name%3Dunknown&state=27rthnb0cnuqpek3t,3&code_challenge=YKjqQouAwq5pJHU9ErlcT0WOMHZ_KB8eRbQIV0pkGQU",
+      "method": "GET",
+      "status": 302,
+      "req_body": "",
+      "resp_body": ""
+    },
+    {
+      "url": "https://idcrm.woa.com/_auth_login/?url=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&app_name=unknown&code=TOF4TeyJrZXkiOiJTbmR0bkZMNFdPVkFSeFc4QzNZems4VDZtYnNnaDR0UiIsImlzcyI6IjEwLjg4LjEzMy4xNTYiLCJoayI6IiIsImF1ZCI6Im5nbiIsInRzIjoiaWRjcm0ud29hLmNvbSIsImxuIjoibWluZ3FpYW56aHUiLCJleHAiOjE3ODAwNDYyNTgsI",
+      "method": "GET",
+      "status": 302,
+      "req_body": "",
+      "resp_body": ""
+    },
+    {
+      "url": "https://idcrm.woa.com/db/positions",
+      "method": "GET",
+      "status": 200,
+      "req_body": "",
+      "resp_body": "<!DOCTYPE html><html><head><meta name=mobile-web-app-capable content=yes><meta charset=utf-8><title>数全通</title><base href=/ ><link rel=icon href=favicon.png><script defer=defer src=static/js/runtime.ac253ba5b5781ec0492b.js></script><script defer=defer src=static/js/tdesign-vue-efc7a60e.484a29b72d958f3fe9a4.js></script><script defer=defer src=static/js/tdesign-vue-b8b83709.959b9ad7e1946ec9bacf.js></script><script defer=defer src=static/js/ant-design-vue.0a4b6ba16acd23e720cd.js></script><script de"
+    },
+    {
+      "url": "https://idcrm.woa.com/newapi/common/list",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"db\":\"IDCRM\",\"from\":{\"db\":\"idcrm_formengine\",\"table\":\"common_dynamic_data\"},\"selects\":[],\"group\":[],\"order\":[{\"field\":\"update_time\",\"sort\":\"DESC\"}],\"page_no\":1,\"page_size\":99999,\"wheres\":[{\"field\":\"_remove\",\"operator\":\"EQ\",\"values\":\"0\"}]}",
+      "resp_body": "{\"data\":[{\"_remove\":0,\"create_by\":\"billqlzhu\",\"create_time\":\"2024-04-25 15:55:58\",\"id\":28,\"remark\":\"裁撤开发者\",\"tid\":\"abolishDevelopers\",\"update_by\":\"sevenwqliu\",\"update_time\":\"2026-05-26 14:40:27\",\"value\":\"[\\\"hensonsun\\\",\\\"billqlzhu\\\",\\\"sevenwqliu\\\",\\\"zhuangbian\\\",\\\"damarazhang\\\",\\\"lucasyyang\\\",\\\"snowdenyang\\\",\\\"babyhong\\\",\\\"v_venkichen\\\",\\\"slowmanwang\\\",\\\"siyiiiiwang\\\",\\\"cheewang\\\",\\\"chrisxchen\\\",\\\"patchpeng\\\",\\\"elevending\\\",\\\"tommyzzhang\\\",\\\"samkunzhou\\\",\\\"iyuwang\\\",\\\"cutechen\\\",\\\"joselynxie\\\"]\"}"
+    },
+    {
+      "url": "https://idcrm.woa.com/newapi/common/list",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"db\":\"IDCRM\",\"from\":{\"db\":\"idcrm_formengine\",\"table\":\"web_router_config\"},\"wheres\":[{\"field\":\"_remove\",\"operator\":\"EQ\",\"values\":\"0\"}],\"page_no\":1,\"page_size\":1000}",
+      "resp_body": "{\"data\":[{\"_remove\":0,\"component\":\"/homepage/Index.vue\",\"contentLink\":\"\",\"contentModule\":\"component\",\"create_time\":\"2023-08-23 14:40:18\",\"hideBreadcrumb\":1,\"hideMenu\":1,\"icon\":null,\"id\":1,\"ignoreAuth\":0,\"menuKey\":null,\"name\":\"home\",\"orderNo\":0,\"parentId\":\"4S5sHoAUCaqMZFipru6Vl\",\"path\":\"/home\",\"permission\":null,\"redirect\":null,\"rid\":\"nRORAHvDaGcUl9azwvCHr\",\"title\":\"首页\",\"type\":\"page\",\"update_time\":\"2023-08-23 14:40:18\",\"visible\":1},{\"_remove\":0,\"component\":\"/charts/district/district.vue\",\"contentL"
+    },
+    {
+      "url": "https://rumt-zh.com/rateConfig?id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&referer=",
+      "method": "GET",
+      "status": 200,
+      "req_body": "",
+      "resp_body": "{\"retcode\":0,\"msg\":\"\",\"configs\":[{\"limit_type\":\"log\",\"sample_rate\":100},{\"limit_type\":\"jsError\",\"sample_rate\":100},{\"limit_type\":\"whiteScreen\",\"sample_rate\":100},{\"limit_type\":\"assetsException\",\"sample_rate\":100},{\"limit_type\":\"pv\",\"sample_rate\":100},{\"limit_type\":\"event\",\"sample_rate\":100},{\"limit_type\":\"speed\",\"sample_rate\":100},{\"limit_type\":\"performance\",\"sample_rate\":100},{\"limit_type\":\"webvitals\",\"sample_rate\":100},{\"limit_type\":\"custom\",\"sample_rate\":100},{\"limit_type\":\"miniProgramData\",\""
+    },
+    {
+      "url": "https://rumt-zh.com/collect/whitelist?id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&re",
+      "method": "GET",
+      "status": 200,
+      "req_body": "",
+      "resp_body": "{\"retcode\":0,\"result\":{\"is_in_white_list\":false,\"rate\":1,\"use_gzip\":0}}"
+    },
+    {
+      "url": "https://idcrm.woa.com/idcrm-auth/api/auth/isPermittedForSelf",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"jsonrpc\":\"2.0\",\"params\":{\"perms\":[{\"domain\":\"idcrm\",\"action\":\"view\",\"page\":\"charts-district\"},{\"domain\":\"idcrm\",\"action\":\"view\",\"page\":\"short-medium-plan-view\"},{\"domain\":\"idcrm\",\"action\":\"view\",\"page\":\"supply-demand-hedging\"},{\"domain\":\"idcrm\",\"action\":\"view\",\"page\":\"capacity-busi-plan\"},{\"domain",
+      "resp_body": "{\"jsonrpc\":\"2.0\",\"id\":null,\"result\":{\"username\":\"mingqianzhu\",\"realUsername\":\"mingqianzhu\",\"results\":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,true,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,fal"
+    },
+    {
+      "url": "https://rumt-zh.com/collect/pv?originFrom=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2f",
+      "method": "GET",
+      "status": 204,
+      "req_body": "",
+      "resp_body": ""
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"dic_type\":[\"IdcFunction\"]}}",
+      "resp_body": "{\"x_trace_id\":\"351283001\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"bsiAuth\":[],\"idcFunction\":[{\"name\":\"AC\",\"id\":1},{\"name\":\"CDN\",\"id\":2},{\"name\":\"DC\",\"id\":3},{\"name\":\"OC\",\"id\":4},{\"name\":\"PDC\",\"id\":5},{\"name\":\"ODC\",\"id\":7},{\"name\":\"TDC\",\"id\":8},{\"name\":\"BDR\",\"id\":9},{\"name\":\"NT\",\"id\":10},{\"name\":\"POP\",\"id\":11},{\"name\":\"WH\",\"id\":13},{\"name\":\"AR\",\"id\":15},{\"name\":\"CNP\",\"id\":18},{\"name\":\"EC\",\"id\":21},{\"name\":\"BGC\",\"id\":23},{\"name\":\"IOT\",\"id\":25},{\"name\":\"CDC\",\"id\":27},{\"name\":\"EIC\",\"id\":29},{\"name\":\"GOC\",\"i"
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"dic_type\":[\"BandType\"]}}",
+      "resp_body": "{\"x_trace_id\":\"351011722\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"bsiAuth\":[],\"idcFunction\":[],\"planBusiType\":[],\"idc\":[],\"idcUnit\":[],\"netVersion\":[],\"netStruct\":[],\"moduleBusiType\":[],\"bandType\":[{\"name\":\"千兆\",\"id\":1,\"net_speed\":1000},{\"name\":\"万兆\",\"id\":2,\"net_speed\":10000},{\"name\":\"25G\",\"id\":3,\"net_speed\":25000},{\"name\":\"40G\",\"id\":4,\"net_speed\":40000},{\"name\":\"100G\",\"id\":5,\"net_speed\":100000},{\"name\":\"50G\",\"id\":6,\"net_speed\":50000},{\"name\":\"200G\",\"id\":8,\"net_speed\":200000},{\"name\":\"400G\",\"id\":9,\"net_sp"
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"dic_type\":[\"ModuleBusiType\"]}}",
+      "resp_body": "{\"x_trace_id\":\"358626857\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"bsiAuth\":[],\"idcFunction\":[],\"planBusiType\":[],\"idc\":[],\"idcUnit\":[],\"netVersion\":[],\"netStruct\":[],\"moduleBusiType\":[{\"name\":\"腾讯云-行业云-滴滴打车\",\"id\":3},{\"name\":\"腾讯云-公有云-黑石租赁\",\"id\":5},{\"name\":\"腾讯云-行业云-webank\",\"id\":7},{\"name\":\"腾讯云-公有云-金融B\",\"id\":8},{\"name\":\"自研-CODO\",\"id\":9},{\"name\":\"自研-GPU\",\"id\":10},{\"name\":\"自研-OC\",\"id\":11},{\"name\":\"自研-TDW\",\"id\":12},{\"name\":\"自研-财付通\",\"id\":13},{\"name\":\"自研-企业IT\",\"id\":14},{\"name\":\"自研-通用业务\",\"id\":15},{\"name\":\"自研-其他\","
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"dic_type\":[\"BusiDept\"]}}",
+      "resp_body": "{\"x_trace_id\":\"353539678\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"bsiAuth\":[],\"idcFunction\":[],\"planBusiType\":[],\"idc\":[],\"idcUnit\":[],\"netVersion\":[],\"netStruct\":[],\"moduleBusiType\":[],\"bandType\":[],\"innerNetModule\":[],\"isSupportMicroModule\":[],\"lifeStatus\":[],\"lifeStep\":[],\"operations\":[],\"status\":[],\"rackType\":[],\"rackStatus\":[],\"rackBusiCategory\":[],\"rackUseType\":[],\"operateProduct\":[],\"cloudZone\":[],\"customer\":[],\"customerType\":[],\"customerIndustry\":[],\"physicalCampus\":[],\"room\":[],\"building\":[],\"q"
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"dic_type\":[\"LogicAreaAttr\"]}}",
+      "resp_body": "{\"x_trace_id\":\"374797609\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"bsiAuth\":[],\"idcFunction\":[],\"planBusiType\":[],\"idc\":[],\"idcUnit\":[],\"netVersion\":[],\"netStruct\":[],\"moduleBusiType\":[],\"bandType\":[],\"innerNetModule\":[],\"isSupportMicroModule\":[],\"lifeStatus\":[],\"lifeStep\":[],\"operations\":[],\"status\":[],\"rackType\":[],\"rackStatus\":[],\"rackBusiCategory\":[],\"rackUseType\":[],\"operateProduct\":[],\"cloudZone\":[],\"customer\":[],\"customerType\":[],\"customerIndustry\":[],\"physicalCampus\":[],\"room\":[],\"building\":[],\"q"
+    },
+    {
+      "url": "https://rumt-zh.com/collect?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&re",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"level\":[\"1\",\"1\",\"1\",\"1\",\"1\"],\"msg\":[\"fetch req url: https://idcrm.woa.com/newapi/common/list\\n\\nres status: 200\\n\\nres duration: 86ms\\n\\nres startTime: 1780045959877\\n\\nreq method: POST\\n\\nres retcode: 0\\n\\nreq param: {\\\"db\\\":\\\"IDCRM\\\",\\\"from\\\":{\\\"db\\\":\\\"idcrm_formengine\\\",\\\"table\\\":\\\"common_dynam",
+      "resp_body": ""
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"dic_type\":[\"OperateProduct\"]}}",
+      "resp_body": "{\"x_trace_id\":\"354167126\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"bsiAuth\":[],\"idcFunction\":[],\"planBusiType\":[],\"idc\":[],\"idcUnit\":[],\"netVersion\":[],\"netStruct\":[],\"moduleBusiType\":[],\"bandType\":[],\"innerNetModule\":[],\"isSupportMicroModule\":[],\"lifeStatus\":[],\"lifeStep\":[],\"operations\":[],\"status\":[],\"rackType\":[],\"rackStatus\":[],\"rackBusiCategory\":[],\"rackUseType\":[],\"operateProduct\":[{\"name\":\"AppleJuice\",\"id\":5},{\"name\":\"AVA\",\"id\":6},{\"name\":\"B3-官网与营销\",\"id\":8},{\"name\":\"Battery\",\"id\":9},{\"name\":\"存储平台"
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"dic_type\":[\"OperateProduct\"]}}",
+      "resp_body": "{\"x_trace_id\":\"351606917\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"bsiAuth\":[],\"idcFunction\":[],\"planBusiType\":[],\"idc\":[],\"idcUnit\":[],\"netVersion\":[],\"netStruct\":[],\"moduleBusiType\":[],\"bandType\":[],\"innerNetModule\":[],\"isSupportMicroModule\":[],\"lifeStatus\":[],\"lifeStep\":[],\"operations\":[],\"status\":[],\"rackType\":[],\"rackStatus\":[],\"rackBusiCategory\":[],\"rackUseType\":[],\"operateProduct\":[{\"name\":\"AppleJuice\",\"id\":5},{\"name\":\"AVA\",\"id\":6},{\"name\":\"B3-官网与营销\",\"id\":8},{\"name\":\"Battery\",\"id\":9},{\"name\":\"存储平台"
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/topology/query",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"src\":21,\"dst\":13,\"ids\":[\"all\"]}",
+      "resp_body": "{\"code\":0,\"msg\":\"\",\"data\":[{\"id\":\"3\",\"name\":\"深圳-福永\"},{\"id\":\"9\",\"name\":\"深圳-同乐\"},{\"id\":\"10\",\"name\":\"深圳-蛇口\"},{\"id\":\"18\",\"name\":\"天津-滨海\"},{\"id\":\"26\",\"name\":\"西安-二长\"},{\"id\":\"27\",\"name\":\"西安-经开\"},{\"id\":\"31\",\"name\":\"上海-南汇\"},{\"id\":\"34\",\"name\":\"上海-市北\"},{\"id\":\"37\",\"name\":\"杭州-东冠\"},{\"id\":\"38\",\"name\":\"南京-二长\"},{\"id\":\"41\",\"name\":\"成都-高新\"},{\"id\":\"42\",\"name\":\"成都-枢纽\"},{\"id\":\"43\",\"name\":\"成都-光华\"},{\"id\":\"44\",\"name\":\"美国-加州\"},{\"id\":\"46\",\"name\":\"香港-沙田\"},{\"id\":\"51\",\"name\":\"深圳-观澜\"},{\"id\":\"65\",\"name\":\"资源中转-未确认\"},{\"id\":\"69\",\"n"
+    },
+    {
+      "url": "https://rumt-zh.com/collect?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&re",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"level\":[\"1\",\"1\",\"1\",\"1\",\"1\"],\"msg\":[\"fetch req url: https://idcrm.woa.com/api/idcbackend/idcdata/QueryDic\\n\\nres status: 200\\n\\nres duration: 58ms\\n\\nres startTime: 1780045960317\\n\\nreq method: POST\\n\\nres retcode: 0\\n\\nreq param: {\\\"params\\\":{\\\"dic_type\\\":[\\\"ModuleBusiType\\\"]}}\\n\\nres data: {\\\"x_",
+      "resp_body": ""
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/topology/query",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"src\":21,\"dst\":22,\"ids\":[\"all\"]}",
+      "resp_body": "{\"code\":0,\"msg\":\"\",\"data\":[{\"id\":\"934\",\"name\":\"重庆腾讯泰和DC\"},{\"id\":\"1126\",\"name\":\"重庆腾讯泰和行政楼TDC\"},{\"id\":\"1699\",\"name\":\"重庆腾讯泰和CNP\"},{\"id\":\"2169\",\"name\":\"重庆腾讯泰和ODC\"},{\"id\":\"5094\",\"name\":\"重庆腾讯泰和5号楼利旧TDC\"},{\"id\":\"931\",\"name\":\"重庆联通云祥DC\"},{\"id\":\"5661\",\"name\":\"重庆联通云祥AR\"},{\"id\":\"928\",\"name\":\"重庆电信云福DC\"},{\"id\":\"6201\",\"name\":\"重庆电信云福AR\"},{\"id\":\"1\",\"name\":\"西安教育网二长OC\"},{\"id\":\"74\",\"name\":\"西安电信二长OC\"},{\"id\":\"2673\",\"name\":\"西安电信二长EIC\"},{\"id\":\"159\",\"name\":\"天津数据备份中心东区DC\"},{\"id\":\"285\",\"name\":\"天津腾讯数据备份中心东区2栋ODC\"},{\"id\":\"3"
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/topology/query",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"src\":21,\"dst\":12,\"ids\":[\"all\"]}",
+      "resp_body": "{\"code\":0,\"msg\":\"\",\"data\":[{\"id\":\"195\",\"name\":\"深圳-同乐-M2\"},{\"id\":\"197\",\"name\":\"深圳-同乐-M3\"},{\"id\":\"8897\",\"name\":\"深圳-同乐-M5\"},{\"id\":\"183\",\"name\":\"深圳-蛇口-M1\"},{\"id\":\"185\",\"name\":\"深圳-蛇口-M2\"},{\"id\":\"187\",\"name\":\"深圳-蛇口-M3\"},{\"id\":\"189\",\"name\":\"深圳-蛇口-M4\"},{\"id\":\"285\",\"name\":\"深圳-蛇口-M6\"},{\"id\":\"303\",\"name\":\"深圳-蛇口-M9\"},{\"id\":\"379\",\"name\":\"深圳-蛇口-M7\"},{\"id\":\"381\",\"name\":\"深圳-蛇口-M8\"},{\"id\":\"445\",\"name\":\"深圳-蛇口-M10\"},{\"id\":\"1921\",\"name\":\"深圳-蛇口GW-M20\"},{\"id\":\"1923\",\"name\":\"深圳-蛇口云安全-M30\"},{\"id\":\"1925\",\"name\":\"深圳-蛇口-M"
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/topology/query",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"src\":21,\"dst\":7,\"ids\":[\"all\"]}",
+      "resp_body": "{\"code\":0,\"msg\":\"\",\"data\":[{\"id\":\"6708\",\"name\":\"重庆腾讯泰和DC2号楼A区M103\"},{\"id\":\"6711\",\"name\":\"重庆腾讯泰和DC2号楼A区M104\"},{\"id\":\"7281\",\"name\":\"重庆腾讯泰和DC2号楼A区M101南\"},{\"id\":\"7287\",\"name\":\"重庆腾讯泰和DC2号楼A区M102北\"},{\"id\":\"7695\",\"name\":\"重庆腾讯泰和DC2号楼B区M105\"},{\"id\":\"7697\",\"name\":\"重庆腾讯泰和DC2号楼B区M106\"},{\"id\":\"7699\",\"name\":\"重庆腾讯泰和DC2号楼B区M107\"},{\"id\":\"12781\",\"name\":\"重庆腾讯泰和DC3号楼A区CR3101\"},{\"id\":\"12783\",\"name\":\"重庆腾讯泰和DC3号楼B区CR3102\"},{\"id\":\"12785\",\"name\":\"重庆腾讯泰和DC3号楼A区M3103\"},{\"id\":\"12787\",\"name\":\"重庆腾讯泰和DC3号楼A区M3104\"},{\"id\":\"127"
+    },
+    {
+      "url": "https://idcrm.woa.com/newapi/WorkbenchCount",
+      "method": "POST",
+      "status": 200,
+      "req_body": "",
+      "resp_body": "{\"x_trace_id\":\"\",\"id\":\"\",\"jsonrpc\":\"\",\"result\":{\"total\":0,\"items\":[{\"item_name\":\"合建/租赁机房变更\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"机位网络建设\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"机房机架建设\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"机电采购\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"裁撤\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"决策管理\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"综合布线\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"私有云资源建设\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"网络裁撤项目\",\"count\":0,\"type\":\"待审批\"},{\"item_name\":\"云可用区\",\"coun"
+    },
+    {
+      "url": "https://rumt-zh.com/collect?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&re",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"level\":[\"1\",\"1\",\"1\",\"1\",\"1\"],\"msg\":[\"fetch req url: https://idcrm.woa.com/api/idcbackend/topology/query\\n\\nres status: 200\\n\\nres duration: 264ms\\n\\nres startTime: 1780045960322\\n\\nreq method: POST\\n\\nres retcode: 0\\n\\nreq param: {\\\"src\\\":21,\\\"dst\\\":13,\\\"ids\\\":[\\\"all\\\"]}\\n\\nres data: {\\\"code\\\":0,\\",
+      "resp_body": ""
+    },
+    {
+      "url": "https://rumt-zh.com/speed?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&refe",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"payload\":\"{\\\"duration\\\":{\\\"fetch\\\":[{\\\"url\\\":\\\"https://idcrm.woa.com/newapi/common/list\\\",\\\"isHttps\\\":true,\\\"method\\\":\\\"POST\\\",\\\"type\\\":\\\"fetch\\\",\\\"status\\\":200,\\\"duration\\\":86,\\\"nextHopProtocol\\\":\\\"\\\",\\\"domainLookup\\\":-1,\\\"connectTime\\\":-1,\\\"ret\\\":\\\"0\\\",\\\"isErr\\\":0},{\\\"url\\\":\\\"https://idcrm.woa.c",
+      "resp_body": ""
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/position/query",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"is_fake\":\"0\"},\"page_no\":1,\"page_size\":10}",
+      "resp_body": "{\"code\":0,\"msg\":\"\",\"result\":{\"total\":2884475,\"data\":[{\"area_type\":\"\",\"region\":\"\",\"zone\":\"\",\"city\":\"\",\"campus\":\"深圳ODC-腾大\",\"physics_campus\":\"深圳-腾讯大厦\",\"idc_name\":\"深圳腾讯腾讯大厦ODC\",\"idc_function_name\":\"ODC\",\"idc_unit_name\":\"深圳腾讯腾讯大厦ODC0502\",\"building_name\":\"\",\"rack_code\":\"0502-A01\",\"support_side_band\":0,\"column_name\":\"\",\"billing_method\":\"不计费\",\"rack_type\":\"IT资源机架\",\"power_supply_type\":\"AC\",\"rated_electricity\":0,\"is_lay\":\"是\",\"rack_first_use_time\":\"2009-12-30 00:00:00\",\"is_power_on\":\"是\",\"power_on_time\":\"200"
+    },
+    {
+      "url": "https://rumt-zh.com/speed/performance?dnsLookup=0&tcp=0&ssl=0&ttfb=239&contentDownload=1&domParse=264&resourceDownload=240&firstScreenTiming=1880&from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445",
+      "method": "GET",
+      "status": 204,
+      "req_body": "",
+      "resp_body": ""
+    },
+    {
+      "url": "https://rumt-zh.com/speed?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&refe",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"payload\":\"{\\\"duration\\\":{\\\"fetch\\\":[{\\\"url\\\":\\\"https://idcrm.woa.com/api/idcbackend/position/query\\\",\\\"isHttps\\\":true,\\\"method\\\":\\\"POST\\\",\\\"type\\\":\\\"fetch\\\",\\\"status\\\":200,\\\"duration\\\":2364,\\\"nextHopProtocol\\\":\\\"\\\",\\\"domainLookup\\\":-1,\\\"connectTime\\\":-1,\\\"ret\\\":\\\"0\\\",\\\"isErr\\\":0}],\\\"static\\\":[],\\\"",
+      "resp_body": ""
+    },
+    {
+      "url": "https://rumt-zh.com/collect?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&re",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"level\":[\"1\"],\"msg\":[\"fetch req url: https://idcrm.woa.com/api/idcbackend/position/query\\n\\nres status: 200\\n\\nres duration: 2364ms\\n\\nres startTime: 1780045960333\\n\\nreq method: POST\\n\\nres retcode: 0\\n\\nreq param: {\\\"params\\\":{\\\"is_fake\\\":\\\"0\\\"},\\\"page_no\\\":1,\\\"page_size\\\":10}\\n\\nres data: {\\\"cod",
+      "resp_body": ""
+    },
+    {
+      "url": "https://rumt-zh.com/speed?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&refe",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"payload\":\"{\\\"duration\\\":{\\\"fetch\\\":[],\\\"static\\\":[{\\\"url\\\":\\\"https://idcrm.woa.com/static/js/runtime.ac253ba5b5781ec0492b.js\\\",\\\"method\\\":\\\"get\\\",\\\"duration\\\":81.8,\\\"status\\\":200,\\\"type\\\":\\\"static\\\",\\\"isHttps\\\":true,\\\"nextHopProtocol\\\":\\\"h2\\\",\\\"urlQuery\\\":\\\"\\\",\\\"domainLookup\\\":0,\\\"connectTime\\\":0,",
+      "resp_body": ""
+    },
+    {
+      "url": "https://idcrm.woa.com/api/idcbackend/position/query",
+      "method": "POST",
+      "status": 200,
+      "req_body": "{\"params\":{\"is_fake\":\"0\"},\"page_no\":1,\"page_size\":10}",
+      "resp_body": "{\"code\":0,\"msg\":\"\",\"result\":{\"total\":2884475,\"data\":[{\"area_type\":\"\",\"region\":\"\",\"zone\":\"\",\"city\":\"\",\"campus\":\"深圳ODC-腾大\",\"physics_campus\":\"深圳-腾讯大厦\",\"idc_name\":\"深圳腾讯腾讯大厦ODC\",\"idc_function_name\":\"ODC\",\"idc_unit_name\":\"深圳腾讯腾讯大厦ODC0502\",\"building_name\":\"\",\"rack_code\":\"0502-A01\",\"support_side_band\":0,\"column_name\":\"\",\"billing_method\":\"不计费\",\"rack_type\":\"IT资源机架\",\"power_supply_type\":\"AC\",\"rated_electricity\":0,\"is_lay\":\"是\",\"rack_first_use_time\":\"2009-12-30 00:00:00\",\"is_power_on\":\"是\",\"power_on_time\":\"200"
+    },
+    {
+      "url": "https://rumt-zh.com/speed?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&refe",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"payload\":\"{\\\"duration\\\":{\\\"fetch\\\":[{\\\"url\\\":\\\"https://idcrm.woa.com/api/idcbackend/position/query\\\",\\\"isHttps\\\":true,\\\"method\\\":\\\"POST\\\",\\\"type\\\":\\\"fetch\\\",\\\"status\\\":200,\\\"duration\\\":2572,\\\"nextHopProtocol\\\":\\\"\\\",\\\"domainLookup\\\":-1,\\\"connectTime\\\":-1,\\\"ret\\\":\\\"0\\\",\\\"isErr\\\":0}],\\\"static\\\":[],\\\"",
+      "resp_body": ""
+    },
+    {
+      "url": "https://rumt-zh.com/collect?from=https%3A%2F%2Fidcrm.woa.com%2Fdb%2Fpositions&sampled=1&id=aZpm1uDbeKRz3wgVeQ&uin=mingqianzhu&version=1.43.57&aid=75675350-b951-4a09-af79-c1d334d0c445&env=production&platform=4&netType=4&vp=1440%20*%20900&sr=1440%20*%20900&sessionId=dfef4d5183394fba879bbbba2fab32c0&re",
+      "method": "POST",
+      "status": 204,
+      "req_body": "{\"level\":[\"1\"],\"msg\":[\"fetch req url: https://idcrm.woa.com/api/idcbackend/position/query\\n\\nres status: 200\\n\\nres duration: 2572ms\\n\\nres startTime: 1780045968607\\n\\nreq method: POST\\n\\nres retcode: 0\\n\\nreq param: {\\\"params\\\":{\\\"is_fake\\\":\\\"0\\\"},\\\"page_no\\\":1,\\\"page_size\\\":10}\\n\\nres data: {\\\"cod",
+      "resp_body": ""
+    }
+  ]
+}

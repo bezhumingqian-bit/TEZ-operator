@@ -1,0 +1,1089 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - paragraph [ref=e4]:
+      - generic [ref=e6]:
+        - text: 严禁未经授权通过爬虫等自动化工具获取或留存系统数据，一经发现将按公司信息安全规定追责处理。如有工作需求，请使用 KM 官方
+        - link "MCP" [ref=e7] [cursor=pointer]:
+          - /url: https://knot.woa.com/mcp/detail/3252
+        - text: /
+        - link "SKILL" [ref=e8] [cursor=pointer]:
+          - /url: https://knot.woa.com/skills/detail/3044
+        - text: 。
+      - button [ref=e9] [cursor=pointer]:
+        - img [ref=e11]
+    - generic [ref=e14]:
+      - generic [ref=e19]:
+        - link "首页" [ref=e20] [cursor=pointer]:
+          - /url: /?kmref=vkm_header
+        - link "悦读" [ref=e21] [cursor=pointer]:
+          - /url: /read?kmref=vkm_header
+        - link "乐问" [ref=e22] [cursor=pointer]:
+          - /url: /q?kmref=vkm_header
+        - link "TEKO" [ref=e23] [cursor=pointer]:
+          - /url: https://teko.woa.com/?kmref=vkm_header
+          - generic [ref=e24]: TEKO
+        - generic [ref=e26] [cursor=pointer]:
+          - text: 应用
+          - img [ref=e28]
+        - generic [ref=e31] [cursor=pointer]:
+          - text: K吧
+          - img [ref=e33]
+      - generic [ref=e35]:
+        - search [ref=e36]:
+          - textbox "搜索" [ref=e40]
+        - generic [ref=e43] [cursor=pointer]:
+          - link [ref=e45]:
+            - /url: /user/mingqianzhu?kmref=vkm_header
+            - img [ref=e46]
+          - img [ref=e50]
+          - img [ref=e55]
+      - link "AI问答" [ref=e57] [cursor=pointer]:
+        - /url: /ai/chat
+        - img [ref=e59]
+        - generic [ref=e61]: AI问答
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - link "文章" [ref=e66] [cursor=pointer]:
+            - /url: /read
+            - generic [ref=e68]: 文章
+          - generic [ref=e69]: /
+        - generic [ref=e73]: 文章详情
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - generic [ref=e78]:
+            - generic [ref=e79]:
+              - generic [ref=e80]: 大纲
+              - img [ref=e83] [cursor=pointer]
+            - generic [ref=e86]:
+              - generic [ref=e87] [cursor=pointer]: 1. 模型既要懂架构设计，也要能快速定位组件
+              - generic [ref=e88] [cursor=pointer]: 2. 给模型一套Harness(约束规则)
+              - generic [ref=e89] [cursor=pointer]: 3. 需求写得好，收益比换基模大得多
+              - generic [ref=e90] [cursor=pointer]: 4. 需求不清晰，提问优先
+              - generic [ref=e91] [cursor=pointer]: 5. 复杂需求多拆解，小步快跑
+              - generic [ref=e92] [cursor=pointer]: 最后，给 AI 派开发任务时可以按这张清单写
+              - generic [ref=e93] [cursor=pointer]: 延伸阅读
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - generic [ref=e96]:
+                - text: 我们做了什么，让国产模型在真实写代码场景追平 Claude
+                - generic [ref=e99]:
+                  - generic [ref=e100]:
+                    - img [ref=e102]
+                    - generic [ref=e104]: "9"
+                  - img [ref=e106]
+              - generic [ref=e108]:
+                - generic [ref=e109]:
+                  - link "tornadoxie" [ref=e110] [cursor=pointer]:
+                    - /url: /user/tornadoxie
+                  - generic [ref=e111] [cursor=pointer]:
+                    - text: 2026-06-15 19:26
+                    - img [ref=e113]
+                - generic [ref=e116]:
+                  - generic [ref=e117]:
+                    - img [ref=e119]
+                    - generic [ref=e121]: "828"
+                  - generic [ref=e122] [cursor=pointer]:
+                    - img [ref=e124]
+                    - generic [ref=e126]: "18"
+                  - generic [ref=e127] [cursor=pointer]:
+                    - img [ref=e129]
+                    - generic [ref=e131]: "35"
+                  - generic [ref=e132] [cursor=pointer]:
+                    - img [ref=e134]
+                    - generic [ref=e136]: 分享
+              - generic [ref=e137]:
+                - generic [ref=e139] [cursor=pointer]:
+                  - img [ref=e141]
+                  - generic [ref=e143]: 文章摘要
+                - generic "初始化中" [ref=e144]:
+                  - img [ref=e146]
+                  - generic [ref=e148]: 思维导图
+                - generic [ref=e149] [cursor=pointer]:
+                  - img [ref=e151]
+                  - generic [ref=e153]: 文章朗读
+              - generic [ref=e155]:
+                - img [ref=e157]
+                - generic [ref=e159]: AI辅助声明：作者声明本文创作过程使用AI辅助。
+            - generic [ref=e160]:
+              - text: 丨 共同作者
+              - generic [ref=e161]:
+                - link "godwinchen" [ref=e162] [cursor=pointer]:
+                  - /url: /user/godwinchen
+                - text: 、
+              - link "wechen" [ref=e164] [cursor=pointer]:
+                - /url: /user/wechen
+            - generic [ref=e165]: 丨 导语 过去几个月，我们一直在探索提升模型写代码能力的方案，为了验证这些方案是否真的有提升，我们搭了一个叫 CVM-Bench 的内部评测——从腾讯云 CVM 日常开发中选 20 个真实需求当考题，以工程师实际合入的代码做标准答案，让 AI 独立完成后打分。
+            - generic [ref=e172]:
+              - paragraph [ref=e173]:
+                - text: 评测体系的详细设计见第二篇：
+                - link "如何搭建一套可观测的 AI 编程评测：CVM-Bench 方法论全解" [ref=e174] [cursor=pointer]:
+                  - /url: https://km.woa.com/group/19368/articles/show/632328
+              - paragraph [ref=e175]
+              - paragraph [ref=e176]: 下面就是我们跑了 300+ 轮跨模型、跨方法的对照评测之后，提炼出来的可以直接拿走用的技巧。
+              - separator [ref=e177]
+              - heading "1. 模型既要懂架构设计，也要能快速定位组件" [level=2] [ref=e178]
+              - paragraph [ref=e179]: 手写代码时代，倾向于拆；AI时代，倾向于合。
+              - paragraph [ref=e180]
+              - paragraph [ref=e181]: 使用sh脚本维护一个包含所有组件的目录，根目录存放整体项目架构说明 + 组件索引（外链各组件 CODEBUDDY.md），便于大模型去快速理解项目框架和每个组件的作用，以及组件内部的介绍和约束。
+              - paragraph [ref=e182]
+              - paragraph [ref=e183]: 此处需要注意2点：
+              - list [ref=e184]:
+                - listitem [ref=e185]:
+                  - paragraph [ref=e186]: CODEBUDDY.md 需要定期维护，过时的指引可能会导致模型走向歧途
+                - listitem [ref=e187]:
+                  - paragraph [ref=e188]: CODEBUDDY.md 的维护需要保持最佳实践，不能过于臃肿
+              - paragraph [ref=e189]
+              - blockquote [ref=e190]:
+                - paragraph [ref=e191]:
+                  - text: 参考CLAUDE.md最佳实践(
+                  - link "https://code.claude.com/docs/zh-CN/best-practices#write-an-effective-claude-md)" [ref=e192] [cursor=pointer]:
+                    - /url: https://code.claude.com/docs/zh-CN/best-practices#write-an-effective-claude-md)
+              - generic [ref=e193]:
+                - button [ref=e197] [cursor=pointer]:
+                  - img [ref=e200]
+                - generic [ref=e203]:
+                  - generic [ref=e204]:
+                    - generic [ref=e205] [cursor=pointer]: "1"
+                    - generic [ref=e206]: "cvm-workspace/ # 工作区根目录"
+                  - generic [ref=e207]:
+                    - generic [ref=e208] [cursor=pointer]: "2"
+                    - generic [ref=e209]: "├── CODEBUDDY.md # 整体项目架构说明 + 组件索引（外链各组件 CODEBUDDY.md）"
+                  - generic [ref=e210]:
+                    - generic [ref=e211] [cursor=pointer]: "3"
+                    - generic [ref=e212]: "├── cvm-api/ # 组件1：CVM-API 仓库"
+                  - generic [ref=e213]:
+                    - generic [ref=e214] [cursor=pointer]: "4"
+                    - generic [ref=e215]: "│ ├── CODEBUDDY.md # CVM-API 组件介绍+约束"
+                  - generic [ref=e216]:
+                    - generic [ref=e217] [cursor=pointer]: "5"
+                    - generic [ref=e218]: │ └── ...
+                  - generic [ref=e219]:
+                    - generic [ref=e220] [cursor=pointer]: "6"
+                    - generic [ref=e221]: "├── des/ # 组件2：DES 仓库"
+                  - generic [ref=e222]:
+                    - generic [ref=e223] [cursor=pointer]: "7"
+                    - generic [ref=e224]: "│ ├── CODEBUDDY.md # DES 组件介绍+约束"
+                  - generic [ref=e225]:
+                    - generic [ref=e226] [cursor=pointer]: "8"
+                    - generic [ref=e227]: │ └── ...
+                  - generic [ref=e228]:
+                    - generic [ref=e229] [cursor=pointer]: "9"
+                    - generic [ref=e230]: "├── vstation-api/ # 组件3：VStation API 仓库"
+                  - generic [ref=e231]:
+                    - generic [ref=e232] [cursor=pointer]: "10"
+                    - generic [ref=e233]: "│ ├── CODEBUDDY.md # VStation API 组件介绍+约束"
+                  - generic [ref=e234]:
+                    - generic [ref=e235] [cursor=pointer]: "11"
+                    - generic [ref=e236]: │ └── ...
+                  - generic [ref=e237]:
+                    - generic [ref=e238] [cursor=pointer]: "12"
+                    - generic [ref=e239]: "├── frame/ # 组件4：Frame 仓库"
+                  - generic [ref=e240]:
+                    - generic [ref=e241] [cursor=pointer]: "13"
+                    - generic [ref=e242]: "│ ├── CODEBUDDY.md # Frame 组件介绍+约束"
+                  - generic [ref=e243]:
+                    - generic [ref=e244] [cursor=pointer]: "14"
+                    - generic [ref=e245]: │ └── ...
+                  - generic [ref=e246]:
+                    - generic [ref=e247] [cursor=pointer]: "15"
+                    - generic [ref=e248]: "├── dispatcher/ # 组件5：Dispatcher 仓库"
+                  - generic [ref=e249]:
+                    - generic [ref=e250] [cursor=pointer]: "16"
+                    - generic [ref=e251]: "│ ├── CODEBUDDY.md # Dispatcher 组件介绍+约束"
+                  - generic [ref=e252]:
+                    - generic [ref=e253] [cursor=pointer]: "17"
+                    - generic [ref=e254]: │ └── ...
+                  - generic [ref=e255]:
+                    - generic [ref=e256] [cursor=pointer]: "18"
+                    - generic [ref=e257]: "├── aurora/ # 组件6：Aurora 仓库"
+                  - generic [ref=e258]:
+                    - generic [ref=e259] [cursor=pointer]: "19"
+                    - generic [ref=e260]: "│ ├── CODEBUDDY.md # Aurora 组件介绍+约束"
+                  - generic [ref=e261]:
+                    - generic [ref=e262] [cursor=pointer]: "20"
+                    - generic [ref=e263]: │ └── ...
+                  - generic [ref=e264]:
+                    - generic [ref=e265] [cursor=pointer]: "21"
+                    - generic [ref=e266]: "├── compute/ # 组件7：Compute 仓库"
+                  - generic [ref=e267]:
+                    - generic [ref=e268] [cursor=pointer]: "22"
+                    - generic [ref=e269]: "│ ├── CODEBUDDY.md # Compute 组件介绍+约束"
+                  - generic [ref=e270]:
+                    - generic [ref=e271] [cursor=pointer]: "23"
+                    - generic [ref=e272]: │ └── ...
+                  - generic [ref=e273]:
+                    - generic [ref=e274] [cursor=pointer]: "24"
+                    - generic [ref=e275]: "├── vsresource/ # 组件8：VSResource 仓库"
+                  - generic [ref=e276]:
+                    - generic [ref=e277] [cursor=pointer]: "25"
+                    - generic [ref=e278]: "│ ├── CODEBUDDY.md # VSResource 组件介绍+约束"
+                  - generic [ref=e279]:
+                    - generic [ref=e280] [cursor=pointer]: "26"
+                    - generic [ref=e281]: │ └── ...
+                  - generic [ref=e282]:
+                    - generic [ref=e283] [cursor=pointer]: "27"
+                    - generic [ref=e284]: "├── cvm-ccdb/ # 组件9：CVM-CCDB 仓库"
+                  - generic [ref=e285]:
+                    - generic [ref=e286] [cursor=pointer]: "28"
+                    - generic [ref=e287]: "│ ├── CODEBUDDY.md # CVM-CCDB 组件介绍+约束"
+                  - generic [ref=e288]:
+                    - generic [ref=e289] [cursor=pointer]: "29"
+                    - generic [ref=e290]: │ └── ...
+                  - generic [ref=e292] [cursor=pointer]: "30"
+              - paragraph [ref=e294]:
+                - text: 组件介绍参考：
+                - link "https://git.woa.com/cvm/ai_docs" [ref=e295] [cursor=pointer]:
+                  - /url: https://git.woa.com/cvm/ai_docs
+              - paragraph [ref=e296]
+              - blockquote [ref=e297]:
+                - paragraph [ref=e298]: 此workspace后续作为评测的基线，如果没有这些介绍，模型会难以写出能通过的需求。
+              - heading "2. 给模型一套Harness(约束规则)" [level=2] [ref=e299]
+              - blockquote [ref=e300]:
+                - paragraph [ref=e301]:
+                  - strong [ref=e302]: "\"基线\"不是空手上阵"
+                  - text: ：所有方案的 AI 在编码阶段都拥有相同的工作环境——workspace 中已 clone 了全部相关仓库的代码，并附带不同组件的介绍（包含不同组件的层级关系和每个组件的介绍[CODEBUDDY.MD]）。
+              - paragraph [ref=e303]:
+                - text: 在 4 个
+                - strong [ref=e304]: 高难度
+                - text: 需求上，对比结果是：
+              - table [ref=e307]:
+                - rowgroup [ref=e308]:
+                  - row "方案 编码均分 通过情况" [ref=e309]:
+                    - columnheader "方案" [ref=e310]:
+                      - paragraph [ref=e311]: 方案
+                    - columnheader "编码均分" [ref=e312]:
+                      - paragraph [ref=e313]: 编码均分
+                    - columnheader "通过情况" [ref=e314]:
+                      - paragraph [ref=e315]: 通过情况
+                  - row "GLM-5.1 基线 54.4 1/4 通过" [ref=e316]:
+                    - cell "GLM-5.1 基线" [ref=e317]:
+                      - paragraph [ref=e318]: GLM-5.1 基线
+                    - cell "54.4" [ref=e319]:
+                      - paragraph [ref=e320]: "54.4"
+                    - cell "1/4 通过" [ref=e321]:
+                      - paragraph [ref=e322]: 1/4 通过
+                  - row "Claude Opus 4.6 基线 70.3 4/4 通过" [ref=e323]:
+                    - cell "Claude Opus 4.6 基线" [ref=e324]:
+                      - paragraph [ref=e325]: Claude Opus 4.6 基线
+                    - cell "70.3" [ref=e326]:
+                      - paragraph [ref=e327]: "70.3"
+                    - cell "4/4 通过" [ref=e328]:
+                      - paragraph [ref=e329]: 4/4 通过
+                  - row "GLM-5.1 + 约束规则 71.1 4/4 通过" [ref=e330]:
+                    - cell "GLM-5.1 + 约束规则" [ref=e331]:
+                      - paragraph [ref=e332]: GLM-5.1 + 约束规则
+                    - cell "71.1" [ref=e333]:
+                      - paragraph [ref=e334]:
+                        - strong [ref=e335]: "71.1"
+                    - cell "4/4 通过" [ref=e336]:
+                      - paragraph [ref=e337]: 4/4 通过
+              - paragraph [ref=e338]: 这组数据的意思不是「某个模型一定比另一个强」，而是：一个普通模型，如果工作流程约束得好，可以接近甚至追平更强模型的直接输出。
+              - paragraph [ref=e339]
+              - paragraph [ref=e340]: 扩展到 20 个需求后，差异更清楚：
+              - table [ref=e343]:
+                - rowgroup [ref=e344]:
+                  - row "方案 编码均分 通过率" [ref=e345]:
+                    - columnheader "方案" [ref=e346]:
+                      - paragraph [ref=e347]: 方案
+                    - columnheader "编码均分" [ref=e348]:
+                      - paragraph [ref=e349]: 编码均分
+                    - columnheader "通过率" [ref=e350]:
+                      - paragraph [ref=e351]: 通过率
+                  - row "GLM-5.1 基线 72.5 14/20" [ref=e352]:
+                    - cell "GLM-5.1 基线" [ref=e353]:
+                      - paragraph [ref=e354]: GLM-5.1 基线
+                    - cell "72.5" [ref=e355]:
+                      - paragraph [ref=e356]: "72.5"
+                    - cell "14/20" [ref=e357]:
+                      - paragraph [ref=e358]: 14/20
+                  - row "claude-opus-4.6 基线 78 16/20" [ref=e359]:
+                    - cell "claude-opus-4.6 基线" [ref=e360]:
+                      - paragraph [ref=e361]: claude-opus-4.6 基线
+                    - cell "78" [ref=e362]:
+                      - paragraph [ref=e363]: "78"
+                    - cell "16/20" [ref=e364]:
+                      - paragraph [ref=e365]: 16/20
+                  - row "GLM-5.1 + 约束规则 82 20/20" [ref=e366]:
+                    - cell "GLM-5.1 + 约束规则" [ref=e367]:
+                      - paragraph [ref=e368]: GLM-5.1 + 约束规则
+                    - cell "82" [ref=e369]:
+                      - paragraph [ref=e370]:
+                        - strong [ref=e371]: "82"
+                    - cell "20/20" [ref=e372]:
+                      - paragraph [ref=e373]: 20/20
+              - paragraph [ref=e374]: 这套约束规则最早来自 Karpathy 对 LLM 编程的几条建议：先思考、优先简单方案、不乱重构、围绕目标做事。早期只注入这些准则时，确实有提升，但不稳定：设计阶段平均大约 +4.1，编码阶段大约 +8.7，有些用例准确率还会下降。
+              - paragraph [ref=e375]: 因此针对我们的实际开发场景，沉淀了一些新的约束：
+              - list [ref=e376]:
+                - listitem [ref=e377]:
+                  - paragraph [ref=e378]: 新增文件、类、常量前，先搜索同仓库已有命名；
+                - listitem [ref=e379]:
+                  - paragraph [ref=e380]: 修改函数前，追踪入参，确认变量在这个位置是否已经存在；
+                - listitem [ref=e381]:
+                  - paragraph [ref=e382]: 跨仓库新增接口时，写清楚字段名、类型、大小写风格；
+                - listitem [ref=e383]:
+                  - paragraph [ref=e384]: 写完设计后，按覆盖完整性、过度工程、命名一致性、最小可工作集做自查；
+                - listitem [ref=e385]:
+                  - paragraph [ref=e386]: 编码阶段检查是否真的产生了 git diff，避免模型漏写。
+              - paragraph [ref=e387]
+              - blockquote [ref=e388]:
+                - paragraph [ref=e389]:
+                  - text: 约束规则的具体内容：
+                  - link "https://iwiki.woa.com/p/4022048062" [ref=e390] [cursor=pointer]:
+                    - /url: https://iwiki.woa.com/p/4022048062
+              - separator [ref=e391]
+              - heading "3. 需求写得好，收益比换基模大得多" [level=2] [ref=e392]
+              - paragraph [ref=e393]:
+                - img [ref=e401]
+              - paragraph [ref=e402]: 同一个需求，只改描述，分数能差很多。这不是个别现象，我们做过多组对照，结果很一致。
+              - paragraph [ref=e403]
+              - paragraph [ref=e404]: 几个典型变化：
+              - table [ref=e407]:
+                - rowgroup [ref=e408]:
+                  - row "原始需求 优化方案 对比基线" [ref=e409]:
+                    - columnheader "原始需求" [ref=e410]:
+                      - paragraph [ref=e411]: 原始需求
+                    - columnheader "优化方案" [ref=e412]:
+                      - paragraph [ref=e413]: 优化方案
+                    - columnheader "对比基线" [ref=e414]:
+                      - paragraph [ref=e415]: 对比基线
+                  - row "支持可用区机型维度熔断 补上背景、判断维度和影响范围 设计分最高提升 45 分以上" [ref=e416]:
+                    - cell "支持可用区机型维度熔断" [ref=e417]:
+                      - paragraph [ref=e418]:
+                        - link "支持可用区机型维度熔断" [ref=e419] [cursor=pointer]:
+                          - /url: https://tapd.woa.com/tapd_fe/20422209/story/detail/1020422209130826888
+                    - cell "补上背景、判断维度和影响范围" [ref=e420]:
+                      - paragraph [ref=e421]: 补上背景、判断维度和影响范围
+                    - cell "设计分最高提升 45 分以上" [ref=e422]:
+                      - paragraph [ref=e423]: 设计分最高提升 45 分以上
+                  - row "TEZ支持自定义镜像在多节点中使用 把产品口吻改成带技术约束的描述 一个高难度需求从 50 分左右到 87 分" [ref=e424]:
+                    - cell "TEZ支持自定义镜像在多节点中使用" [ref=e425]:
+                      - paragraph [ref=e426]:
+                        - link "TEZ支持自定义镜像在多节点中使用" [ref=e427] [cursor=pointer]:
+                          - /url: https://tapd.woa.com/tapd_fe/20422209/story/detail/1020422209885611313
+                    - cell "把产品口吻改成带技术约束的描述" [ref=e428]:
+                      - paragraph [ref=e429]: 把产品口吻改成带技术约束的描述
+                    - cell "一个高难度需求从 50 分左右到 87 分" [ref=e430]:
+                      - paragraph [ref=e431]: 一个高难度需求从 50 分左右到 87 分
+                  - row "实例巨帧 MTU 批量优化 明确写出「不要做什么」 编码分从 19.8 到 76.8" [ref=e432]:
+                    - cell "实例巨帧 MTU 批量优化" [ref=e433]:
+                      - paragraph [ref=e434]:
+                        - link "实例巨帧 MTU 批量优化" [ref=e435] [cursor=pointer]:
+                          - /url: https://tapd.woa.com/tapd_fe/20422209/story/detail/1020422209125708339
+                    - cell "明确写出「不要做什么」" [ref=e436]:
+                      - paragraph [ref=e437]: 明确写出「不要做什么」
+                    - cell "编码分从 19.8 到 76.8" [ref=e438]:
+                      - paragraph [ref=e439]: 编码分从 19.8 到 76.8
+                  - row "实例资源池一期 写出内部命名和接口范围 关键接口名从几乎全部漏掉，到几乎全部命中" [ref=e440]:
+                    - cell "实例资源池一期" [ref=e441]:
+                      - paragraph [ref=e442]:
+                        - link "实例资源池一期" [ref=e443] [cursor=pointer]:
+                          - /url: https://tapd.woa.com/tapd_fe/20422209/story/detail/1020422209129643763
+                    - cell "写出内部命名和接口范围" [ref=e444]:
+                      - paragraph [ref=e445]: 写出内部命名和接口范围
+                    - cell "关键接口名从几乎全部漏掉，到几乎全部命中" [ref=e446]:
+                      - paragraph [ref=e447]: 关键接口名从几乎全部漏掉，到几乎全部命中
+              - paragraph [ref=e448]:
+                - text: 最典型的是一个批量查询的性能优化需求(
+                - link "实例巨帧 MTU 批量优化" [ref=e449] [cursor=pointer]:
+                  - /url: https://tapd.woa.com/tapd_fe/20422209/story/detail/1020422209125708339
+                - text: )。原需求只是说「把逐个查询改成批量查询」。模型看到“性能优化”，自己补了一整套限流、熔断逻辑。但这个需求的瓶颈不在请求太多，而在没有批量接口。它写了很多代码，方向却错了，编码只有 19.8 分。
+              - paragraph [ref=e450]: 第二次我们只加了一句话：
+              - blockquote [ref=e451]:
+                - paragraph [ref=e452]: 不引入限流、流控、熔断逻辑，性能问题通过批量查询本身解决。
+              - paragraph [ref=e453]:
+                - text: 模型没换，工具没换，编码分变成
+                - strong [ref=e454]: "76.8"
+                - text: 。
+              - paragraph [ref=e455]: 这个case很典型：模型经常不是不会写，而是会把它熟悉的套路补进来。你没有告诉它「不要走这条路」，它就会按经验猜。
+              - paragraph [ref=e456]: 如果要把需求写得更适合 AI，不需要一上来就写函数名，也不需要贴代码。真正有用的是这几类信息：
+              - list [ref=e457]:
+                - listitem [ref=e458]:
+                  - paragraph [ref=e459]:
+                    - strong [ref=e460]: 背景
+                    - text: ：为什么要做，是性能问题、稳定性问题，还是业务规则变化；
+                - listitem [ref=e461]:
+                  - paragraph [ref=e462]:
+                    - strong [ref=e463]: 判断维度
+                    - text: ：按什么粒度判断，比如地域、可用区、机型、实例、资源池；
+                - listitem [ref=e464]:
+                  - paragraph [ref=e465]:
+                    - strong [ref=e466]: 影响范围
+                    - text: ：涉及哪些服务、仓库、接口、流程、调用链；
+                - listitem [ref=e467]:
+                  - paragraph [ref=e468]:
+                    - strong [ref=e469]: 反向约束
+                    - text: ：哪些方向明确不做，哪些旧逻辑不能动；
+                - listitem [ref=e470]:
+                  - paragraph [ref=e471]:
+                    - strong [ref=e472]: 不可推导的信息
+                    - text: ：外部系统协议、固定枚举、内部命名约定、接口字段格式。
+              - paragraph [ref=e473]:
+                - text: 最后一类尤其容易被低估。比如资源池相关需求里，标准命名是
+                - code [ref=e474]: ResourcePoolPack
+                - text: ，不是更自然的
+                - code [ref=e475]: ResourcePool
+                - text: 。这种命名不是模型靠常识能猜出来的，也不一定能靠检索召回。需求里写出来，命中率会直接变好。
+              - paragraph [ref=e476]: 这和 Spec-Driven Development 的判断是一致的：当代码生成变得便宜，真正贵的是把意图表达准确。
+              - paragraph [ref=e477]
+              - paragraph [ref=e478]:
+                - text: 根据上述优化方案沉淀的需求文档生成SKILL：
+                - link "https://knot.woa.com/skills/detail/46593" [ref=e479] [cursor=pointer]:
+                  - /url: https://knot.woa.com/skills/detail/46593
+              - paragraph [ref=e480]
+              - blockquote [ref=e481]:
+                - paragraph [ref=e482]:
+                  - text: Anthropic 和 OpenAI 的 Prompt 指南都把"说清楚上下文"列为第一条
+                  - link "https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#be-clear-and-direct" [ref=e483] [cursor=pointer]:
+                    - /url: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices#be-clear-and-direct
+              - separator [ref=e484]
+              - heading "4. 需求不清晰，提问优先" [level=2] [ref=e485]
+              - paragraph [ref=e486]:
+                - img [ref=e494]
+              - paragraph [ref=e495]: 复杂需求里，最危险的不是模型不会写代码，而是它不确定也不问，直接猜。
+              - paragraph [ref=e496]: 有个 7 仓库需求，里面有灰度粒度、匹配维度、兼容策略等多个关键决策点。允许模型先提问、确认后再写，最终覆盖了大部分标准答案；不提问直接做的方案，基本都卡在 50 多分。
+              - paragraph [ref=e497]: 可以在指令里直接写：
+              - blockquote [ref=e498]:
+                - paragraph [ref=e499]: 如果需求中存在多种合理解释，先列出来并提问；不要默认选择其中一种。
+              - paragraph [ref=e500]
+              - paragraph [ref=e501]: 尤其是这几类情况，最好让模型先问：
+              - list [ref=e502]:
+                - listitem [ref=e503]:
+                  - paragraph [ref=e504]: 需求里出现「支持、兼容、优化」，但没有说具体范围；
+                - listitem [ref=e505]:
+                  - paragraph [ref=e506]: 有多个现有接口看起来都能复用；
+                - listitem [ref=e507]:
+                  - paragraph [ref=e508]: 命名、协议、枚举值来自外部系统，代码里查不到；
+                - listitem [ref=e509]:
+                  - paragraph [ref=e510]: 改动跨多个服务，调用链不完整。
+              - paragraph [ref=e511]: 如果你没有时间回答问题，也至少让它先列假设。这样错误会暴露在设计阶段，而不是藏进代码里。
+              - paragraph [ref=e512]
+              - blockquote [ref=e513]:
+                - paragraph [ref=e514]:
+                  - text: Anthropic 在
+                  - link "Claude Code 实践指南" [ref=e515] [cursor=pointer]:
+                    - /url: https://www.anthropic.com/engineering/claude-code-best-practices
+                  - text: 里专门有一节叫"Let Claude interview you"——思路完全一样：让 AI 先问再动手。
+              - paragraph [ref=e516]
+              - separator [ref=e517]
+              - heading "5. 复杂需求多拆解，小步快跑" [level=2] [ref=e518]
+              - paragraph [ref=e519]:
+                - img [ref=e527]
+              - paragraph [ref=e528]: 随着需求的复杂度增高，一次性编码的成功率会随其瀑布式下降，甚至在困难级别几乎全盘错误。
+              - table [ref=e531]:
+                - rowgroup [ref=e532]:
+                  - row "需求规模 典型范围 一次性编码通过率" [ref=e533]:
+                    - columnheader "需求规模" [ref=e534]:
+                      - paragraph [ref=e535]: 需求规模
+                    - columnheader "典型范围" [ref=e536]:
+                      - paragraph [ref=e537]: 典型范围
+                    - columnheader "一次性编码通过率" [ref=e538]:
+                      - paragraph [ref=e539]: 一次性编码通过率
+                  - row "低难度 1 个仓库，1 到 4 个文件" [ref=e540]:
+                    - cell "低难度" [ref=e541]:
+                      - paragraph [ref=e542]: 低难度
+                    - cell "1 个仓库，1 到 4 个文件" [ref=e543]:
+                      - paragraph [ref=e544]: 1 个仓库，1 到 4 个文件
+                    - cell [ref=e545]:
+                      - blockquote [ref=e546]:
+                        - paragraph [ref=e547]: 95%
+                  - row "中难度 1 到 3 个仓库 60% ~ 75%" [ref=e548]:
+                    - cell "中难度" [ref=e549]:
+                      - paragraph [ref=e550]: 中难度
+                    - cell "1 到 3 个仓库" [ref=e551]:
+                      - paragraph [ref=e552]: 1 到 3 个仓库
+                    - cell "60% ~ 75%" [ref=e553]:
+                      - paragraph [ref=e554]: 60% ~ 75%
+                  - row "高难度 3 到 4 个仓库 <60%" [ref=e555]:
+                    - cell "高难度" [ref=e556]:
+                      - paragraph [ref=e557]: 高难度
+                    - cell "3 到 4 个仓库" [ref=e558]:
+                      - paragraph [ref=e559]: 3 到 4 个仓库
+                    - cell "<60%" [ref=e560]:
+                      - paragraph [ref=e561]: <60%
+                  - row "困难 7 个仓库，上千行改动 ≈0%" [ref=e562]:
+                    - cell "困难" [ref=e563]:
+                      - paragraph [ref=e564]: 困难
+                    - cell "7 个仓库，上千行改动" [ref=e565]:
+                      - paragraph [ref=e566]: 7 个仓库，上千行改动
+                    - cell "≈0%" [ref=e567]:
+                      - paragraph [ref=e568]: ≈0%
+              - paragraph [ref=e569]
+              - paragraph [ref=e570]: 困难题不是模型完全不会，而是覆盖不全。
+              - paragraph [ref=e571]: 比如一个跨 7 个仓库的镜像同步需求，标准答案有 1000 多行业务改动，模型只写了几十行核心逻辑。方向看起来对，但深度不够。另一个资源池需求，标准答案涉及计费、校验、调度、资源管理等多个系统，模型经常只做 API 和资源管理，漏掉计费或校验链路。
+              - paragraph [ref=e572]: 所以复杂需求最好拆：
+              - list [ref=e573]:
+                - listitem [ref=e574]:
+                  - paragraph [ref=e575]: 先让模型做影响面分析，列出涉及系统；
+                - listitem [ref=e576]:
+                  - paragraph [ref=e577]: 按系统拆成多个子任务；
+                - listitem [ref=e578]:
+                  - paragraph [ref=e579]: 每个子任务单独设计、单独编码、单独验证；
+                - listitem [ref=e580]:
+                  - paragraph [ref=e581]: 最后再检查跨系统接口是否一致。
+              - paragraph [ref=e582]: 不要把跨 7 个仓库的大需求一次性丢给模型。它可能会给你一份看起来完整的方案，但实际代码只覆盖了最显眼的一半。
+              - separator [ref=e583]
+              - heading "最后，给 AI 派开发任务时可以按这张清单写" [level=2] [ref=e584]
+              - table [ref=e587]:
+                - rowgroup [ref=e588]:
+                  - row "信息 要回答的问题" [ref=e589]:
+                    - columnheader "信息" [ref=e590]:
+                      - paragraph [ref=e591]: 信息
+                    - columnheader "要回答的问题" [ref=e592]:
+                      - paragraph [ref=e593]: 要回答的问题
+                  - row "目标 这次改动到底解决什么问题？" [ref=e594]:
+                    - cell "目标" [ref=e595]:
+                      - paragraph [ref=e596]: 目标
+                    - cell "这次改动到底解决什么问题？" [ref=e597]:
+                      - paragraph [ref=e598]: 这次改动到底解决什么问题？
+                  - row "范围 涉及哪些服务、接口、流程、场景？" [ref=e599]:
+                    - cell "范围" [ref=e600]:
+                      - paragraph [ref=e601]: 范围
+                    - cell "涉及哪些服务、接口、流程、场景？" [ref=e602]:
+                      - paragraph [ref=e603]: 涉及哪些服务、接口、流程、场景？
+                  - row "约束 哪些方向明确不做？哪些旧逻辑不能动？" [ref=e604]:
+                    - cell "约束" [ref=e605]:
+                      - paragraph [ref=e606]: 约束
+                    - cell "哪些方向明确不做？哪些旧逻辑不能动？" [ref=e607]:
+                      - paragraph [ref=e608]: 哪些方向明确不做？哪些旧逻辑不能动？
+                  - row "约定 有没有固定命名、协议、枚举、接口格式？" [ref=e609]:
+                    - cell "约定" [ref=e610]:
+                      - paragraph [ref=e611]: 约定
+                    - cell "有没有固定命名、协议、枚举、接口格式？" [ref=e612]:
+                      - paragraph [ref=e613]: 有没有固定命名、协议、枚举、接口格式？
+                  - row "验收 怎么判断模型写对了？有哪些必须覆盖的测试场景？" [ref=e614]:
+                    - cell "验收" [ref=e615]:
+                      - paragraph [ref=e616]: 验收
+                    - cell "怎么判断模型写对了？有哪些必须覆盖的测试场景？" [ref=e617]:
+                      - paragraph [ref=e618]: 怎么判断模型写对了？有哪些必须覆盖的测试场景？
+              - paragraph [ref=e619]: 尤其是「哪些不做」。结合我们的实践经验，一句反向约束比一大段正向描述更高效。
+              - paragraph [ref=e620]: 最后可以说得朴素一点：
+              - blockquote [ref=e621]:
+                - paragraph [ref=e622]: AI 写代码的准确率，首先取决于你有没有把任务边界讲清楚；其次才是模型、工具和框架。
+              - paragraph [ref=e623]:
+                - text: 下次给模型派任务前，多花 30 秒想一句话：
+                - strong [ref=e624]: 我有没有告诉它不要做什么？
+              - separator [ref=e625]
+              - heading "延伸阅读" [level=2] [ref=e626]
+              - paragraph [ref=e627]:
+                - text: 评测体系介绍：
+                - link "https://km.woa.com/group/19368/articles/show/632328" [ref=e628] [cursor=pointer]:
+                  - /url: https://km.woa.com/group/19368/articles/show/632328
+              - paragraph [ref=e629]
+              - list [ref=e630]:
+                - listitem [ref=e631]:
+                  - paragraph [ref=e632]:
+                    - text: Andrej Karpathy.
+                    - link "Software Is Changing (Again)" [ref=e633] [cursor=pointer]:
+                      - /url: https://www.youtube.com/watch?v=LCEmiRjPEtQ
+                    - text: . YC AI Startup School, 2025.
+                - listitem [ref=e634]:
+                  - paragraph [ref=e635]:
+                    - link "Spec-Driven Development" [ref=e636] [cursor=pointer]:
+                      - /url: https://specdriven.ai/
+                    - text: ：把 specification 作为开发事实来源，先定义意图、约束和验收标准，再生成代码。
+                - listitem [ref=e637]:
+                  - paragraph [ref=e638]:
+                    - text: SWE-bench.
+                    - link "Evaluation Guide" [ref=e639] [cursor=pointer]:
+                      - /url: https://www.swebench.com/SWE-bench/guides/evaluation/
+                    - text: ：把模型补丁应用到真实仓库并运行测试，是 AI 编码评测里最重要的 harness 思路之一。
+                - listitem [ref=e640]:
+                  - paragraph [ref=e641]:
+                    - text: Anthropic Engineering.
+                    - link "Harness design for long-running application development" [ref=e642] [cursor=pointer]:
+                      - /url: https://www.anthropic.com/engineering/harness-design-long-running-apps
+                    - text: ：讨论 planner、generator、evaluator、上下文管理和反馈闭环如何影响长任务编码质量。
+                - listitem [ref=e643]:
+                  - paragraph [ref=e644]:
+                    - text: Anthropic.
+                    - link "Claude Prompting Best Practices" [ref=e645] [cursor=pointer]:
+                      - /url: https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/claude-prompting-best-practices
+                    - text: .
+                - listitem [ref=e646]:
+                  - paragraph [ref=e647]:
+                    - text: Anthropic.
+                    - link "Best Practices for Claude Code" [ref=e648] [cursor=pointer]:
+                      - /url: https://www.anthropic.com/engineering/claude-code-best-practices
+                    - text: .
+                - listitem [ref=e649]:
+                  - paragraph [ref=e650]:
+                    - text: OpenAI.
+                    - link "GPT-5 Prompt Engineering Guide" [ref=e651] [cursor=pointer]:
+                      - /url: https://platform.openai.com/docs/guides/prompt-engineering
+                    - text: .
+            - generic [ref=e652]: 更新于：2026-06-18 10:37
+            - generic [ref=e653]:
+              - text: 标签：
+              - link "编码" [ref=e654] [cursor=pointer]:
+                - /url: /tag/1028/related-articles?current_group_id=
+              - link "模型" [ref=e655] [cursor=pointer]:
+                - /url: /tag/5220/related-articles?current_group_id=
+              - link "AI" [ref=e656] [cursor=pointer]:
+                - /url: /tag/26413/related-articles?current_group_id=
+              - link "Spec" [ref=e657] [cursor=pointer]:
+                - /url: /tag/50194/related-articles?current_group_id=
+              - link "Harness" [ref=e658] [cursor=pointer]:
+                - /url: /tag/273149/related-articles?current_group_id=
+            - generic [ref=e659]:
+              - link [ref=e661] [cursor=pointer]:
+                - /url: /group/knowledge1?kmref=knowledge_apply
+              - button "本文申报" [ref=e663] [cursor=pointer]
+            - button "赞赏" [ref=e665] [cursor=pointer]
+            - generic [ref=e668]:
+              - generic [ref=e669]:
+                - img [ref=e674] [cursor=pointer]
+                - generic [ref=e676]: 我顶 31
+              - generic [ref=e677]:
+                - img [ref=e680] [cursor=pointer]
+                - generic [ref=e682]: 收藏 35
+              - generic [ref=e683]:
+                - img [ref=e686] [cursor=pointer]
+                - generic [ref=e688]: 分享
+            - generic [ref=e689]:
+              - generic [ref=e693] [cursor=pointer]:
+                - img [ref=e695]
+                - generic [ref=e697]: 转载
+              - generic [ref=e698] [cursor=pointer]:
+                - img [ref=e700]
+                - generic [ref=e702]: 收录
+              - generic [ref=e703] [cursor=pointer]:
+                - img [ref=e705]
+                - generic [ref=e707]: 反馈
+            - generic [ref=e709]:
+              - generic [ref=e710]:
+                - generic [ref=e711]: 评论 18
+                - generic [ref=e713]:
+                  - text: 智能排序
+                  - img [ref=e715]
+              - generic [ref=e717]:
+                - link [ref=e719] [cursor=pointer]:
+                  - /url: /user/mingqianzhu
+                  - img [ref=e720]
+                - generic [ref=e721]:
+                  - textbox "分享你的想法..." [ref=e723]
+                  - generic [ref=e724]:
+                    - generic [ref=e726] [cursor=pointer]: 评论
+                    - generic [ref=e727]:
+                      - generic [ref=e728] [cursor=pointer]:
+                        - img [ref=e730]
+                        - text: 表情
+                      - generic [ref=e732] [cursor=pointer]:
+                        - img [ref=e734]
+                        - text: 图片
+                      - generic [ref=e736] [cursor=pointer]:
+                        - img [ref=e738]
+                        - text: 更多功能
+              - generic [ref=e740]:
+                - generic [ref=e741]:
+                  - link [ref=e743] [cursor=pointer]:
+                    - /url: /user/junfengzhou
+                    - img [ref=e744]
+                  - generic [ref=e745]:
+                    - link "junfengzhou" [ref=e748] [cursor=pointer]:
+                      - /url: /user/junfengzhou
+                    - generic [ref=e749]: 请问编码评分是怎么算的
+                    - generic [ref=e750]:
+                      - generic [ref=e751]: 昨天 10:03 · 回复
+                      - generic [ref=e752]:
+                        - img [ref=e755] [cursor=pointer]
+                        - img [ref=e760] [cursor=pointer]
+                - generic [ref=e762]:
+                  - generic [ref=e763]:
+                    - link [ref=e765] [cursor=pointer]:
+                      - /url: /user/tornadoxie
+                      - img [ref=e766]
+                    - generic [ref=e767]:
+                      - generic [ref=e769]:
+                        - link "tornadoxie" [ref=e770] [cursor=pointer]:
+                          - /url: /user/tornadoxie
+                        - generic [ref=e771]: 作者
+                      - generic [ref=e772]:
+                        - text: 让大模型对照测评产出和真实合入的代码，根据图片的双纬度去打分。后续也会出一篇详细介绍测评的文章，到时候分享给你
+                        - generic [ref=e773]:
+                          - img [ref=e774]
+                          - img [ref=e775]
+                      - generic [ref=e777]: 昨天 10:34 · 回复
+                  - generic [ref=e778]:
+                    - link [ref=e780] [cursor=pointer]:
+                      - /url: /user/tornadoxie
+                      - img [ref=e781]
+                    - generic [ref=e782]:
+                      - generic [ref=e784]:
+                        - link "tornadoxie" [ref=e785] [cursor=pointer]:
+                          - /url: /user/tornadoxie
+                        - generic [ref=e786]: 作者
+                      - generic [ref=e787]:
+                        - text: 评测体系介绍：
+                        - link "https://km.woa.com/group/19368/articles/show/632328" [ref=e788] [cursor=pointer]:
+                          - /url: https://km.woa.com/group/19368/articles/show/632328
+                      - generic [ref=e790]: 昨天 15:52 · 回复
+              - generic [ref=e791]:
+                - generic [ref=e792]:
+                  - link [ref=e794] [cursor=pointer]:
+                    - /url: /user/kylezyxie
+                    - img [ref=e795]
+                  - generic [ref=e796]:
+                    - link "kylezyxie" [ref=e799] [cursor=pointer]:
+                      - /url: /user/kylezyxie
+                    - generic [ref=e800]: 评测的逻辑是把 AI 的最终成果进行跑测试和让LLM 评判吗？
+                    - generic [ref=e801]:
+                      - generic [ref=e802]: 昨天 17:03 · 回复
+                      - generic [ref=e803]:
+                        - img [ref=e806] [cursor=pointer]
+                        - img [ref=e811] [cursor=pointer]
+                - generic [ref=e814]:
+                  - link [ref=e816] [cursor=pointer]:
+                    - /url: /user/tornadoxie
+                    - img [ref=e817]
+                  - generic [ref=e818]:
+                    - generic [ref=e820]:
+                      - link "tornadoxie" [ref=e821] [cursor=pointer]:
+                        - /url: /user/tornadoxie
+                      - generic [ref=e822]: 作者
+                    - generic [ref=e823]:
+                      - text: 是的，具体可以参考：
+                      - link "https://km.woa.com/group/19368/articles/show/632328" [ref=e824] [cursor=pointer]:
+                        - /url: https://km.woa.com/group/19368/articles/show/632328
+                    - generic [ref=e826]: 今天 10:06 · 回复
+              - generic [ref=e827]:
+                - generic [ref=e828]:
+                  - link [ref=e830] [cursor=pointer]:
+                    - /url: /user/zibinlin
+                    - img [ref=e831]
+                  - generic [ref=e832]:
+                    - link "zibinlin" [ref=e835] [cursor=pointer]:
+                      - /url: /user/zibinlin
+                    - generic [ref=e836]: 请问这个和superpowers有什么区别
+                    - generic [ref=e837]:
+                      - generic [ref=e838]: 6月16日 · 回复
+                      - generic [ref=e839]:
+                        - img [ref=e842] [cursor=pointer]
+                        - img [ref=e847] [cursor=pointer]
+                - generic [ref=e850]:
+                  - link [ref=e852] [cursor=pointer]:
+                    - /url: /user/tornadoxie
+                    - img [ref=e853]
+                  - generic [ref=e854]:
+                    - generic [ref=e856]:
+                      - link "tornadoxie" [ref=e857] [cursor=pointer]:
+                        - /url: /user/tornadoxie
+                      - generic [ref=e858]: 作者
+                    - generic [ref=e859]: 看了一下，理念基本高度一致。我们这套更贴近团队内部真实需求开发场景，重点放在需求怎么写、ai写代码怎么约束。同时也用真实需求评测验证了这套理念现阶段是有用的
+                    - generic [ref=e861]: 昨天 10:50 · 回复
+              - generic [ref=e863]:
+                - link [ref=e865] [cursor=pointer]:
+                  - /url: /user/charonwwang
+                  - img [ref=e866]
+                - generic [ref=e867]:
+                  - link "charonwwang" [ref=e870] [cursor=pointer]:
+                    - /url: /user/charonwwang
+                  - generic [ref=e871]:
+                    - text: Token收紧的当下，这篇文章太有用了！
+                    - img
+                    - img
+                  - generic [ref=e872]:
+                    - generic [ref=e873]: 6月15日 · 回复
+                    - generic [ref=e874]:
+                      - img [ref=e877] [cursor=pointer]
+                      - img [ref=e882] [cursor=pointer]
+              - generic [ref=e885]:
+                - link [ref=e887] [cursor=pointer]:
+                  - /url: /user/ryanydruan
+                  - img [ref=e888]
+                - generic [ref=e889]:
+                  - link "ryanydruan" [ref=e892] [cursor=pointer]:
+                    - /url: /user/ryanydruan
+                  - generic [ref=e893]: 学习这个工程思路，更高效的让AI工作
+                  - generic [ref=e894]:
+                    - generic [ref=e895]: 6月15日 · 回复
+                    - generic [ref=e896]:
+                      - img [ref=e899] [cursor=pointer]
+                      - img [ref=e904] [cursor=pointer]
+              - generic [ref=e907]:
+                - link [ref=e909] [cursor=pointer]:
+                  - /url: /user/wechen
+                  - img [ref=e910]
+                - generic [ref=e911]:
+                  - link "wechen" [ref=e914] [cursor=pointer]:
+                    - /url: /user/wechen
+                  - generic [ref=e915]:
+                    - img
+                    - img
+                  - generic [ref=e916]:
+                    - generic [ref=e917]: 6月15日 · 回复
+                    - generic [ref=e918]:
+                      - img [ref=e921] [cursor=pointer]
+                      - img [ref=e926] [cursor=pointer]
+              - generic [ref=e929]:
+                - link [ref=e931] [cursor=pointer]:
+                  - /url: /user/ziyitan
+                  - img [ref=e932]
+                - generic [ref=e933]:
+                  - link "ziyitan" [ref=e936] [cursor=pointer]:
+                    - /url: /user/ziyitan
+                  - generic [ref=e937]:
+                    - img
+                    - img
+                    - img
+                  - generic [ref=e938]:
+                    - generic [ref=e939]: 6月15日 · 回复
+                    - generic [ref=e940]:
+                      - img [ref=e943] [cursor=pointer]
+                      - img [ref=e948] [cursor=pointer]
+              - generic [ref=e951]:
+                - link [ref=e953] [cursor=pointer]:
+                  - /url: /user/godwinchen
+                  - img [ref=e954]
+                - generic [ref=e955]:
+                  - link "godwinchen" [ref=e958] [cursor=pointer]:
+                    - /url: /user/godwinchen
+                  - generic [ref=e959]: 再也不怕 Token 不够用了，国产雄起
+                  - generic [ref=e960]:
+                    - generic [ref=e961]: 6月15日 · 回复
+                    - generic [ref=e962]:
+                      - img [ref=e965] [cursor=pointer]
+                      - img [ref=e970] [cursor=pointer]
+              - generic [ref=e973]:
+                - link [ref=e975] [cursor=pointer]:
+                  - /url: /user/bingbingxu
+                  - img [ref=e976]
+                - generic [ref=e977]:
+                  - link "bingbingxu" [ref=e980] [cursor=pointer]:
+                    - /url: /user/bingbingxu
+                  - generic [ref=e981]: 又学到了
+                  - generic [ref=e982]:
+                    - generic [ref=e983]: 6月15日 · 回复
+                    - generic [ref=e984]:
+                      - img [ref=e987] [cursor=pointer]
+                      - img [ref=e992] [cursor=pointer]
+              - generic [ref=e995]:
+                - link [ref=e997] [cursor=pointer]:
+                  - /url: /user/angelloyang
+                  - img [ref=e998]
+                - generic [ref=e999]:
+                  - link "angelloyang" [ref=e1002] [cursor=pointer]:
+                    - /url: /user/angelloyang
+                  - generic [ref=e1003]:
+                    - img
+                    - img
+                    - img
+                  - generic [ref=e1004]:
+                    - generic [ref=e1005]: 6月15日 · 回复
+                    - generic [ref=e1006]:
+                      - img [ref=e1009] [cursor=pointer]
+                      - img [ref=e1014] [cursor=pointer]
+              - generic [ref=e1017]:
+                - link [ref=e1019] [cursor=pointer]:
+                  - /url: /user/lesliesqma
+                  - img [ref=e1020]
+                - generic [ref=e1021]:
+                  - link "lesliesqma" [ref=e1024] [cursor=pointer]:
+                    - /url: /user/lesliesqma
+                  - generic [ref=e1025]: 深度好文 节省token！
+                  - generic [ref=e1026]:
+                    - generic [ref=e1027]: 6月15日 · 回复
+                    - generic [ref=e1028]:
+                      - img [ref=e1031] [cursor=pointer]
+                      - img [ref=e1036] [cursor=pointer]
+              - generic [ref=e1039]:
+                - link [ref=e1041] [cursor=pointer]:
+                  - /url: /user/grassylcao
+                  - img [ref=e1042]
+                - generic [ref=e1043]:
+                  - link "grassylcao" [ref=e1046] [cursor=pointer]:
+                    - /url: /user/grassylcao
+                  - generic [ref=e1047]: 太强了
+                  - generic [ref=e1048]:
+                    - generic [ref=e1049]: 6月15日 · 回复
+                    - generic [ref=e1050]:
+                      - img [ref=e1053] [cursor=pointer]
+                      - img [ref=e1058] [cursor=pointer]
+              - generic [ref=e1061]:
+                - link [ref=e1063] [cursor=pointer]:
+                  - /url: /user/scutli
+                  - img [ref=e1064]
+                - generic [ref=e1065]:
+                  - link "scutli" [ref=e1068] [cursor=pointer]:
+                    - /url: /user/scutli
+                  - generic [ref=e1069]: 太强啦
+                  - generic [ref=e1070]:
+                    - generic [ref=e1071]: 6月15日 · 回复
+                    - generic [ref=e1072]:
+                      - img [ref=e1075] [cursor=pointer]
+                      - img [ref=e1080] [cursor=pointer]
+              - generic [ref=e1083]:
+                - link [ref=e1085] [cursor=pointer]:
+                  - /url: /user/tessashen
+                  - img [ref=e1086]
+                - generic [ref=e1087]:
+                  - link "tessashen" [ref=e1090] [cursor=pointer]:
+                    - /url: /user/tessashen
+                  - generic [ref=e1091]:
+                    - text: 牛
+                    - img
+                    - img
+                    - img
+                  - generic [ref=e1092]:
+                    - generic [ref=e1093]: 6月15日 · 回复
+                    - generic [ref=e1094]:
+                      - img [ref=e1097] [cursor=pointer]
+                      - img [ref=e1102] [cursor=pointer]
+              - generic [ref=e1105]: 已到底部
+          - generic [ref=e1106]:
+            - generic [ref=e1108] [cursor=pointer]:
+              - img [ref=e1110]
+              - generic [ref=e1112]: "31"
+            - generic [ref=e1114] [cursor=pointer]:
+              - img [ref=e1116]
+              - generic [ref=e1118]: "35"
+            - generic [ref=e1120] [cursor=pointer]:
+              - img [ref=e1122]
+              - generic [ref=e1124]: "18"
+          - generic [ref=e1125]:
+            - generic [ref=e1127]:
+              - img [ref=e1129]
+              - generic [ref=e1130]:
+                - generic [ref=e1131]: 入选“KM头条”
+                - link "查看历史头条" [ref=e1132] [cursor=pointer]:
+                  - /url: /base/headlines?kmref=article_headline
+                  - text: 查看历史头条
+            - generic [ref=e1135]:
+              - generic [ref=e1136]:
+                - generic [ref=e1137]:
+                  - link [ref=e1139] [cursor=pointer]:
+                    - /url: /user/tornadoxie
+                    - img [ref=e1140]
+                  - generic [ref=e1141]:
+                    - link "tornadoxie" [ref=e1143] [cursor=pointer]:
+                      - /url: /user/tornadoxie
+                    - link "CSIG\\云智研发中心\\研发组员工" [ref=e1144] [cursor=pointer]:
+                      - /url: /user/tornadoxie
+                - generic [ref=e1146]:
+                  - generic [ref=e1147]:
+                    - text: 作者文章
+                    - link [ref=e1148] [cursor=pointer]:
+                      - /url: /user/tornadoxie/articles?kmref=author_recommend
+                      - img [ref=e1150]
+                  - link "让数据查询像聊天一样简单：揭秘运营数据 AI Agent的架构演进" [ref=e1153] [cursor=pointer]:
+                    - /url: /articles/show/647997?kmref=author_recommend
+              - generic [ref=e1158]:
+                - generic [ref=e1159]:
+                  - generic [ref=e1160]:
+                    - link "AI" [ref=e1161] [cursor=pointer]:
+                      - /url: /entry/1bc73347f8824309a997cc48a6aafaea/home?kmref=entry_card
+                    - link "AI专业问答" [ref=e1163] [cursor=pointer]:
+                      - /url: /entry/1bc73347f8824309a997cc48a6aafaea/home?kmref=entry_card&ai=open
+                  - generic [ref=e1164] [cursor=pointer]:
+                    - img [ref=e1166]
+                    - generic [ref=e1168]: 换一换
+                - generic [ref=e1169]:
+                  - link "文章 (23869)" [ref=e1170] [cursor=pointer]:
+                    - /url: /entry/1bc73347f8824309a997cc48a6aafaea/related-articles?kmref=entry_card
+                    - img [ref=e1172]
+                    - generic [ref=e1174]: 文章
+                    - generic [ref=e1175]: (23869)
+                  - link "乐问 (3314)" [ref=e1176] [cursor=pointer]:
+                    - /url: /entry/1bc73347f8824309a997cc48a6aafaea/related-questions?kmref=entry_card
+                    - img [ref=e1178]
+                    - generic [ref=e1180]: 乐问
+                    - generic [ref=e1181]: (3314)
+                  - link "文集 (20)" [ref=e1182] [cursor=pointer]:
+                    - /url: /entry/1bc73347f8824309a997cc48a6aafaea/related-knowledges?kmref=entry_card
+                    - img [ref=e1184]
+                    - generic [ref=e1186]: 文集
+                    - generic [ref=e1187]: (20)
+                  - link "用户 (20)" [ref=e1188] [cursor=pointer]:
+                    - /url: /entry/1bc73347f8824309a997cc48a6aafaea/active-users?kmref=entry_card
+                    - img [ref=e1190]
+                    - generic [ref=e1192]: 用户
+                    - generic [ref=e1193]: (20)
+                - list [ref=e1195]:
+                  - listitem [ref=e1196]:
+                    - link "AI 版支付宝开启内测，听说微信支付也在做，你会让AI帮你花钱吗？" [ref=e1197] [cursor=pointer]:
+                      - /url: https://teko.woa.com/mkplus/q/304364?kmref=entry_card
+                    - generic [ref=e1198]:
+                      - generic [ref=e1199]: TEKO 2694阅读
+                      - generic [ref=e1200]: 昨天 10:35
+                  - listitem [ref=e1201]:
+                    - link "各家纷纷宣布接入微信AI生态， 只有特许企业才有资格接入吗？还是只是一个噱头，打开按钮就完了？有这方面的说明吗" [ref=e1202] [cursor=pointer]:
+                      - /url: /q/view/378752?kmref=entry_card
+                    - generic [ref=e1203]:
+                      - generic [ref=e1204]: 乐问 1179阅读
+                      - generic [ref=e1205]: 6月11日
+                  - listitem [ref=e1206]:
+                    - link "AI 编程 Token 经济学：理解消耗机制，让同样的额度多干 3 倍活" [ref=e1207] [cursor=pointer]:
+                      - /url: /articles/show/659154?kmref=entry_card
+                    - generic [ref=e1208]:
+                      - generic [ref=e1209]: 文章 6521阅读
+                      - generic [ref=e1210]: 4月27日
+                  - listitem [ref=e1211]:
+                    - link "玩转 AIGC，一人顶一支创作团队" [ref=e1212] [cursor=pointer]:
+                      - /url: https://km.woa.com/knowledge/10255?kmref=entry_card
+                    - generic [ref=e1213]:
+                      - generic [ref=e1214]: 文集 6131阅读
+                      - generic [ref=e1215]: 2025年12月12日
+                  - listitem [ref=e1216]:
+                    - link "相似问题标注&问题拦截答案直出 方案" [ref=e1217] [cursor=pointer]:
+                      - /url: https://iwiki.woa.com/p/4010192820?from=km&kmref=entry_card
+                    - generic [ref=e1218]:
+                      - generic [ref=e1219]: iWiki 432阅读
+                      - generic [ref=e1220]: 2024年03月29日
+        - text:  
+    - generic [ref=e1223]:
+      - generic [ref=e1228]: 信息安全声明
+      - generic [ref=e1229]:
+        - generic [ref=e1230]:
+          - paragraph [ref=e1231]: 欢迎使用腾讯KM，在您使用之前，我们提醒您认真阅读并确认以下规则：
+          - heading "1、KM平台仅面向腾讯内部提供服务，请务必做好账户及办公设备管理" [level=2] [ref=e1233]
+          - paragraph [ref=e1235]:
+            - text: 您在登陆和使用KM平台时，应当遵守
+            - link "《办公PC使用管理规范》" [ref=e1236] [cursor=pointer]:
+              - /url: http://policy.woa.com/document/preview?documentId=43b47270679b4935b0da343ba4efe358
+            - text: 、
+            - link "《笔记本电脑管理规范》" [ref=e1237] [cursor=pointer]:
+              - /url: http://policy.woa.com/document/preview?documentId=37794DE8-D3FB-418B-A3D6-424B7276A940
+            - text: 、
+            - link "《Token卡使用管理办法》" [ref=e1238] [cursor=pointer]:
+              - /url: http://policy.woa.com/document/preview?documentId=5BB1C676-69A7-442D-AB09-E994FCE6C742
+            - text: 、
+            - link "《腾讯KM软件许可及服务协议》" [ref=e1239] [cursor=pointer]:
+              - /url: https://km.woa.com/policies/agreement
+            - text: 。一旦我们发现您存在违规使用账号或办公设备的行为，腾讯有权立即停止向您提供本服务，同时保留向您追究法律责任的权利。
+          - heading "2、KM平台内容仅用于内部学习交流，请务必注意保护公司商业秘密及信息安全" [level=2] [ref=e1241]
+          - paragraph [ref=e1243]:
+            - text: KM平台内容（包括但不限于：文章、文档、图表、音视频文件）仅用于内部学习、交流、文化建设。您在使用KM平台时，务必遵守
+            - link "《商业秘密保护与管理规范》" [ref=e1244] [cursor=pointer]:
+              - /url: http://policy.woa.com/document/preview?documentId=986b51827d064d43991ca68a7450e425
+            - text: ，
+            - link "《腾讯KM隐私保护指引》" [ref=e1245] [cursor=pointer]:
+              - /url: https://km.woa.com/policies/privacy
+            - text: ，保护公司商业秘密及信息安全。对于违规使用，导致内部信息泄漏（包含但不限于：复制、拍照、截图、导出、爬虫、上传页面等操作）的违规行为，公司将按照
+            - link "《防止办公网内高危行为管理办法》" [ref=e1246] [cursor=pointer]:
+              - /url: http://policy.woa.com/document/preview?documentId=B93922B4-E7A4-4DA7-B6D0-485BE66EAEB9
+            - text: 和
+            - link "《腾讯阳光行为准则》" [ref=e1247] [cursor=pointer]:
+              - /url: http://policy.woa.com/document/preview?documentId=27fe8954d72242908e57b3d5b330a9c8
+            - text: 对违规行为进行处理，并对情节恶劣者保留追究法律责任的权利。如有工作相关需求，请使用 KM 官方 MCP/SKILL。
+          - heading "3、禁止在KM平台实施违反法律法规、妨害社区秩序、破坏社区氛围的行为" [level=2] [ref=e1249]
+          - paragraph [ref=e1251]:
+            - text: 腾讯致力于建设正直、开放、健康的内部沟通氛围，倡导同事之间保持互相理解、尊重的言行举止。您在使用KM平台时，务必遵守
+            - link "《腾讯内部社区管理制度》" [ref=e1252] [cursor=pointer]:
+              - /url: http://policy.woa.com/document/preview?documentId=f3da1dfa46f142849b1e9b26951d9388
+            - text: ，对于违规行为，公司将采取相应的处罚措施，追究不当行为员工的相应责任。
+        - generic [ref=e1254]:
+          - generic [ref=e1255] [cursor=pointer]:
+            - generic [ref=e1256]:
+              - img [ref=e1259]
+              - checkbox "我已阅读并同意以上规则，同意遵守公司相关管理规范及制度。"
+            - generic [ref=e1261]: 我已阅读并同意以上规则，同意遵守公司相关管理规范及制度。
+          - button "确认" [disabled] [ref=e1262]
+    - generic "联系客服" [ref=e1264] [cursor=pointer]:
+      - img [ref=e1266]
+  - text: "* *"
+  - generic [ref=e1270]:
+    - generic [ref=e1272]: AI摘要
+    - button "收起" [ref=e1273] [cursor=pointer]:
+      - generic [ref=e1275]:
+        - text: 收起
+        - img [ref=e1277]

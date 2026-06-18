@@ -1,0 +1,162 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e8]
+      - generic [ref=e10]: 边缘云资源运维平台
+      - generic [ref=e12]: 内部使用 · v1.2.0
+    - generic [ref=e13]:
+      - button [ref=e14] [cursor=pointer]:
+        - img [ref=e16]
+      - button "管 管理员" [ref=e20] [cursor=pointer]:
+        - generic [ref=e21]: 管
+        - generic [ref=e22]: 管理员
+        - img [ref=e24]
+  - generic [ref=e26]:
+    - complementary [ref=e27]:
+      - menubar [ref=e28]:
+        - menuitem "运维驾驶舱" [ref=e29] [cursor=pointer]:
+          - img [ref=e31]
+          - generic [ref=e34]: 运维驾驶舱
+        - menuitem "资源查询" [ref=e35] [cursor=pointer]:
+          - img [ref=e37]
+          - generic [ref=e40]: 资源查询
+        - menuitem "工单流转" [ref=e41] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e46]: 工单流转
+        - menuitem "成本一览" [ref=e47] [cursor=pointer]:
+          - img [ref=e49]
+          - generic [ref=e54]: 成本一览
+        - menuitem "运维助手" [ref=e55] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e60]: 运维助手
+        - menuitem "知识库" [ref=e61] [cursor=pointer]:
+          - img [ref=e63]
+          - generic [ref=e67]: 知识库
+        - menuitem "竞争分析" [ref=e68] [cursor=pointer]:
+          - img [ref=e70]
+          - generic [ref=e73]: 竞争分析
+        - menuitem "AI 助手" [ref=e74] [cursor=pointer]:
+          - img [ref=e76]
+          - generic [ref=e80]: AI 助手
+        - menuitem "用户管理" [ref=e81] [cursor=pointer]:
+          - img [ref=e83]
+          - generic [ref=e86]: 用户管理
+      - generic [ref=e87]:
+        - generic [ref=e88]: TEZ Operator v1.2.0
+        - generic [ref=e89]: admin · 管理员
+    - main [ref=e90]:
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - generic [ref=e93]:
+            - heading "运维驾驶舱" [level=2] [ref=e94]
+            - generic [ref=e95]: 6月5日星期五 10:09
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - img [ref=e101]
+              - textbox "搜索母机故障、搬迁、找机器等关键词" [ref=e103]
+            - button "搜索" [ref=e106] [cursor=pointer]:
+              - generic [ref=e107]: 搜索
+        - generic [ref=e108]:
+          - generic [ref=e109] [cursor=pointer]:
+            - img [ref=e112]
+            - generic [ref=e114]:
+              - generic [ref=e115]: "0"
+              - generic [ref=e116]: 总工单
+          - generic [ref=e117] [cursor=pointer]:
+            - img [ref=e120]
+            - generic [ref=e124]:
+              - generic [ref=e125]: "0"
+              - generic [ref=e126]: 待受理
+          - generic [ref=e127] [cursor=pointer]:
+            - img [ref=e130]
+            - generic [ref=e132]:
+              - generic [ref=e133]: "0"
+              - generic [ref=e134]: 处理中
+          - generic [ref=e135] [cursor=pointer]:
+            - img [ref=e138]
+            - generic [ref=e141]:
+              - generic [ref=e142]: "0"
+              - generic [ref=e143]: 行业需求
+          - generic [ref=e144] [cursor=pointer]:
+            - img [ref=e147]
+            - generic [ref=e149]:
+              - generic [ref=e150]: "0"
+              - generic [ref=e151]: 已完成
+          - generic [ref=e152] [cursor=pointer]:
+            - img [ref=e155]
+            - generic [ref=e158]:
+              - generic [ref=e159]: "0"
+              - generic [ref=e160]: 已驳回
+        - generic [ref=e161]:
+          - generic [ref=e163]:
+            - generic [ref=e165]:
+              - generic [ref=e166]: 最近工单
+              - button "查看全部 →" [ref=e167] [cursor=pointer]:
+                - generic [ref=e168]: 查看全部 →
+            - generic [ref=e170]:
+              - img [ref=e172]
+              - paragraph [ref=e189]: 暂无工单
+          - generic [ref=e190]:
+            - generic [ref=e191]:
+              - generic [ref=e192]: 快捷操作
+              - generic [ref=e194]:
+                - generic [ref=e195] [cursor=pointer]:
+                  - img [ref=e197]
+                  - generic [ref=e199]: 提交工单
+                - generic [ref=e200] [cursor=pointer]:
+                  - img [ref=e202]
+                  - generic [ref=e204]: 资源查询
+                - generic [ref=e205] [cursor=pointer]:
+                  - img [ref=e207]
+                  - generic [ref=e210]: 行业提单
+                - generic [ref=e211] [cursor=pointer]:
+                  - img [ref=e213]
+                  - generic [ref=e216]: 知识库
+            - generic [ref=e217]:
+              - generic [ref=e219]:
+                - generic [ref=e220]: 行业需求单
+                - generic [ref=e221]:
+                  - button "复制提单链接" [ref=e222] [cursor=pointer]:
+                    - generic [ref=e223]: 复制提单链接
+                  - button "查看全部 →" [ref=e224] [cursor=pointer]:
+                    - generic [ref=e225]: 查看全部 →
+              - generic [ref=e227]:
+                - img [ref=e229]
+                - paragraph [ref=e246]: 暂无行业需求单
+                - button "去提单" [ref=e248] [cursor=pointer]:
+                  - generic [ref=e249]: 去提单
+            - generic [ref=e250]:
+              - generic [ref=e252]:
+                - generic [ref=e253]: 节点资源
+                - generic [ref=e254]:
+                  - button "刷新全部" [ref=e255] [cursor=pointer]:
+                    - generic [ref=e256]:
+                      - img [ref=e258]
+                      - text: 刷新全部
+                  - button "详细 →" [ref=e260] [cursor=pointer]:
+                    - generic [ref=e261]: 详细 →
+              - generic [ref=e263]:
+                - generic [ref=e264]:
+                  - generic "北京边缘一区" [ref=e265]
+                  - generic [ref=e266]:
+                    - generic [ref=e267]:
+                      - generic [ref=e268]: 空闲
+                      - generic [ref=e269]: "23"
+                    - generic [ref=e270]:
+                      - generic [ref=e271]: 总位
+                      - generic [ref=e272]: "120"
+                    - generic [ref=e273]:
+                      - generic [ref=e274]: 在线
+                      - generic [ref=e275]: "89"
+                - generic [ref=e276]:
+                  - generic "上海边缘一区" [ref=e277]
+                  - generic [ref=e278]:
+                    - generic [ref=e279]:
+                      - generic [ref=e280]: 空闲
+                      - generic [ref=e281]: "5"
+                    - generic [ref=e282]:
+                      - generic [ref=e283]: 总位
+                      - generic [ref=e284]: "80"
+                    - generic [ref=e285]:
+                      - generic [ref=e286]: 在线
+                      - generic [ref=e287]: "72"

@@ -471,12 +471,22 @@ async def sync_all_zones(
     settings = get_settings()
     log = get_logger(__name__)
 
+    # Mock 模式快速返回
+    if settings.idcrm_mode == "mock":
+        return {
+            "success": False,
+            "message": "当前为 mock 模式，sync-all 需要 idcrm_mode=http 或 browser",
+            "zones_updated": 0,
+            "total_positions": 0,
+        }
+
     # Step 1: IDCRM 全量机位（优先用 HTTP）
     if settings.idcrm_mode == "http":
         from app.clients.idcrm_http import IDCRMHttpClient
         client = IDCRMHttpClient()
         result = await client.query_all_positions()
     else:
+        # browser 模式：打开浏览器时会自然触发 SSO 登录流程
         from app.skills.idcrm_position_skill import IDCRMPositionSkill
         skill = IDCRMPositionSkill()
         result = await skill.query_all_positions()
@@ -507,6 +517,10 @@ async def sync_all_zones(
                 from app.clients.tcum_http import TCUMHttpClient
                 tcum = TCUMHttpClient()
             else:
+                # browser 模式：检查登录态
+                from app.clients.browser_session import BrowserSession
+                if not BrowserSession.is_login_valid():
+                    log.warning("sync_all.tcum_login_expired")
                 tcum = TCUMBrowserImpl()
             # 分批查询（每批 50 个，TCUM 限制）
             batch_size = 50

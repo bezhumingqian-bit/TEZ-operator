@@ -462,6 +462,10 @@
             <el-empty v-else description="选择可用区后查询信息" />
           </div>
         </el-tab-pane>
+        <!-- ─────────── 云霄母机管理 ─────────── -->
+        <el-tab-pane label="云霄母机" name="yunxiao_host">
+          <YunxiaoHostPanel />
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -474,6 +478,7 @@ import { Search, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import HostCard from '@/components/HostCard.vue'
 import HostTable from '@/components/HostTable.vue'
+import YunxiaoHostPanel from '@/components/YunxiaoHostPanel.vue'
 import BatchTable from '@/components/BatchTable.vue'
 import { ApiError } from '@/api/client'
 import {

@@ -1,0 +1,27 @@
+- generic [ref=e33]:
+  - generic [ref=e34]:
+    - img [ref=e36]
+    - heading "边缘云资源运维平台" [level=1] [ref=e38]
+    - paragraph [ref=e39]: TEZ Operator · 内部使用
+  - generic [ref=e40]:
+    - generic [ref=e41]:
+      - generic [ref=e42]: "*用户名"
+      - generic [ref=e45]:
+        - img [ref=e48]
+        - textbox "*用户名" [ref=e50]:
+          - /placeholder: 请输入用户名
+          - text: admin
+    - generic [ref=e51]:
+      - generic [ref=e52]: "*密码"
+      - generic [ref=e55]:
+        - img [ref=e58]
+        - textbox "*密码" [ref=e61]:
+          - /placeholder: 请输入密码
+          - text: admin123
+        - img [ref=e69] [cursor=pointer]
+    - generic [ref=e63]:
+      - button "登录中..." [disabled]:
+        - generic:
+          - img
+        - generic: 登录中...
+  - generic [ref=e66]: 请联系管理员获取账号

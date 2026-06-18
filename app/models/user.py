@@ -29,9 +29,10 @@ class User(Base):
 # ─── 角色权限映射 ───
 
 ROLE_PERMISSIONS = {
-    "admin": ["dashboard", "hosts", "workorder", "assistant", "knowledge", "cost", "users"],
-    "ops": ["dashboard", "hosts", "workorder"],
-    "viewer": ["dashboard", "hosts"],
+    "admin": ["dashboard", "hosts", "workorder", "assistant", "knowledge", "cost", "yunxiao", "users"],
+    "ops": ["dashboard", "hosts", "workorder", "yunxiao"],
+    "operator": ["dashboard", "hosts", "workorder", "assistant", "knowledge", "yunxiao", "users"],
+    "viewer": ["dashboard", "hosts", "yunxiao"],
 }
 
 

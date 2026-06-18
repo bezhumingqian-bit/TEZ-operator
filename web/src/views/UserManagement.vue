@@ -86,6 +86,7 @@
           <el-select v-model="dialogForm.role" style="width: 100%">
             <el-option label="管理员 (admin)" value="admin" />
             <el-option label="运维 (ops)" value="ops" />
+            <el-option label="运营 (operator)" value="operator" />
             <el-option label="只读 (viewer)" value="viewer" />
           </el-select>
         </el-form-item>

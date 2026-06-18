@@ -1,0 +1,48 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e8]
+      - generic [ref=e10]: 边缘云资源运维平台
+      - generic:
+        - generic: 内部使用 · v1.2.0
+    - generic [ref=e11]:
+      - button [ref=e12] [cursor=pointer]:
+        - img [ref=e14]
+      - button "管 管理员" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 管
+        - generic [ref=e20]: 管理员
+        - img [ref=e22]
+  - generic [ref=e24]:
+    - complementary [ref=e25]:
+      - menubar [ref=e26]:
+        - menuitem "运维驾驶舱" [ref=e27] [cursor=pointer]:
+          - img [ref=e29]
+          - generic [ref=e32]: 运维驾驶舱
+        - menuitem "资源查询" [ref=e33] [cursor=pointer]:
+          - img [ref=e35]
+          - generic [ref=e38]: 资源查询
+        - menuitem "工单流转" [ref=e39] [cursor=pointer]:
+          - img [ref=e41]
+          - generic [ref=e44]: 工单流转
+        - menuitem "成本一览" [ref=e45] [cursor=pointer]:
+          - img [ref=e47]
+          - generic [ref=e52]: 成本一览
+        - menuitem "运维助手" [ref=e53] [cursor=pointer]:
+          - img [ref=e55]
+          - generic [ref=e58]: 运维助手
+        - menuitem "知识库" [ref=e59] [cursor=pointer]:
+          - img [ref=e61]
+          - generic [ref=e65]: 知识库
+        - menuitem "竞争分析" [ref=e66] [cursor=pointer]:
+          - img [ref=e68]
+          - generic [ref=e71]: 竞争分析
+        - menuitem "AI 助手" [ref=e72] [cursor=pointer]:
+          - img [ref=e74]
+          - generic [ref=e78]: AI 助手
+        - menuitem "用户管理" [ref=e79] [cursor=pointer]:
+          - img [ref=e81]
+          - generic [ref=e84]: 用户管理
+      - generic [ref=e85]:
+        - generic [ref=e86]: TEZ Operator v1.2.0
+        - generic [ref=e87]: admin · 管理员
+    - main [ref=e88]

@@ -22,6 +22,7 @@ import re
 from typing import Any
 
 from app.clients.browser_session import is_login_url
+from app.config import get_settings
 from app.skills.ui_skill import UiSkill
 from app.utils.logger import get_logger
 
@@ -33,6 +34,8 @@ class IDCRMPositionSkill(UiSkill):
 
     WAIT_AFTER_GOTO = 4
     WAIT_AFTER_FILTER = 8
+    LOGIN_WAIT_TIMEOUT = 120
+    LOGIN_POLL_INTERVAL = 3
 
     # ant-select 在页面上的索引（从0开始）
     IDX_LOGIC_AREA = 3   # 机位逻辑区域属性

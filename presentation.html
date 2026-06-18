@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEZ Operator — 边缘云资源运维平台</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+  :root {
+    --bg: #0a0e17;
+    --card: #111827;
+    --card2: #161e2c;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59,130,246,0.3);
+    --accent: #06b6d4;
+    --accent2: #8b5cf6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: #1e293b;
+    --radius: 12px;
+    --xl: 1400px;
+  }
+  * { margin:0;padding:0;box-sizing:border-box }
+  html { scroll-behavior:smooth; scroll-snap-type: y mandatory; overflow-y: scroll; height:100vh }
+  body { font-family:'Inter','Noto Sans SC',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; -webkit-font-smoothing:antialiased }
+  .slide { scroll-snap-align:start; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px 20px; position:relative; overflow:hidden }
+  .slide-inner { width:100%; max-width:var(--xl); position:relative; z-index:1; animation:fadeUp .8s ease both }
+  .slide:nth-child(1) .slide-inner { animation-delay:.1s }
+  .slide:nth-child(2) .slide-inner { animation-delay:.2s }
+  .slide:nth-child(3) .slide-inner { animation-delay:.3s }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Background effects */
+  .slide::before { content:'';position:absolute;inset:0;pointer-events:none;z-index:0 }
+  .slide.bg-pattern::before { background:radial-gradient(ellipse 80% 60% at 50% 30%, rgba(59,130,246,.06) 0%, transparent 70%),radial-gradient(ellipse 40% 50% at 80% 70%, rgba(139,92,246,.04) 0%, transparent 70%); background-size:60px 60px; background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px) }
+
+  /* Typography */
+  h1 { font-size:clamp(2.2rem,5vw,3.8rem);font-weight:900;letter-spacing:-.02em;line-height:1.15 }
+  h2 { font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;letter-spacing:-.01em }
+  h3 { font-size:1.15rem;font-weight:700 }
+  .gradient-text { background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text }
+  .gradient-text2 { background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text }
+  .gradient-text3 { background:linear-gradient(135deg,var(--warning),var(--danger));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text }
+  .subtitle { font-size:1.1rem;color:var(--text2);font-weight:400;margin-top:8px }
+  .meta { font-size:.85rem;color:var(--text2);letter-spacing:.04em }
+
+  /* Badge */
+  .badge { display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:.8rem;font-weight:600;letter-spacing:.02em;border:1px solid var(--border);background:rgba(255,255,255,.03) }
+  .badge .dot { width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 8px var(--success) }
+  .badge.accent .dot { background:var(--accent);box-shadow:0 0 8px var(--accent) }
+
+  /* Cards */
+  .grid { display:grid;gap:20px }
+  .grid-2 { grid-template-columns:repeat(auto-fit,minmax(320px,1fr)) }
+  .grid-3 { grid-template-columns:repeat(auto-fit,minmax(260px,1fr)) }
+  .grid-4 { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)) }
+  .grid-5 { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)) }
+  .card { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:all .3s }
+  .card:hover { border-color:rgba(59,130,246,.3);transform:translateY(-2px);box-shadow:0 8px 30px rgba(59,130,246,.1) }
+  .card-icon { width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:14px }
+  .card-icon.blue { background:rgba(59,130,246,.15);color:var(--primary) }
+  .card-icon.cyan { background:rgba(6,182,212,.15);color:var(--accent) }
+  .card-icon.purple { background:rgba(139,92,246,.15);color:var(--accent2) }
+  .card-icon.green { background:rgba(16,185,129,.15);color:var(--success) }
+  .card-icon.amber { background:rgba(245,158,11,.15);color:var(--warning) }
+  .card-icon.red { background:rgba(239,68,68,.15);color:var(--danger) }
+  .card h3 { margin-bottom:6px }
+  .card p { font-size:.9rem;color:var(--text2);line-height:1.55 }
+
+  /* Stat card */
+  .stat-card { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;text-align:center }
+  .stat-value { font-size:2.2rem;font-weight:900;letter-spacing:-.02em }
+  .stat-label { font-size:.82rem;color:var(--text2);margin-top:4px;letter-spacing:.02em }
+
+  /* Tags */
+  .tag { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:600;letter-spacing:.02em }
+  .tag.blue { background:rgba(59,130,246,.15);color:var(--primary) }
+  .tag.green { background:rgba(16,185,129,.15);color:var(--success) }
+  .tag.amber { background:rgba(245,158,11,.15);color:var(--warning) }
+  .tag.purple { background:rgba(139,92,246,.15);color:var(--accent2) }
+
+  /* Timeline */
+  .timeline { position:relative;padding-left:28px }
+  .timeline::before { content:'';position:absolute;left:11px;top:4px;bottom:4px;width:2px;background:var(--border) }
+  .timeline-item { position:relative;margin-bottom:24px;padding-left:24px }
+  .timeline-item::before { content:'';position:absolute;left:-21px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--primary);border:3px solid var(--bg) }
+  .timeline-item.done::before { background:var(--success);box-shadow:0 0 10px rgba(16,185,129,.4) }
+  .timeline-item.wip::before { background:var(--warning);box-shadow:0 0 10px rgba(245,158,11,.4);animation:pulse 2s infinite }
+  .timeline-item.plan::before { background:var(--text2) }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 4px rgba(245,158,11,.3)} 50%{box-shadow:0 0 16px rgba(245,158,11,.6)} }
+  .timeline-label { font-size:.78rem;color:var(--text2);margin-bottom:2px }
+  .timeline-title { font-weight:700;font-size:1rem }
+  .timeline-desc { font-size:.82rem;color:var(--text2);margin-top:2px }
+
+  /* Architecture visual */
+  .arch-row { display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;justify-content:center }
+  .arch-block { background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;text-align:center;min-width:100px;flex:1 }
+  .arch-block.title { background:transparent;border:none;font-weight:600;padding-top:0 }
+  .arch-block.upstream { border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.04) }
+  .arch-block.core { border-color:rgba(59,130,246,.25);background:rgba(59,130,246,.04) }
+  .arch-block.data { border-color:rgba(16,185,129,.25);background:rgba(16,185,129,.04) }
+  .arch-block.frontend { border-color:rgba(139,92,246,.25);background:rgba(139,92,246,.04) }
+  .arch-label { font-size:.78rem;color:var(--text2);margin-bottom:4px;letter-spacing:.02em }
+  .arch-names { font-size:.82rem;font-weight:600;line-height:1.5 }
+  .arch-arrow { display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:1.2rem;min-width:20px }
+
+  /* Number circle */
+  .num { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;font-size:.85rem;font-weight:700;flex-shrink:0 }
+  .num.blue { background:rgba(59,130,246,.2);color:var(--primary) }
+  .num.green { background:rgba(16,185,129,.2);color:var(--success) }
+  .num.purple { background:rgba(139,92,246,.2);color:var(--accent2) }
+
+  /* Problem cards */
+  .problem-item { display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--border) }
+  .problem-item:last-child { border-bottom:none }
+  .problem-item .icon { font-size:1.5rem;line-height:1;flex-shrink:0 }
+
+  /* Tech stack pills */
+  .pill-row { display:flex;flex-wrap:wrap;gap:8px;margin-top:16px }
+  .pill { padding:6px 14px;border-radius:20px;font-size:.8rem;font-weight:500;border:1px solid var(--border);display:inline-flex;align-items:center;gap:5px }
+  .pill.backend { border-color:rgba(59,130,246,.3);color:var(--primary) }
+  .pill.frontend { border-color:rgba(139,92,246,.3);color:var(--accent2) }
+  .pill.data { border-color:rgba(16,185,129,.3);color:var(--success) }
+  .pill.tool { border-color:rgba(148,163,184,.3);color:var(--text2) }
+
+  /* Nav dots */
+  .nav-dots { position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:100;display:flex;flex-direction:column;gap:10px }
+  .nav-dot { width:12px;height:12px;border-radius:50%;border:2px solid var(--text2);cursor:pointer;transition:all .3s;background:transparent }
+  .nav-dot:hover { border-color:var(--primary);background:rgba(59,130,246,.2) }
+  .nav-dot.active { border-color:var(--primary);background:var(--primary);box-shadow:0 0 12px var(--primary-glow) }
+
+  /* Section header */
+  .section-header { text-align:center;margin-bottom:40px }
+  .section-header .badge { margin-bottom:16px }
+  .section-header h2 { margin-bottom:8px }
+
+  /* Highlight box */
+  .highlight-box { background:var(--card);border:1px solid rgba(59,130,246,.2);border-radius:var(--radius);padding:20px 24px;margin-top:20px }
+  .highlight-box.amber { border-color:rgba(245,158,11,.2);background:rgba(245,158,11,.03) }
+  .highlight-box.green { border-color:rgba(16,185,129,.2);background:rgba(16,185,129,.03) }
+
+  /* Code block */
+  .code-mini { background:#0a0e17;border:1px solid var(--border);border-radius:8px;padding:14px 18px;font-family:'SF Mono',Monaco,monospace;font-size:.82rem;color:var(--accent);overflow-x:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6 }
+  .code-mini .kw { color:var(--primary) }
+  .code-mini .str { color:var(--success) }
+  .code-mini .comment { color:var(--text2) }
+
+  /* Feature highlight row */
+  .hero-stats { display:flex;gap:24px;margin-top:32px;flex-wrap:wrap }
+  .hero-stat { text-align:center;min-width:100px }
+  .hero-stat .val { font-size:2rem;font-weight:900;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text }
+  .hero-stat .lbl { font-size:.78rem;color:var(--text2);margin-top:4px }
+  .hero-stat .val.green { background:linear-gradient(135deg,var(--success),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text }
+
+  @media(max-width:768px) {
+    .slide { padding:24px 12px }
+    .nav-dots { display:none }
+    .grid { gap:12px }
+    .arch-row { flex-direction:column }
+    .arch-arrow { transform:rotate(90deg) }
+  }
+</style>
+</head>
+<body>
+<div class="nav-dots" id="navDots"></div>
+
+<!-- ===== SLIDE 1: 封面 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner" style="text-align:center">
+    <div style="margin-bottom:20px">
+      <span class="badge accent"><span class="dot"></span>TEZ Operator v1.2.0</span>
+    </div>
+    <h1 style="margin-bottom:16px">边缘云资源运维平台</h1>
+    <h2 class="gradient-text" style="margin-bottom:12px">让 TEZ 运维不再靠"人肉"</h2>
+    <p class="subtitle" style="max-width:600px;margin:0 auto">聚合多源数据 · 工单流编排 · 一屏驾驶舱 · AI 智能问答<br>专为 5-20 人运维小团队打造的轻量级内部平台</p>
+    <div class="hero-stats" style="justify-content:center;margin-top:48px">
+      <div class="hero-stat"><div class="val">18 周</div><div class="lbl">研发周期</div></div>
+      <div class="hero-stat"><div class="val green">4</div><div class="lbl">里程碑交付</div></div>
+      <div class="hero-stat"><div class="val">12+</div><div class="lbl">功能页面</div></div>
+      <div class="hero-stat"><div class="val green">82%</div><div class="lbl">测试覆盖率</div></div>
+      <div class="hero-stat"><div class="val">3</div><div class="lbl">数据源聚合</div></div>
+    </div>
+    <div class="pill-row" style="justify-content:center;margin-top:32px">
+      <span class="pill backend">FastAPI</span>
+      <span class="pill backend">SQLAlchemy</span>
+      <span class="pill frontend">Vue 3</span>
+      <span class="pill frontend">Element Plus</span>
+      <span class="pill data">MySQL</span>
+      <span class="pill data">Redis</span>
+      <span class="pill tool">Docker</span>
+      <span class="pill tool">Playwright</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 2: 背景 & 痛点 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge"><span class="dot"></span>背景与痛点</span>
+      <h2>TEZ 运维的<span class="gradient-text3">"信息孤岛"</span></h2>
+      <p class="subtitle" style="max-width:640px;margin:8px auto 0">腾讯云边缘可用区（Tencent Edge Zone）承载大量客户业务，但运维工具长期依赖<span style="font-weight:600">人工 + 浏览器 + 电子表格</span></p>
+    </div>
+    <div class="grid grid-2" style="max-width:900px;margin:0 auto">
+      <div class="card" style="border-left:3px solid var(--danger)">
+        <div style="font-size:1.5rem;margin-bottom:8px">🔍</div>
+        <h3>数据碎片化</h3>
+        <p>查一台母机状态需要在 4 个系统（CMDB / TCUM / 数全通 / 运营总表）之间来回切换，每次 3-5 分钟</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--warning)">
+        <div style="font-size:1.5rem;margin-bottom:8px">📋</div>
+        <h3>工单靠聊天</h3>
+        <p>搬迁、投放、故障等工单通过企业微信聊天流转，无记录、无追踪、无统计，事情靠人催</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--warning)">
+        <div style="font-size:1.5rem;margin-bottom:8px">👤</div>
+        <h3>找对接口人难</h3>
+        <p>CMDB / TCUM / 数全通 / 搬迁 / 开区... 每个模块有不同对口人，新人一周才能搞清"这事该找谁"</p>
+      </div>
+      <div class="card" style="border-left:3px solid var(--danger)">
+        <div style="font-size:1.5rem;margin-bottom:8px">📊</div>
+        <h3>全局水位不可见</h3>
+        <p>全网有多少空闲机位？哪些 Zone 即将饱和？全靠 Excel 手工统计，永远慢半拍</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 3: 解决方案定位 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge accent"><span class="dot"></span>解决方案</span>
+      <h2><span class="gradient-text">聚合而非替代</span></h2>
+      <p class="subtitle" style="max-width:680px;margin:8px auto 0">不是再造一个 CMDB / 工单系统，而是把已有系统的能力<span style="font-weight:600">聚合到一个统一入口</span>，做轻、做快、做完</p>
+    </div>
+
+    <div style="max-width:900px;margin:0 auto">
+      <div class="arch-row" style="margin-bottom:16px">
+        <div class="arch-block upstream" style="text-align:left">
+          <div class="arch-label">上游数据源（无 OpenAPI）</div>
+          <div class="arch-names">CMDB · TCUM · 数全通(IDCRM)<br><span style="font-size:.72rem;color:var(--text2)">腾讯文档 · 企微</span></div>
+        </div>
+        <div class="arch-arrow">▼</div>
+        <div class="arch-block core" style="text-align:left">
+          <div class="arch-label">适配层（三态客户端）</div>
+          <div class="arch-names">
+            <span class="tag blue">mock</span> 开发期假数据<br>
+            <span class="tag green">api</span> OpenAPI 直连<br>
+            <span class="tag amber">browser</span> Playwright 自动化
+          </div>
+        </div>
+        <div class="arch-arrow">▼</div>
+        <div class="arch-block core" style="text-align:left">
+          <div class="arch-label">核心层</div>
+          <div class="arch-names">Caching · Scheduling · Auth<br><span style="font-size:.72rem;color:var(--text2)">APScheduler 定时同步</span></div>
+        </div>
+        <div class="arch-arrow">▼</div>
+        <div class="arch-block frontend" style="text-align:left">
+          <div class="arch-label">前端</div>
+          <div class="arch-names">Vue 3 · Element Plus<br><span style="font-size:.72rem;color:var(--text2)">12 个功能页面</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="highlight-box" style="max-width:900px;margin:0 auto;text-align:center">
+      <span style="font-size:.9rem;color:var(--accent);font-weight:600">💡 设计原则</span>
+      <div style="display:flex;justify-content:center;gap:32px;margin-top:12px;flex-wrap:wrap;font-size:.85rem;color:var(--text2)">
+        <span>只整合、不替代</span><span>·</span>
+        <span>避免频繁跨系统切换</span><span>·</span>
+        <span>消除重复 Excel 统计</span><span>·</span>
+        <span>降低重复答疑成本</span><span>·</span>
+        <span>让 SOP 沉淀可传承</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 4: 核心架构 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge"><span class="dot"></span>技术架构</span>
+      <h2>整体技术栈</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;max-width:1000px;margin:0 auto">
+      <div class="card">
+        <h3 style="margin-bottom:12px">🖥 后端</h3>
+        <div class="pill-row">
+          <span class="pill backend">FastAPI</span>
+          <span class="pill backend">SQLAlchemy 2.x</span>
+          <span class="pill backend">Pydantic v2</span>
+          <span class="pill backend">APScheduler</span>
+          <span class="pill backend">Alembic</span>
+        </div>
+        <p style="margin-top:10px">异步高性能 API，依赖注入，自动化调度</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:12px">🎨 前端</h3>
+        <div class="pill-row">
+          <span class="pill frontend">Vue 3</span>
+          <span class="pill frontend">Element Plus</span>
+          <span class="pill frontend">TypeScript</span>
+          <span class="pill frontend">Vite</span>
+          <span class="pill frontend">Pinia</span>
+        </div>
+        <p style="margin-top:10px">组件化开发，Composition API，极速构建</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:12px">💾 数据与部署</h3>
+        <div class="pill-row">
+          <span class="pill data">MySQL 8</span>
+          <span class="pill data">Redis 7</span>
+          <span class="pill tool">Docker Compose</span>
+          <span class="pill tool">Nginx</span>
+          <span class="pill tool">GitHub Actions</span>
+        </div>
+        <p style="margin-top:10px">4 服务编排，一键启停，健康检查</p>
+      </div>
+    </div>
+
+    <div class="highlight-box" style="max-width:1000px;margin:24px auto 0">
+      <div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:20px;text-align:center">
+        <div>
+          <div style="font-size:2rem;font-weight:900;color:var(--primary)">8</div>
+          <div style="font-size:.78rem;color:var(--text2)">后端路由模块</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:900;color:var(--accent)">14</div>
+          <div style="font-size:.78rem;color:var(--text2)">上游客户端适配器</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:900;color:var(--success)">15</div>
+          <div style="font-size:.78rem;color:var(--text2)">数据库表</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:900;color:var(--accent2)">10+</div>
+          <div style="font-size:.78rem;color:var(--text2)">业务服务层</div>
+        </div>
+        <div>
+          <div style="font-size:2rem;font-weight:900;color:var(--warning)">3</div>
+          <div style="font-size:.78rem;color:var(--text2)">浏览器自动化技能</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 5: 五大模块 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge accent"><span class="dot"></span>功能模块</span>
+      <h2>五大核心模块</h2>
+      <p class="subtitle">按价值密度排序，四大里程碑已全部交付</p>
+    </div>
+    <div class="grid grid-5" style="max-width:1100px;margin:0 auto">
+      <div class="card">
+        <div class="card-icon blue">📡</div>
+        <h3>资源查询</h3>
+        <p>输入固资号/IP/Zone，秒级返回机器全貌。三源聚合 + 历史轨迹，一屏看清机器前世今生</p>
+        <div style="margin-top:10px"><span class="tag green">M1 已交付</span></div>
+      </div>
+      <div class="card">
+        <div class="card-icon purple">🧠</div>
+        <h3>知识中枢</h3>
+        <p>SOP · FAQ · 平台链接 · 竞分资料，结构化沉淀。支持 Markdown 编辑和全文搜索</p>
+        <div style="margin-top:10px"><span class="tag green">M2 已交付</span></div>
+      </div>
+      <div class="card">
+        <div class="card-icon cyan">📋</div>
+        <h3>工单流转</h3>
+        <p>搬迁/投放/改造/需求 4 类工单生命周期管理。状态机驱动，操作日志全程留存</p>
+        <div style="margin-top:10px"><span class="tag green">M3 已交付</span></div>
+      </div>
+      <div class="card">
+        <div class="card-icon green">📊</div>
+        <h3>驾驶舱</h3>
+        <p>全团队事件/水位/待办一屏看完。Zone 资源热力图 + 工单统计 + 快捷入口</p>
+        <div style="margin-top:10px"><span class="tag green">M4 已交付</span></div>
+      </div>
+      <div class="card">
+        <div class="card-icon amber">👥</div>
+        <h3>接口人路由</h3>
+        <p>按模块/场景自动匹配对口负责人。35+ 接口人 + 升级路径 + 在岗状态</p>
+        <div style="margin-top:10px"><span class="tag green">M2 已交付</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 6: 实施路线 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge"><span class="dot"></span>实施路线</span>
+      <h2>里程碑规划 & 交付节奏</h2>
+      <p class="subtitle">18 周，4 个里程碑，全部完成</p>
+    </div>
+    <div style="max-width:700px;margin:0 auto">
+      <div class="timeline">
+        <div class="timeline-item done">
+          <div class="timeline-label">第 1-4 周</div>
+          <div class="timeline-title">M1 · 资源查询统一接口 <span class="tag green">Done</span></div>
+          <div class="timeline-desc">三源融合（CMDB + TCUM + 数全通），浏览器自动化适配器，缓存机制，批量导出</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="timeline-label">第 5-8 周</div>
+          <div class="timeline-title">M2 · 知识中枢 + 接口人路由器 <span class="tag green">Done</span></div>
+          <div class="timeline-desc">35+ 接口人数据导入，SOP 知识沉淀，按场景智能路由，升级路径</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="timeline-label">第 9-14 周</div>
+          <div class="timeline-title">M3 · 工单流 + 运营总表同步 <span class="tag green">Done</span></div>
+          <div class="timeline-desc">4 类工单状态机，操作日志，与腾讯文档运营总表双向同步</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="timeline-label">第 15-18 周</div>
+          <div class="timeline-title">M4 · 运维驾驶舱 <span class="tag green">Done</span></div>
+          <div class="timeline-desc">Zone 资源热力图，工单统计看板，一键搜索 AI 助手，成本一览</div>
+        </div>
+        <div class="timeline-item plan">
+          <div class="timeline-label">第 19 周+</div>
+          <div class="timeline-title">M5+ · 平台化升级 <span class="tag amber">规划中</span></div>
+          <div class="timeline-desc">迁 K8s，高可用，CI/CD，性能优化，完善用户权限体系</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 7: 关键技术亮点 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge accent"><span class="dot"></span>技术亮点</span>
+      <h2>三项关键创新</h2>
+    </div>
+    <div class="grid grid-3" style="max-width:1000px;margin:0 auto">
+      <div class="card" style="border-top:3px solid var(--accent)">
+        <div class="card-icon cyan">🤖</div>
+        <h3>浏览器自动化适配</h3>
+        <p style="margin-top:8px">当上游平台（CMDB/TCUM/IDCRM）<strong>没有 OpenAPI</strong> 时，通过 Playwright 自动化直接抓取数据，复用 SSO 登录态（7 天有效）</p>
+        <div class="highlight-box" style="margin-top:12px;padding:12px">
+          <div class="code-mini"><span class="comment"># 三态客户端模式</span>
+<span class="kw">cmdb_mode</span>: mock | api | <span class="str">browser</span>
+<span class="kw">tcum_mode</span>: mock | api | <span class="str">browser</span>
+<span class="kw">idcrm_mode</span>: mock | api | <span class="str">browser</span></div>
+        </div>
+      </div>
+      <div class="card" style="border-top:3px solid var(--accent2)">
+        <div class="card-icon purple">⚡</div>
+        <h3>智能分层缓存</h3>
+        <p style="margin-top:8px">三级缓存策略：Redis 热数据 → 本地 SQLite → 上游实时查询。缓存命中 <strong>&lt;10ms</strong>，首次同步 15-30s</p>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <span class="tag blue">主机缓存 24h</span>
+          <span class="tag green">Zone 快照 7d</span>
+          <span class="tag amber">登录态 7d</span>
+          <span class="tag purple">并发限流 x5</span>
+        </div>
+      </div>
+      <div class="card" style="border-top:3px solid var(--success)">
+        <div class="card-icon green">🎯</div>
+        <h3>AI 智能助手</h3>
+        <p style="margin-top:8px">集成大语言模型（混元/DeepSeek/GPT），支持<strong>三种上下文模式</strong>：竞争分析 · 运维知识 · 自由对话。从驾驶舱一键提问</p>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <span class="tag blue">竞争分析</span>
+          <span class="tag green">运维知识</span>
+          <span class="tag amber">自由对话</span>
+          <span class="tag purple">流式响应</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 8: 数据库设计 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge"><span class="dot"></span>数据设计</span>
+      <h2>核心数据模型</h2>
+      <p class="subtitle">15 张表，覆盖主机缓存 · 工单流 · 知识库 · 权限 · 审计</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:1000px;margin:0 auto">
+      <div class="card" style="padding:16px">
+        <div class="num blue" style="margin-bottom:8px">🏗</div>
+        <h3 style="font-size:.9rem">主机缓存</h3>
+        <p style="font-size:.76rem;color:var(--text2);margin-top:4px">host_cache<br>host_history</p>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="num green" style="margin-bottom:8px">📋</div>
+        <h3 style="font-size:.9rem">工单系统</h3>
+        <p style="font-size:.76rem;color:var(--text2);margin-top:4px">work_orders<br>work_order_logs</p>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="num purple" style="margin-bottom:8px">🧠</div>
+        <h3 style="font-size:.9rem">知识库</h3>
+        <p style="font-size:.76rem;color:var(--text2);margin-top:4px">knowledge_articles<br>faqs · platform_links</p>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="num blue" style="margin-bottom:8px">👥</div>
+        <h3 style="font-size:.9rem">接口人系统</h3>
+        <p style="font-size:.76rem;color:var(--text2);margin-top:4px">contacts · categories<br>responsibilities · escalations</p>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="num green" style="margin-bottom:8px">📡</div>
+        <h3 style="font-size:.9rem">节点资源</h3>
+        <p style="font-size:.76rem;color:var(--text2);margin-top:4px">zone_snapshots<br>zone_devices</p>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="num purple" style="margin-bottom:8px">🔐</div>
+        <h3 style="font-size:.9rem">系统管理</h3>
+        <p style="font-size:.76rem;color:var(--text2);margin-top:4px">users · audit_logs<br>alembic migrations</p>
+      </div>
+    </div>
+
+    <div class="highlight-box green" style="max-width:1000px;margin:20px auto 0">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center">
+        <span class="tag green">SQLAlchemy ORM</span>
+        <span style="color:var(--text2)">→</span>
+        <span class="tag blue">Alembic 迁移</span>
+        <span style="color:var(--text2)">→</span>
+        <span class="tag amber">Redis 缓存</span>
+        <span style="color:var(--text2)">→</span>
+        <span class="tag purple">SQLite 本地开发</span>
+        <span style="color:var(--text2)">→</span>
+        <span class="tag green">MySQL 8 生产</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 9: 前端页面 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge accent"><span class="dot"></span>前端体验</span>
+      <h2>12 个功能页面</h2>
+      <p class="subtitle">Vue 3 + Element Plus + TypeScript，组件化开发</p>
+    </div>
+    <div class="grid grid-3" style="max-width:1000px;margin:0 auto">
+      <div class="card">
+        <div class="card-icon blue">🖥</div>
+        <h3>驾驶舱</h3>
+        <p>工单统计 + Zone 水位热力图 + 搜索直达 AI 助手 + 行业需求提单</p>
+      </div>
+      <div class="card">
+        <div class="card-icon cyan">🔍</div>
+        <h3>资源查询</h3>
+        <p>固资号/IP 搜索 → 机器全貌 × 历史轨迹 × Excel 导出</p>
+      </div>
+      <div class="card">
+        <div class="card-icon purple">📋</div>
+        <h3>工单流转</h3>
+        <p>创建 → 受理 → 执行 → 验证 → 完成，6 状态机 + 操作日志</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">💰</div>
+        <h3>成本一览</h3>
+        <p>TEZ 边缘可用区机型月度运营成本，含成本比例分析</p>
+      </div>
+      <div class="card">
+        <div class="card-icon amber">🧠</div>
+        <h3>知识库</h3>
+        <p>SOP / FAQ / 平台链接，Markdown 编辑，全文搜索</p>
+      </div>
+      <div class="card">
+        <div class="card-icon purple">🤖</div>
+        <h3>AI 助手</h3>
+        <p>LLM 对话，三种上下文模式，Markdown 渲染，驾驶舱一键跳转</p>
+      </div>
+      <div class="card">
+        <div class="card-icon blue">👥</div>
+        <h3>运维助手</h3>
+        <p>按场景找人，35+ 接口人，主备 + 在岗状态 + 企微直连</p>
+      </div>
+      <div class="card">
+        <div class="card-icon cyan">📊</div>
+        <h3>竞争分析</h3>
+        <p>TEZ vs AWS/Azure/阿里云边缘计算产品对比</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">🔐</div>
+        <h3>用户管理</h3>
+        <p>admin / ops / viewer 三级角色，JWT Token 鉴权</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 10: 测试 & 质量 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge"><span class="dot"></span>质量保障</span>
+      <h2>测试覆盖率<span class="gradient-text"> 82%</span></h2>
+      <p class="subtitle">目标 ≥70%，实际 82%，关键模块全覆盖</p>
+    </div>
+
+    <div style="max-width:900px;margin:0 auto">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--primary)">100%</div>
+          <div class="stat-label">hosts 路由</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--success)">97%</div>
+          <div class="stat-label">host_service</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--accent)">95%</div>
+          <div class="stat-label">cmdb_browser</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" style="color:var(--accent2)">91%</div>
+          <div class="stat-label">idcrm_browser</div>
+        </div>
+      </div>
+
+      <div class="highlight-box" style="text-align:center">
+        <span style="font-weight:600">测试覆盖维度：</span>
+        <div class="pill-row" style="justify-content:center;margin-top:10px">
+          <span class="pill backend">输入识别</span>
+          <span class="pill backend">客户端 mock</span>
+          <span class="pill frontend">浏览器解析</span>
+          <span class="pill data">缓存服务</span>
+          <span class="pill data">三源融合</span>
+          <span class="pill tool">API 端到端</span>
+          <span class="pill tool">并发限流</span>
+          <span class="pill tool">Excel 导出</span>
+          <span class="pill tool">性能基准</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 11: 一键部署 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge accent"><span class="dot"></span>部署运维</span>
+      <h2>Docker 一键启停</h2>
+      <p class="subtitle">4 服务编排 + 健康检查 + 自动化脚本</p>
+    </div>
+
+    <div style="max-width:800px;margin:0 auto">
+      <div class="highlight-box" style="margin-bottom:20px">
+        <div class="code-mini"><span class="comment"># 一键启动全部服务</span>
+<span class="kw">scripts/start.sh</span> --with-app
+
+<span class="comment"># OR docker compose</span>
+<span class="kw">docker compose</span> up -d</div>
+      </div>
+
+      <div class="grid grid-4" style="margin-bottom:16px">
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:1.8rem;margin-bottom:8px">🐬</div>
+          <h3 style="font-size:.9rem">MySQL 8.0</h3>
+          <p style="font-size:.76rem;color:var(--text2)">utf8mb4</p>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:1.8rem;margin-bottom:8px">⚡</div>
+          <h3 style="font-size:.9rem">Redis 7</h3>
+          <p style="font-size:.76rem;color:var(--text2)">AOF 持久化</p>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:1.8rem;margin-bottom:8px">🐍</div>
+          <h3 style="font-size:.9rem">Backend</h3>
+          <p style="font-size:.76rem;color:var(--text2)">Python 3.11</p>
+        </div>
+        <div class="card" style="text-align:center;padding:16px">
+          <div style="font-size:1.8rem;margin-bottom:8px">🌐</div>
+          <h3 style="font-size:.9rem">Frontend</h3>
+          <p style="font-size:.76rem;color:var(--text2)">Nginx 1.27</p>
+        </div>
+      </div>
+
+      <div class="highlight-box green" style="text-align:center">
+        <div class="pill-row" style="justify-content:center">
+          <span class="pill tool">start.sh</span>
+          <span class="pill tool">stop.sh</span>
+          <span class="pill tool">restart.sh</span>
+          <span class="pill tool">healthcheck.sh</span>
+          <span class="pill tool">init_users.py</span>
+          <span class="pill tool">import_contacts.py</span>
+          <span class="pill tool">import_knowledge.py</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 12: 成果与影响 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner">
+    <div class="section-header">
+      <span class="badge accent"><span class="dot"></span>成果回顾</span>
+      <h2>项目交付成果</h2>
+    </div>
+    <div class="grid grid-2" style="max-width:900px;margin:0 auto">
+      <div class="card">
+        <div class="card-icon green">✅</div>
+        <h3>18 周完整交付 4 个里程碑</h3>
+        <p>M1 资源查询 → M2 知识+接口人 → M3 工单流 → M4 驾驶舱，全部按计划完成</p>
+      </div>
+      <div class="card">
+        <div class="card-icon blue">📊</div>
+        <h3>12 个前端页面 × 8 个后端模块</h3>
+        <p>覆盖驾驶舱、资源查询、工单流转、成本分析、知识库、AI 助手、用户管理等全场景</p>
+      </div>
+      <div class="card">
+        <div class="card-icon cyan">🔌</div>
+        <h3>3 个上游系统全部打通</h3>
+        <p>CMDB（资产信息）+ TCUM（设备监控）+ IDCRM（机位租赁），通过浏览器自动化解决无 API 痛点</p>
+      </div>
+      <div class="card">
+        <div class="card-icon purple">🤖</div>
+        <h3>AI 深度集成</h3>
+        <p>LLM 智能问答 × 3 种上下文模式，从驾驶舱直达 AI，SOP 知识库驱动</p>
+      </div>
+      <div class="card">
+        <div class="card-icon green">🧪</div>
+        <h3>82% 测试覆盖率</h3>
+        <p>关键模块覆盖率 90%+，三源融合、并发限流、Excel 导出、性能基准全面验证</p>
+      </div>
+      <div class="card">
+        <div class="card-icon amber">📦</div>
+        <h3>开箱即用的部署体验</h3>
+        <p>Docker Compose 一键启动，10+ 自动化脚本，新成员 1 小时上手</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SLIDE 13: 未来展望 ===== -->
+<section class="slide bg-pattern">
+  <div class="slide-inner" style="text-align:center">
+    <div class="section-header">
+      <span class="badge"><span class="dot"></span>未来展望</span>
+      <h2>下一步</h2>
+    </div>
+
+    <div style="max-width:800px;margin:0 auto">
+      <div class="grid grid-2">
+        <div class="card" style="border-top:3px solid var(--primary)">
+          <div style="font-size:2rem;margin-bottom:8px">🚀</div>
+          <h3>迁 K8s 高可用</h3>
+          <p>从工位机 Docker 迁至 TKE 集群，实现多副本、自动扩缩、滚动更新</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent)">
+          <div style="font-size:2rem;margin-bottom:8px">🔄</div>
+          <h3>CI/CD 流水线</h3>
+          <p>GitHub Actions 自动化测试 → 构建镜像 → 部署，标准化交付流程</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--success)">
+          <div style="font-size:2rem;margin-bottom:8px">📈</div>
+          <h3>监控告警集成</h3>
+          <p>接入企业微信告警、Prometheus 指标、Grafana 大盘</p>
+        </div>
+        <div class="card" style="border-top:3px solid var(--accent2)">
+          <div style="font-size:2rem;margin-bottom:8px">🔌</div>
+          <h3>更多 API 对接</h3>
+          <p>推进上游平台 OpenAPI 开放，减少浏览器自动化依赖</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:48px">
+      <h2 class="gradient-text2" style="margin-bottom:8px;font-size:1.8rem">让 TEZ 运维更简单</h2>
+      <p class="subtitle" style="font-size:1rem">TEZ Operator — 聚合而非替代，轻量而完整</p>
+      <p style="margin-top:24px;font-size:.85rem;color:var(--text2)">
+        GitHub · github.com/bezhumingqian-bit/TEZ-operator<br>
+        MIT License · 内部项目
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+// Slide navigation
+const slides = document.querySelectorAll('.slide');
+const dots = document.getElementById('navDots');
+slides.forEach((_, i) => {
+  const dot = document.createElement('div');
+  dot.className = 'nav-dot';
+  dot.onclick = () => slides[i].scrollIntoView({ behavior: 'smooth' });
+  dots.appendChild(dot);
+});
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const idx = [...slides].indexOf(entry.target);
+      document.querySelectorAll('.nav-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === idx);
+      });
+    }
+  });
+}, { threshold: 0.4 });
+slides.forEach(s => observer.observe(s));
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  const current = [...slides].findIndex(s => {
+    const rect = s.getBoundingClientRect();
+    return rect.top >= -100 && rect.top <= 100;
+  });
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    const next = Math.min(current + 1, slides.length - 1);
+    if (next >= 0) slides[next].scrollIntoView({ behavior: 'smooth' });
+  }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const prev = Math.max(current - 1, 0);
+    if (prev < slides.length) slides[prev].scrollIntoView({ behavior: 'smooth' });
+  }
+});
+</script>
+</body>
+</html>

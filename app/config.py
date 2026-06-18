@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     cmdb_mode: ClientMode = Field(default="mock", description="cmdb 客户端模式")
     tcum_mode: ClientMode = Field(default="mock", description="tcum 客户端模式")
     idcrm_mode: ClientMode = Field(default="mock", description="idcrm 客户端模式")
+    yunxiao_mode: ClientMode = Field(default="mock", description="yunxiao 客户端模式")
 
     # ───────── 浏览器自动化（mode=browser 时使用） ─────────
     browser_profile_dir: str = Field(
