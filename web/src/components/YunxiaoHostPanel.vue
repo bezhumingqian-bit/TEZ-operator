@@ -5,9 +5,9 @@
         v-model="filterZone"
         filterable
         clearable
-        size="default"
+        size="large"
         placeholder="可用区"
-        style="width: 180px"
+        style="width: 200px"
       >
         <el-option v-for="z in zoneList" :key="z" :label="z" :value="z" />
       </el-select>
@@ -15,9 +15,9 @@
         v-model="filterFamily"
         filterable
         clearable
-        size="default"
+        size="large"
         placeholder="实例族"
-        style="width: 140px; margin-left: 8px"
+        style="width: 160px; margin-left: 12px"
       >
         <el-option label="S1" value="S1"/>
         <el-option label="S5" value="S5"/>
@@ -29,9 +29,9 @@
         v-model="filterMachine"
         filterable
         clearable
-        size="default"
+        size="large"
         placeholder="机型"
-        style="width: 140px; margin-left: 8px"
+        style="width: 160px; margin-left: 12px"
       >
         <el-option label="M10" value="M10"/>
         <el-option label="CG3-10G" value="CG3-10G"/>
@@ -39,14 +39,21 @@
       </el-select>
       <el-button
         type="primary"
+        size="large"
         :loading="loading"
         :icon="Search"
         @click="doQuery"
-        style="margin-left: 8px"
+        style="margin-left: 12px"
       >
         查询母机
       </el-button>
-      <el-tag type="info" size="small" effect="plain" style="margin-left: 12px">
+      <el-tag
+        v-if="resultMode"
+        type="info"
+        size="small"
+        effect="plain"
+        style="margin-left: 12px"
+      >
         {{ resultMode }}
       </el-tag>
     </div>
@@ -93,7 +100,11 @@
       <el-table-column prop="host_updated_at" label="更新时间" width="160" />
     </el-table>
 
-    <el-empty v-else-if="!loading && queried" description="无数据" />
+    <div v-if="!queried && !loading" style="margin-top: 24px; text-align: center; color: #909399">
+      <el-icon :size="32" style="margin-bottom: 8px"><Search /></el-icon>
+      <p>选择可用区/实例族/机型后，点击「查询母机」获取云霄平台数据</p>
+    </div>
+    <el-empty v-else-if="queried && !loading && items.length === 0" description="无数据" />
   </div>
 </template>
 

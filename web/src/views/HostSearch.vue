@@ -466,6 +466,10 @@
         <el-tab-pane label="云霄母机" name="yunxiao_host">
           <YunxiaoHostPanel />
         </el-tab-pane>
+        <!-- ─────────── 云霄库存查询 ─────────── -->
+        <el-tab-pane label="云霄库存" name="yunxiao_inventory">
+          <YunxiaoInventoryPanel />
+        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -479,6 +483,7 @@ import { ElMessage } from 'element-plus'
 import HostCard from '@/components/HostCard.vue'
 import HostTable from '@/components/HostTable.vue'
 import YunxiaoHostPanel from '@/components/YunxiaoHostPanel.vue'
+import YunxiaoInventoryPanel from '@/components/YunxiaoInventoryPanel.vue'
 import BatchTable from '@/components/BatchTable.vue'
 import { ApiError } from '@/api/client'
 import {
