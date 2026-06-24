@@ -497,7 +497,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { Search, Loading, QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import HostCard from '@/components/HostCard.vue'
@@ -526,6 +526,7 @@ import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
 const router = useRouter()
+const route = useRoute()
 const activeTab = ref('node_overview')
 const fallbackZoneOptions: string[] = []
 
@@ -632,9 +633,16 @@ async function loadZoneOptions() {
   }
 }
 
-onMounted(() => {
-  void loadZoneOptions()
+onMounted(async () => {
+  await loadZoneOptions()
   void loadMachineTypes()
+  // 外部跳转（如资源水位页点卡片）带 zone 参数时，自动查
+  const zoneParam = route.query.zone as string | undefined
+  if (zoneParam) {
+    activeTab.value = 'node_overview'
+    nodeZoneSelected.value = zoneParam
+    await onNodeOverview()
+  }
 })
 
 // ─── 导出 ───
