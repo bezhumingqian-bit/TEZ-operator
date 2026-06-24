@@ -17,7 +17,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # 与 app.clients.base.ClientMode 保持一致，但在 config 里独立定义避免循环 import
-ClientMode = Literal["mock", "api", "browser"]
+ClientMode = Literal["mock", "api", "browser", "http"]
 
 
 class Settings(BaseSettings):

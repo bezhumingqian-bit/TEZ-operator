@@ -76,11 +76,11 @@ class IDCRMHttpClient:
         page_size: int = 100,
     ) -> dict[str, Any]:
         """查询机位列表（单页）。"""
-        params: dict[str, Any] = {"is_fake": "0"}
+        params: dict[str, Any] = {}
         if idc_unit_name:
-            params["idc_unit_name"] = idc_unit_name
+            params["idc_unit_name"] = [idc_unit_name]
         if logic_area_attr:
-            params["logic_area_attr"] = logic_area_attr
+            params["logic_area_attr"] = [logic_area_attr]
 
         body = {"params": params, "page_no": page_no, "page_size": page_size}
 
@@ -184,7 +184,7 @@ class IDCRMHttpClient:
 
         for pos in positions:
             status = str(pos.get("position_status", "") or pos.get("status", ""))
-            device_info = str(pos.get("device_asset_id", "") or pos.get("server_asset_id", "") or "")
+            device_info = str(pos.get("pos_device", "") or pos.get("pre_occupy_asset_id", "") or "")
             if device_info:
                 assets = re.findall(r"TYSV[0-9A-Z]{6,}", device_info, re.IGNORECASE)
                 all_assets.extend(assets)
@@ -235,7 +235,7 @@ class IDCRMHttpClient:
             elif "已用" in status or "在用" in status:
                 entry["used_count"] += 1
 
-            device_info = str(pos.get("device_asset_id", "") or pos.get("server_asset_id", "") or "")
+            device_info = str(pos.get("pos_device", "") or pos.get("pre_occupy_asset_id", "") or "")
             if device_info:
                 assets = re.findall(r"TYSV[0-9A-Z]{6,}", device_info, re.IGNORECASE)
                 entry["all_assets"].extend(assets)

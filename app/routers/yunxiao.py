@@ -28,6 +28,7 @@ async def query_host_machines(
     zone: str | None = Query(None, description="可用区"),
     machine_type: str | None = Query(None, description="机型"),
     instance_family: str | None = Query(None, description="实例族"),
+    is_empty_host: bool = Query(False, description="只看空母机"),
     session: AsyncSession = Depends(get_db_session),
     _: User = Depends(get_current_user),
 ):
@@ -38,6 +39,7 @@ async def query_host_machines(
             zone=zone or (payload.zone if payload else None),
             machine_type=machine_type or (payload.machine_type if payload else None),
             instance_family=instance_family or (payload.instance_family if payload else None),
+            is_empty_host=is_empty_host or (payload.is_empty_host if payload else False),
         )
         return YunxiaoQueryResponse(
             items=items,
@@ -47,6 +49,26 @@ async def query_host_machines(
         )
     except Exception as exc:
         log.error("yunxiao_host_query_failed", error=str(exc))
+        raise HTTPException(status_code=502, detail=f"云霄查询失败: {exc}")
+
+
+@router.get("/host-machines/search", response_model=YunxiaoQueryResponse, summary="按固资号/IP精确查母机")
+async def search_host_machine(
+    keyword: str = Query(..., min_length=2, description="固资号或内网IP"),
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(get_current_user),
+):
+    """按固资号 / IP 精确查单台母机。"""
+    try:
+        items = await _service.query_host_by_keyword(session, keyword=keyword)
+        return YunxiaoQueryResponse(
+            items=items,
+            total=len(items),
+            mode=_service.mode,
+            snapshot_time=datetime.now(),
+        )
+    except Exception as exc:
+        log.error("yunxiao_host_search_failed", keyword=keyword, error=str(exc))
         raise HTTPException(status_code=502, detail=f"云霄查询失败: {exc}")
 
 
@@ -88,3 +110,13 @@ async def get_host_history(
     """查询已入库的母机快照历史。"""
     items = await _service.get_host_history(session, zone=zone, limit=limit)
     return {"items": items, "total": len(items)}
+
+
+@router.post("/sync", summary="手动触发云霄全量同步")
+async def trigger_sync(
+    _: User = Depends(get_current_user),
+):
+    """手动触发一次云霄母机 + 库存全量同步入库（与每日定时任务同一逻辑）。"""
+    from app.scheduler import sync_yunxiao_job
+    result = await sync_yunxiao_job()
+    return result

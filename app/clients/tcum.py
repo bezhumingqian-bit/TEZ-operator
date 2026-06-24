@@ -52,6 +52,9 @@ class TCUMClient:
             return TCUMBrowserImpl()
         if mode == "api":
             return TCUMAPIImpl()
+        if mode == "http":
+            from app.clients.tcum_http import TCUMHttpClient
+            return TCUMHttpClient()
         raise ClientError(f"未知 TCUM mode: {mode!r}")
 
     # ──────────────── public（兼容旧签名） ────────────────

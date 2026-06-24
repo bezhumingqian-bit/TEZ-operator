@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.zone_snapshot import ZoneDevice, ZoneSnapshot
 from app.utils.device_classifier import classify_device
 from app.utils.logger import get_logger
+from app.utils.water_level import calc_water_level
 
 log = get_logger(__name__)
 
@@ -81,7 +82,7 @@ class ZoneResourceService:
         return await self.get_zone_overview(zone, force_refresh=True)
 
     async def list_all_snapshots(self) -> list[dict[str, Any]]:
-        """列出所有已同步的可用区快照摘要。"""
+        """列出所有已同步的可用区快照摘要（含水位指标）。"""
         stmt = select(ZoneSnapshot).order_by(ZoneSnapshot.zone)
         result = await self._session.execute(stmt)
         snapshots = result.scalars().all()
@@ -91,9 +92,17 @@ class ZoneResourceService:
                 "idc": s.idc,
                 "total_positions": s.total_positions,
                 "free_count": s.free_count,
+                "used_count": s.used_count,
                 "online_count": s.online_count,
                 "offline_count": s.offline_count,
                 "last_sync_at": s.last_sync_at.isoformat() if s.last_sync_at else None,
+                **calc_water_level(
+                    total=s.total_positions,
+                    free=s.free_count,
+                    used=s.used_count,
+                    online=s.online_count,
+                    offline=s.offline_count,
+                ),
             }
             for s in snapshots
         ]
@@ -155,6 +164,31 @@ class ZoneResourceService:
                 log.warning("zone_resource.empty_result_skipped", zone=zone, idc=idc,
                             hint="IDCRM 返回空数据，可能登录态失效或页面解析异常，不覆盖已有缓存")
                 return None  # 返回 None 让调用方 fallback 到旧缓存
+
+            # 门禁：机位逻辑区域=虚拟化 筛选是否真生效。
+            # 若机位数异常偏大、但含"虚拟化"的行占比过低，说明筛选未应用、
+            # 抓回了整机房全部机位（脏数据）。拒绝写库，避免污染快照，并告警暴露问题。
+            logic_ratio = pos_result.get("logic_match_ratio")
+            if logic_ratio is not None and total_positions >= 120 and logic_ratio < 0.6:
+                log.error(
+                    "zone_resource.logic_filter_invalid",
+                    zone=zone, idc=idc,
+                    total_positions=total_positions,
+                    logic_ratio=round(logic_ratio, 2),
+                    hint="疑似'机位逻辑区域=虚拟化'筛选未生效，抓回整机房机位，拒绝写库",
+                )
+                from app.utils.alert import alert_fire_and_forget
+                alert_fire_and_forget(
+                    title=f"{zone} 机位同步疑似筛选失效",
+                    content=(
+                        f"机房 `{idc}` 抓回 {total_positions} 个机位，但仅 "
+                        f"{round(logic_ratio * 100)}% 的行含'虚拟化'，"
+                        "疑似'机位逻辑区域=虚拟化'筛选未生效（抓到整机房全部机位）。"
+                        "已拒绝写入快照以避免脏数据，请检查 IDCRM 页面筛选交互是否改版。"
+                    ),
+                    level="error",
+                )
+                return None  # 拒绝写脏数据，调用方 fallback 到旧缓存
 
             # Step 2: TCUM 批量查
             online_devices: list[dict] = []
@@ -360,12 +394,28 @@ class ZoneResourceService:
         offline = [d for d in devices if d.category == "offline"]
         non_tez = [d for d in devices if d.category == "non_tez"]
 
+        # 已识别设备 = TEZ(online+offline) + 非TEZ
+        classified_count = len(online) + len(offline) + len(non_tez)
+        # 未识别 = 已用机位 - 已识别设备（IDCRM 没提取到固资号或 TCUM 没查到的）
+        used = snapshot.used_count or 0
+        unclassified_count = max(0, used - classified_count)
+
+        msg = (
+            f"虚拟化机位: {snapshot.total_positions}"
+            f"（空闲{snapshot.free_count}/已用{used}），"
+            f"TEZ已上线{len(online)}台, 未上线{len(offline)}台"
+        )
+        if snapshot.non_tez_count:
+            msg += f", 非TEZ设备{snapshot.non_tez_count}台"
+        if unclassified_count:
+            msg += f", 未识别{unclassified_count}台"
+
         return {
             "zone": snapshot.zone,
             "idc": snapshot.idc,
             "total_positions": snapshot.total_positions,
             "free_count": snapshot.free_count,
-            "used_count": snapshot.used_count,
+            "used_count": used,
             "total_assets": snapshot.total_assets,
             "online_devices": [
                 {"asset_id": d.asset_id, "ip": d.ip, "machine_type": d.machine_type, "module": d.module}
@@ -382,12 +432,8 @@ class ZoneResourceService:
                 for d in non_tez
             ],
             "non_tez_count": len(non_tez),
+            "unclassified_count": unclassified_count,
             "last_sync_at": snapshot.last_sync_at.isoformat() if snapshot.last_sync_at else None,
             "from_cache": from_cache,
-            "message": (
-                f"虚拟化机位: {snapshot.total_positions}"
-                f"（空闲{snapshot.free_count}/已用{snapshot.used_count}），"
-                f"TEZ已上线{len(online)}台, 未上线{len(offline)}台"
-                + (f", 非TEZ设备{snapshot.non_tez_count}台" if snapshot.non_tez_count else "")
-            ),
+            "message": msg,
         }

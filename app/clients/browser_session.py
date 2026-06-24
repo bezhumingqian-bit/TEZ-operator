@@ -156,9 +156,25 @@ def is_login_url(url: str | None) -> bool:
     if not url:
         return True
     lower = url.lower()
-    keywords = ("passport", "login", "sso", "auth", "bcp.")
+    keywords = ("passport", "login", "sso", "auth", "bcp.", "wwlogin")
     return any(k in lower for k in keywords)
 
 
+async def is_doc_login_page(page) -> bool:
+    """判断腾讯文档是否落在企业微信扫码登录页。
+
+    企微登录页 URL 仍为 doc.weixin.qq.com（不含 passport/login 关键词），
+    需要检查页面文本来判断。
+    """
+    if is_login_url(page.url):
+        return True
+    try:
+        text = await page.text_content("body", timeout=3000) or ""
+        login_signals = ("企业微信扫码登录", "企业身份登录", "扫描二维码登录", "请使用企业微信")
+        return any(s in text for s in login_signals)
+    except Exception:
+        return False
+
+
 # 便于其他模块复用 os.environ 读取（避免循环 import）
-__all__ = ["BrowserSession", "is_login_url", "os"]
+__all__ = ["BrowserSession", "is_login_url", "is_doc_login_page", "os"]

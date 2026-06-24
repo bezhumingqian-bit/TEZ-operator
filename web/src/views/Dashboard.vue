@@ -116,9 +116,9 @@
               <el-icon :size="22" color="#67c23a"><Search /></el-icon>
               <span>资源查询</span>
             </div>
-            <div class="quick-item" @click="openDemandForm">
-              <el-icon :size="22" color="#8b5cf6"><ChatDotRound /></el-icon>
-              <span>行业提单</span>
+            <div class="quick-item" @click="$router.push('/water-level')">
+              <el-icon :size="22" color="#e6a23c"><Odometer /></el-icon>
+              <span>资源水位</span>
             </div>
             <div class="quick-item" @click="$router.push('/knowledge')">
               <el-icon :size="22" color="#909399"><Reading /></el-icon>
@@ -171,8 +171,11 @@
           <template v-else-if="zoneSnapshots.length">
             <!-- Zone 数量 ≤ 3：紧凑卡片模式 -->
             <div v-if="zoneSnapshots.length <= 3" class="zone-cards">
-              <div v-for="z in zoneSnapshots" :key="z.zone" class="zone-card">
-                <div class="zone-card__name" :title="z.zone">{{ z.zone }}</div>
+              <div v-for="z in zoneSnapshots" :key="z.zone" class="zone-card" @click="$router.push('/water-level')">
+                <div class="zone-card__name" :title="z.zone">
+                  <span class="level-dot" :class="`level-dot--${z.level || 'unknown'}`"></span>
+                  {{ z.zone }}
+                </div>
                 <div class="zone-card__stats">
                   <span class="zone-card__stat">
                     <span class="zone-card__label">空闲</span>
@@ -191,8 +194,13 @@
             </div>
 
             <!-- Zone 数量 > 3：表格模式 -->
-            <el-table v-else :data="zoneSnapshots" size="small" class="zone-table">
-              <el-table-column prop="zone" label="可用区" min-width="130" show-overflow-tooltip />
+            <el-table v-else :data="zoneSnapshots" size="small" class="zone-table" @row-click="() => $router.push('/water-level')">
+              <el-table-column prop="zone" label="可用区" min-width="130" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="level-dot" :class="`level-dot--${row.level || 'unknown'}`" style="margin-right: 6px; vertical-align: middle"></span>
+                  {{ row.zone }}
+                </template>
+              </el-table-column>
               <el-table-column prop="free_count" label="空闲" width="60" align="center">
                 <template #default="{ row }">
                   <span class="cell-highlight" :class="{ 'cell-highlight--danger': row.free_count === 0, 'cell-highlight--success': row.free_count > 0 }">
@@ -223,7 +231,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose, ChatDotRound, Refresh } from '@element-plus/icons-vue'
+import { Tickets, Search, User, Reading, Timer, CircleCheck, Loading, WarningFilled, SuccessFilled, CircleClose, ChatDotRound, Refresh, Odometer } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -318,7 +326,11 @@ function extractAssets(row: OrderBrief): string {
 import { formatTime, orderStatusType, orderStatusLabel, extractZone } from '@/utils/formatters'
 
 // ─── 节点概览 ───
-interface ZoneSnapshotBrief { zone: string; idc: string; total_positions: number; free_count: number; online_count: number; offline_count: number }
+interface ZoneSnapshotBrief {
+  zone: string; idc: string; total_positions: number; free_count: number
+  online_count: number; offline_count: number
+  usage_rate?: number; level?: string; level_label?: string
+}
 const zoneSnapshots = ref<ZoneSnapshotBrief[]>([])
 
 // ─── 加载 ───
@@ -503,6 +515,7 @@ onMounted(async () => {
   border-radius: 8px;
   border: 1px solid #f3f4f6;
   transition: background 0.15s;
+  cursor: pointer;
 }
 .zone-card:hover {
   background: #f0f4ff;
@@ -537,6 +550,19 @@ onMounted(async () => {
 }
 .text-danger { color: var(--tez-danger) !important; }
 .text-success { color: var(--tez-success) !important; }
+
+/* ─── 水位圆点 ─── */
+.level-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #c0c4cc;
+}
+.level-dot--critical { background: var(--tez-danger); }
+.level-dot--warning { background: var(--tez-warning); }
+.level-dot--healthy { background: var(--tez-success); }
+.level-dot--unknown { background: #c0c4cc; }
 
 /* ─── 节点表格 ─── */
 .cell-highlight {

@@ -408,24 +408,33 @@ async def get_offline_devices(
                     "reason": reason,
                 })
 
+        classified = len(online_devices) + len(offline_devices) + len(non_tez_devices)
+        used = pos_result.get("used_count", 0)
+        unclassified = max(0, used - classified)
+
+        msg = (
+            f"虚拟化机位: {pos_result.get('total_positions', 0)}"
+            f"（空闲{pos_result.get('free_count', 0)}/已用{used}），"
+            f"TEZ设备: 已上线{len(online_devices)}台, 未上线{len(offline_devices)}台, "
+            f"非TEZ设备{len(non_tez_devices)}台"
+        )
+        if unclassified:
+            msg += f", 未识别{unclassified}台"
+
         return {
             "zone": zone,
             "idc": idc,
             "total_positions": pos_result.get("total_positions", 0),
             "free_count": pos_result.get("free_count", 0),
-            "used_count": pos_result.get("used_count", 0),
+            "used_count": used,
             "total_assets": len(asset_ids_from_positions),
             "online_devices": online_devices,
             "online_count": len(online_devices),
             "offline_devices": offline_devices,
             "offline_count": len(offline_devices),
             "non_tez_count": len(non_tez_devices),
-            "message": (
-                f"虚拟化机位: {pos_result.get('total_positions', 0)}"
-                f"（空闲{pos_result.get('free_count', 0)}/已用{pos_result.get('used_count', 0)}），"
-                f"TEZ设备: 已上线{len(online_devices)}台, 未上线{len(offline_devices)}台, "
-                f"非TEZ设备{len(non_tez_devices)}台"
-            ),
+            "unclassified_count": unclassified,
+            "message": msg,
         }
     except Exception as exc:
         return {
@@ -585,13 +594,26 @@ async def sync_all_zones(
         )
         updated_zones.append(zone)
 
+    # Step 4: 云霄母机 + 库存同步
+    yunxiao_hosts = 0
+    yunxiao_inv = 0
+    try:
+        from app.scheduler import sync_yunxiao_job
+        y_result = await sync_yunxiao_job()
+        yunxiao_hosts = y_result.get("hosts", 0)
+        yunxiao_inv = y_result.get("inventory", 0)
+    except Exception as exc:
+        log.warning("sync_all.yunxiao_failed", error=str(exc))
+
     return {
         "success": True,
         "total_positions": result.get("total_rows", 0),
         "total_devices": len(tcum_device_map),
         "zones_updated": len(updated_zones),
         "zones": updated_zones,
-        "message": f"已刷新 {len(updated_zones)} 个可用区（{result.get('total_rows', 0)} 机位，{len(tcum_device_map)} 台设备）",
+        "yunxiao_hosts": yunxiao_hosts,
+        "yunxiao_inventory": yunxiao_inv,
+        "message": f"已刷新 {len(updated_zones)} 个可用区（{result.get('total_rows', 0)} 机位，{len(tcum_device_map)} 台设备，{yunxiao_hosts} 母机，{yunxiao_inv} 库存）",
     }
 
 

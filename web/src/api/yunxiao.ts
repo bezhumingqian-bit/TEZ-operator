@@ -7,7 +7,8 @@ export function queryHostMachines(params: {
   machine_type?: string
   instance_family?: string
 }) {
-  return apiClient.get<YunxiaoQueryResponse>('/api/v1/yunxiao/host-machines', { params })
+  // 后端为 POST 接口，筛选参数走 query string
+  return apiClient.post<YunxiaoQueryResponse>('/api/v1/yunxiao/host-machines', null, { params })
 }
 
 export function queryInventory(params: {
@@ -15,7 +16,19 @@ export function queryInventory(params: {
   instance_family?: string
   instance_type?: string
 }) {
-  return apiClient.get<YunxiaoQueryResponse>('/api/v1/yunxiao/inventory', { params })
+  return apiClient.post<YunxiaoQueryResponse>('/api/v1/yunxiao/inventory', null, { params })
+}
+
+export function searchHostMachine(keyword: string) {
+  return apiClient.get<YunxiaoQueryResponse>('/api/v1/yunxiao/host-machines/search', {
+    params: { keyword },
+  })
+}
+
+export function syncYunxiao() {
+  return apiClient.post<{ skipped: boolean; hosts?: number; inventory?: number; error?: string }>(
+    '/api/v1/yunxiao/sync',
+  )
 }
 
 export function getHostHistory(zone?: string, limit = 100) {

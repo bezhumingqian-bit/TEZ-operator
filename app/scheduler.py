@@ -1,4 +1,4 @@
-"""定时任务调度器：每周自动刷新全量节点资源数据。
+"""定时任务调度器：每日自动刷新资源数据（时间打散，避免集中）。
 
 使用 APScheduler，在 FastAPI lifespan 启动时激活。
 """
@@ -21,12 +21,30 @@ def start_scheduler() -> None:
     global _scheduler
     _scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
 
-    # 每周一早上 9:00 自动全量刷新节点资源
+    # 1. 每天 10:13 — 登录态预热（到工位开机后先刷一遍 SSO）
+    _scheduler.add_job(
+        refresh_login_job,
+        trigger=CronTrigger(hour=10, minute=13),
+        id="refresh_login_daily",
+        name="每日登录态预热",
+        replace_existing=True,
+    )
+
+    # 2. 每天 13:37 — 全量刷新节点机位 + TCUM 设备状态
     _scheduler.add_job(
         sync_all_zones_job,
-        trigger=CronTrigger(day_of_week="mon", hour=9, minute=0),
-        id="sync_all_zones_weekly",
-        name="每周一全量刷新节点机位+设备数据",
+        trigger=CronTrigger(hour=13, minute=37),
+        id="sync_all_zones_daily",
+        name="每日全量刷新节点机位+设备数据",
+        replace_existing=True,
+    )
+
+    # 3. 每天 16:52 — 云霄母机 + 库存同步
+    _scheduler.add_job(
+        sync_yunxiao_job,
+        trigger=CronTrigger(hour=16, minute=52),
+        id="sync_yunxiao_daily",
+        name="每日云霄母机+库存同步",
         replace_existing=True,
     )
 
@@ -41,6 +59,43 @@ def shutdown_scheduler() -> None:
         _scheduler.shutdown(wait=False)
         log.info("scheduler.shutdown")
         _scheduler = None
+
+
+async def refresh_login_job() -> None:
+    """每日登录态预热：访问各平台首页，让 iOA SSO cookie 续期。
+
+    headless=true 下 SSO 自动点击可完成，无需人工。
+    腾讯文档走企微登录，这里不刷（过期时由 TencentDocSkill 弹窗处理）。
+    """
+    log.info("scheduler.refresh_login_start")
+    try:
+        from app.clients.browser_session import BrowserSession, is_login_url
+        from app.clients.base_browser import BaseBrowserImpl
+
+        sso_helper = BaseBrowserImpl()
+        targets = [
+            ("CMDB", "https://cmdb.woa.com"),
+            ("TCUM", "https://tcum.woa.com"),
+            ("IDCRM", "https://idcrm.woa.com"),
+        ]
+
+        for name, url in targets:
+            try:
+                async with BrowserSession.page() as page:
+                    await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                    await asyncio.sleep(2)
+                    # 自动点 SSO 按钮
+                    if is_login_url(page.url):
+                        await sso_helper._try_finish_sso_flow(page)
+                        await asyncio.sleep(3)
+                    ok = not is_login_url(page.url)
+                    log.info("scheduler.refresh_login_done", target=name, ok=ok)
+            except Exception as exc:
+                log.warning("scheduler.refresh_login_failed", target=name, error=str(exc))
+
+        log.info("scheduler.refresh_login_complete")
+    except Exception as exc:
+        log.error("scheduler.refresh_login_error", error=str(exc))
 
 
 async def sync_all_zones_job() -> None:
@@ -141,3 +196,90 @@ async def sync_all_zones_job() -> None:
 
     except Exception as exc:
         log.error("scheduler.sync_all_error", error=str(exc))
+
+
+async def sync_yunxiao_job() -> dict:
+    """定时/手动任务：通过 API 直调查询全部 TEZ 边缘可用区母机+库存。
+
+    使用 data360/zone 获取 53 个边缘区 zoneId→region 映射，
+    然后逐区调 honeycomb/host 全量抓取。
+    资源池全取（cdc 客户可买 + supp 支撑机），pool_type 字段区分。
+    """
+    log.info("scheduler.sync_yunxiao_start")
+
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.yunxiao_mode not in ("api", "browser"):
+        log.warning("scheduler.sync_yunxiao_skip", mode=settings.yunxiao_mode)
+        return {"skipped": True, "mode": settings.yunxiao_mode}
+
+    from app.data.zone_mapping import ZONE_IDC_MAPPING
+    from app.deps import _get_session_factory
+    from app.services.yunxiao_service import YunxiaoService
+
+    svc = YunxiaoService()
+    total_hosts = 0
+    total_inv = 0
+    stats: dict[str, int] = {"zones_done": 0, "zones_failed": 0, "zones_skipped": 0}
+
+    try:
+        factory = _get_session_factory()
+
+        # 收集目标可用区：ZONE_IDC_MAPPING 中已开区/开区中的 TEZ 节点
+        target_zones: list[str] = []
+        for z, idc in ZONE_IDC_MAPPING.items():
+            from app.data.zone_mapping import ZONE_DETAIL_MAP
+            info = ZONE_DETAIL_MAP.get(z)
+            if info and info.get("status") in ("已开区", "开区中"):
+                target_zones.append(z)
+
+        log.info("scheduler.sync_yunxiao_targets", count=len(target_zones))
+
+        if not target_zones:
+            log.warning("scheduler.sync_yunxiao_no_targets")
+            return {"skipped": True, "reason": "no_target_zones"}
+
+        # 逐区查询母机（API 客户端自动按 zone_name 查 zoneId→region 映射）
+        for zone_name in sorted(target_zones):
+            log.info("scheduler.sync_yunxiao_zone", zone=zone_name)
+
+            h_count = 0
+            try:
+                async with factory() as session:
+                    hosts = await svc.query_host_machines(session, zones=[zone_name])
+                    h_count = len(hosts)
+                    total_hosts += h_count
+                    # 统计 pool_type 分布
+                    cdc = sum(1 for h in hosts if h.get("pool_type") == "cdc")
+                    supp = sum(1 for h in hosts if h.get("pool_type") == "supp")
+                    log.info("scheduler.sync_yunxiao_host_done", zone=zone_name,
+                             rows=h_count, cdc=cdc, supp=supp)
+            except Exception as exc:
+                log.warning("scheduler.sync_yunxiao_host_failed", zone=zone_name, error=str(exc))
+                stats["zones_failed"] += 1
+                continue
+
+            # 库存同步：当前仅 browser 模式支持库存页面抓取，api 模式暂未实现
+            try:
+                async with factory() as session:
+                    inv = await svc.query_inventory(session, region="", zones=[zone_name])
+                    i_count = len(inv)
+                    total_inv += i_count
+                    log.info("scheduler.sync_yunxiao_inv_done", zone=zone_name, rows=i_count)
+            except NotImplementedError:
+                log.info("scheduler.sync_yunxiao_inv_skip", zone=zone_name,
+                         mode=settings.yunxiao_mode, reason="inventory_not_implemented_for_mode")
+            except Exception as exc:
+                log.warning("scheduler.sync_yunxiao_inv_failed", zone=zone_name, error=str(exc))
+
+            stats["zones_done"] += 1
+            await asyncio.sleep(0.5)  # 区间短暂间隔，避免请求过密
+
+        log.info("scheduler.sync_yunxiao_complete", total_hosts=total_hosts, total_inv=total_inv,
+                 stats=stats)
+        return {"skipped": False, "hosts": total_hosts, "inventory": total_inv, **stats}
+    except Exception as exc:
+        log.error("scheduler.sync_yunxiao_error", error=str(exc))
+        return {"skipped": False, "error": str(exc)}
+    finally:
+        await svc.close()

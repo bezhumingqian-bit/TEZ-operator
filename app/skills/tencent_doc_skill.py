@@ -73,7 +73,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from app.clients.browser_session import BrowserSession, is_login_url
+from app.clients.browser_session import BrowserSession, is_login_url, is_doc_login_page
 from app.config import get_settings
 from app.utils.logger import get_logger
 
@@ -216,8 +216,29 @@ class TencentDocSkill:
                 pass
             await asyncio.sleep(self.WAIT_AFTER_GOTO)
 
-            if is_login_url(page.url):
-                return {"success": False, "message": "腾讯文档登录态失效，请重新登录"}
+            # 企微扫码登录检测（URL 不含 login 关键词，需检查页面文本）
+            if await is_doc_login_page(page):
+                log.warning("tencent_doc.login_expired", url=page.url[:60])
+                # 尝试临时弹有头浏览器让用户扫码
+                relogin_ok = await self._relogin_with_headful()
+                if not relogin_ok:
+                    return {
+                        "success": False,
+                        "message": "腾讯文档登录态失效，自动弹窗扫码超时，请手动处理",
+                    }
+                # 扫码成功，当前 page 已关闭（BrowserSession 被重建），
+                # 需要在新的 page 上重新操作 — 返回特殊标记让调用方重试
+                log.info("tencent_doc.relogin_success_retry")
+
+            # 重新检查（扫码后 page 可能已过时，重新 goto）
+            if await is_doc_login_page(page):
+                try:
+                    await page.goto(ONEPAGE_URL, wait_until="domcontentloaded", timeout=timeout_ms)
+                    await asyncio.sleep(self.WAIT_AFTER_GOTO)
+                except Exception:
+                    pass
+                if await is_doc_login_page(page):
+                    return {"success": False, "message": "腾讯文档登录态仍然失效，请手动扫码"}
 
             # 2. 切换到目标 Sheet
             switched = await self._switch_sheet(page, sheet_name)
@@ -626,6 +647,78 @@ class TencentDocSkill:
             await asyncio.sleep(0.3)
         except Exception:
             pass
+
+    async def _relogin_with_headful(self, timeout: int = 180) -> bool:
+        """临时启动有头浏览器让用户扫码登录腾讯文档。
+
+        流程：
+        1. 关闭当前无头 BrowserSession（释放 profile 锁）
+        2. 启动有头 Chromium 打开腾讯文档（弹窗给用户扫码）
+        3. 轮询等待扫码完成（最多 timeout 秒）
+        4. 关闭有头浏览器
+        5. BrowserSession 下次使用时会自动以无头模式重建
+
+        登录态已持久化进 profile，后续无头浏览器直接复用。
+        """
+        from pathlib import Path
+
+        log.info("tencent_doc.relogin_headful.start", timeout=timeout)
+
+        # 1. 关闭当前无头浏览器（释放 profile 锁）
+        await BrowserSession.close()
+        await asyncio.sleep(2)
+
+        # 清理可能残留的 SingletonLock
+        profile_dir = Path(self._settings.browser_profile_dir).resolve()
+        for lock_file in profile_dir.glob("Singleton*"):
+            try:
+                lock_file.unlink()
+            except Exception:
+                pass
+
+        # 2. 启动有头浏览器
+        try:
+            from playwright.async_api import async_playwright
+
+            pw = await async_playwright().start()
+            ctx = await pw.chromium.launch_persistent_context(
+                user_data_dir=str(profile_dir),
+                headless=False,  # 强制有头，弹窗给用户看
+                ignore_https_errors=self._settings.browser_ignore_https_errors,
+                viewport={"width": 1280, "height": 800},
+                args=["--disable-blink-features=AutomationControlled"],
+            )
+
+            page = await ctx.new_page()
+            await page.goto(ONEPAGE_URL, wait_until="domcontentloaded", timeout=30000)
+            await asyncio.sleep(3)
+
+            # 3. 轮询等待扫码
+            waited = 0
+            poll_interval = 3
+            while waited < timeout:
+                if not await is_doc_login_page(page):
+                    log.info("tencent_doc.relogin_headful.success", waited=waited)
+                    await asyncio.sleep(2)  # 等 cookie 持久化
+                    await page.close()
+                    await ctx.close()
+                    await pw.stop()
+                    return True
+                await asyncio.sleep(poll_interval)
+                waited += poll_interval
+                if waited % 30 == 0:
+                    log.info("tencent_doc.relogin_headful.waiting", waited=waited)
+
+            # 超时
+            log.warning("tencent_doc.relogin_headful.timeout", waited=waited)
+            await page.close()
+            await ctx.close()
+            await pw.stop()
+            return False
+
+        except Exception as exc:
+            log.error("tencent_doc.relogin_headful.error", error=str(exc))
+            return False
 
     async def _switch_sheet(self, page, sheet_name: str) -> bool:
         """切换到指定的 Sheet tab。"""

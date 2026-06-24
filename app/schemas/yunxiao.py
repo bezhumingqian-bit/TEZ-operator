@@ -15,6 +15,7 @@ class YunxiaoHostQuery(BaseModel):
     zone: Optional[str] = Field(None, description="可用区，如'广州三区'")
     machine_type: Optional[str] = Field(None, description="机型筛选")
     instance_family: Optional[str] = Field(None, description="实例族，如'S1'")
+    is_empty_host: bool = Field(False, description="只看空母机（给投放找空机）")
 
 
 class YunxiaoInventoryQuery(BaseModel):
@@ -35,6 +36,7 @@ class HostMachineItem(BaseModel):
     zone: Optional[str] = None
     logical_zone: Optional[str] = None
     pool: Optional[str] = None
+    pool_type: Optional[str] = Field(None, description="资源池类型: cdc=客户可购买, supp=支撑机, other=其他")
     sale_pool: Optional[str] = None
     module_label: Optional[str] = None
     cpu_available: Optional[float] = None

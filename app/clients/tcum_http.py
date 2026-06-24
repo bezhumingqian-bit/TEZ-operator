@@ -74,6 +74,12 @@ class TCUMHttpClient:
         except Exception:
             pass
 
+        # SSO 自动登录（headless 模式需要）
+        if is_login_url(page.url):
+            from app.clients.base_browser import BaseBrowserImpl
+            sso = BaseBrowserImpl()
+            await sso._try_finish_sso_flow(page)
+
         if is_login_url(page.url):
             log.info("tcum_http.waiting_for_login")
             waited = 0
@@ -84,19 +90,20 @@ class TCUMHttpClient:
                 return False
             log.info("tcum_http.login_success", waited=waited)
 
-        # 等 SPA 稳定
         await asyncio.sleep(5)
         return True
 
     async def _search_by_key(self, page, keys: list[str]) -> list[dict[str, Any]]:
-        """调用 cloudcmdb search_by_key API。"""
+        """调用 TCUM 页面的 search_by_key API。"""
         import json
         keys_json = json.dumps(keys)
+        # 使用 tcum 自身域名（同源），而非 cmdb_woa
+        api_url = f"{self._tcum_url}/api/search/search_by_key"
 
         try:
             result = await page.evaluate(f"""async () => {{
                 try {{
-                    const resp = await fetch('{self._cmdb_base}/api/search/search_by_key', {{
+                    const resp = await fetch('{api_url}', {{
                         method: 'POST',
                         headers: {{'Content-Type': 'application/json'}},
                         credentials: 'include',

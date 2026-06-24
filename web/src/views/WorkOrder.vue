@@ -641,11 +641,29 @@ async function openDetail(row: OrderInfo) {
 
 async function handleTransition(toStatus: string) {
   if (!selectedOrder.value) return
+
+  // 退回（驳回）必须填写原因
+  let comment: string | undefined
+  if (toStatus === 'rejected') {
+    try {
+      const { value } = await ElMessageBox.prompt('请填写退回原因', '退回工单', {
+        confirmButtonText: '确认退回',
+        cancelButtonText: '取消',
+        inputType: 'textarea',
+        inputPlaceholder: '例如：固资号填写有误 / 目标可用区无空闲机位，请补充后重新提交',
+        inputValidator: (v) => (v && v.trim().length > 0) || '退回原因不能为空',
+      })
+      comment = value.trim()
+    } catch {
+      return // 用户取消，不执行流转
+    }
+  }
+
   try {
     selectedOrder.value = await transitionOrder(selectedOrder.value.id, {
       to_status: toStatus,
       operator: 'current_user',
-      comment: undefined,
+      comment,
     })
     ElMessage.success(`已流转为: ${statusLabel[toStatus]}`)
     await loadOrders()

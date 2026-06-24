@@ -53,6 +53,8 @@ const authStore = useAuthStore()
 const allMenus: MenuItem[] = [
   { path: '/dashboard', title: '运维驾驶舱', icon: 'DataAnalysis', module: 'dashboard' },
   { path: '/hosts', title: '资源查询', icon: 'Search', module: 'hosts' },
+  { path: '/water-level', title: '资源水位', icon: 'Odometer', module: 'hosts' },
+  { path: '/yunxiao', title: '云霄数据', icon: 'Platform', module: 'hosts' },
   { path: '/workorder', title: '工单流转', icon: 'Tickets', module: 'workorder' },
   { path: '/cost', title: '成本一览', icon: 'Coin', module: 'cost' },
   { path: '/assistant', title: '运维助手', icon: 'MagicStick', module: 'assistant' },

@@ -73,8 +73,17 @@
                       {{ nodeOverviewData.positions.free_count ?? '-' }}
                     </span>
                   </el-descriptions-item>
+                  <el-descriptions-item label="已用机位">{{ nodeOverviewData.positions.used_count ?? '-' }}</el-descriptions-item>
                   <el-descriptions-item label="TEZ设备">{{ (nodeOverviewData.online_devices?.length || 0) + (nodeOverviewData.offline_devices?.length || 0) }} 台</el-descriptions-item>
-                  <el-descriptions-item label="非TEZ设备">{{ nodeOverviewData.non_tez_count || 0 }} 台</el-descriptions-item>
+                  <el-descriptions-item label="未识别设备">
+                    <span v-if="(nodeOverviewData.unclassified_count || 0) > 0" style="color: #e6a23c; font-weight: bold">
+                      {{ nodeOverviewData.unclassified_count }} 台
+                    </span>
+                    <span v-else style="color: #67c23a">0</span>
+                    <el-tooltip v-if="(nodeOverviewData.unclassified_count || 0) > 0" content="已用机位上有设备，但 IDCRM 未提取到固资号或 TCUM 未查到信息" placement="top">
+                      <el-icon style="margin-left:4px; color:#909399; cursor:help"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </el-descriptions-item>
                 </el-descriptions>
                 <el-alert
                   :title="nodeOverviewData.positions.message"
@@ -87,7 +96,56 @@
                 </div>
               </el-card>
 
-              <!-- 已上线设备 -->
+              <!-- 库存管理（该区可售卖库存，来自云霄） -->
+              <el-card shadow="never" class="node-section" style="margin-top: 16px">
+                <template #header>
+                  <div class="node-section__header">
+                    <div>
+                      <b>库存管理</b>
+                      <el-tag size="small" type="info" style="margin-left: 8px">
+                        {{ nodeInventory.length }} 条
+                      </el-tag>
+                      <span style="color:#909399; font-size:12px; margin-left:8px">（该区各实例类型可售卖库存）</span>
+                      <el-tooltip v-if="yunxiaoEnriched !== null" content="云霄数据对齐状态" placement="top">
+                        <el-tag size="small" :type="yunxiaoEnriched ? 'success' : 'warning'" effect="plain" style="margin-left:6px; cursor:help">
+                          {{ yunxiaoEnriched ? '✓ 已对齐' : '⚠ 未对齐' }}
+                        </el-tag>
+                      </el-tooltip>
+                    </div>
+                  </div>
+                </template>
+                <el-table v-if="nodeInventory.length" :data="nodeInventory" stripe size="small" max-height="420">
+                  <el-table-column prop="instance_family" label="实例族" width="100" />
+                  <el-table-column prop="instance_type" label="实例类型" width="160" />
+                  <el-table-column prop="pool" label="资源池" width="120" show-overflow-tooltip />
+                  <el-table-column label="库存" width="80">
+                    <template #default="{ row }">
+                      <span :style="{ color: (row.inventory ?? 0) <= (row.inventory_threshold ?? 0) ? '#f56c6c' : '#67c23a', fontWeight: 'bold' }">
+                        {{ row.inventory ?? '-' }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="inventory_threshold" label="阈值" width="70" />
+                  <el-table-column prop="safety_quota" label="安全配额" width="80" />
+                  <el-table-column prop="billing_type" label="计费" width="70" />
+                  <el-table-column prop="cpu" label="CPU" width="70" />
+                  <el-table-column prop="gpu" label="GPU" width="70" />
+                  <el-table-column prop="mem" label="内存" width="80" />
+                  <el-table-column prop="device_type" label="设备类型" min-width="100" show-overflow-tooltip />
+                </el-table>
+                <el-empty v-else :image-size="60">
+                  <template #description>
+                    <div>
+                      <p style="margin: 0 0 4px 0">该区暂无库存数据</p>
+                      <p style="margin: 0; font-size: 12px; color: #909399">
+                        可能原因：可用区在云霄未上线、未配置实例类型，或数据源暂未覆盖
+                      </p>
+                    </div>
+                  </template>
+                </el-empty>
+              </el-card>
+
+              <!-- 已上线设备（已对齐云霄母机资源） -->
               <el-card v-if="nodeOverviewData.online_devices && nodeOverviewData.online_devices.length" shadow="never" class="node-section" style="margin-top: 16px">
                 <template #header>
                   <div class="node-section__header">
@@ -108,11 +166,9 @@
                   </div>
                 </template>
                 <el-table :data="nodeOverviewData.online_devices" stripe size="small" @selection-change="(rows: any[]) => onlineSelection = rows">
-                  <el-table-column type="selection" width="40" />
-                  <el-table-column prop="asset_id" label="固资号" width="140" />
-                  <el-table-column prop="ip" label="IP" width="130" />
-                  <el-table-column prop="machine_type" label="机型" width="130" />
-                  <el-table-column prop="module" label="模块" min-width="200" />
+                  <el-table-column type="selection" width="40" fixed />
+                  <el-table-column prop="asset_id" label="固资号" width="150" fixed />
+                  <el-table-column prop="module" label="模块" min-width="280" show-overflow-tooltip />
                 </el-table>
               </el-card>
 
@@ -150,35 +206,7 @@
                 <el-empty v-else description="该节点没有未上线设备" />
               </el-card>
 
-              <!-- 非TEZ设备（ECM等其他业务占用机位） -->
-              <el-card v-if="nodeOverviewData.non_tez_devices && nodeOverviewData.non_tez_devices.length" shadow="never" class="node-section" style="margin-top: 16px">
-                <template #header>
-                  <div class="node-section__header">
-                    <div>
-                      <b>非TEZ设备</b>
-                      <el-tag size="small" type="info" style="margin-left: 8px">
-                        {{ nodeOverviewData.non_tez_devices.length }} 台
-                      </el-tag>
-                      <span style="color:#909399; font-size:12px; margin-left:8px">（ECM等其他业务占用机位）</span>
-                    </div>
-                    <div>
-                      <el-button v-if="nonTezSelection.length" size="small" type="primary" @click="copyAssetIds(nonTezSelection)">
-                        复制选中 ({{ nonTezSelection.length }})
-                      </el-button>
-                      <el-button size="small" text type="primary" @click="copyAssetIds(nodeOverviewData.non_tez_devices)">
-                        复制全部
-                      </el-button>
-                    </div>
-                  </div>
-                </template>
-                <el-table :data="nodeOverviewData.non_tez_devices" stripe size="small" @selection-change="(rows: any[]) => nonTezSelection = rows">
-                  <el-table-column type="selection" width="40" />
-                  <el-table-column prop="asset_id" label="固资号" width="140" />
-                  <el-table-column prop="ip" label="IP" width="130" />
-                  <el-table-column prop="machine_type" label="机型" width="130" />
-                  <el-table-column prop="module" label="模块" min-width="250" />
-                </el-table>
-              </el-card>
+
 
               <!-- 批量复制选中浮动条 -->
               <div v-if="totalSelected > 0" class="node-selection-bar">
@@ -462,14 +490,6 @@
             <el-empty v-else description="选择可用区后查询信息" />
           </div>
         </el-tab-pane>
-        <!-- ─────────── 云霄母机管理 ─────────── -->
-        <el-tab-pane label="云霄母机" name="yunxiao_host">
-          <YunxiaoHostPanel />
-        </el-tab-pane>
-        <!-- ─────────── 云霄库存查询 ─────────── -->
-        <el-tab-pane label="云霄库存" name="yunxiao_inventory">
-          <YunxiaoInventoryPanel />
-        </el-tab-pane>
       </el-tabs>
     </el-card>
   </div>
@@ -478,12 +498,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Loading } from '@element-plus/icons-vue'
+import { Search, Loading, QuestionFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import HostCard from '@/components/HostCard.vue'
 import HostTable from '@/components/HostTable.vue'
-import YunxiaoHostPanel from '@/components/YunxiaoHostPanel.vue'
-import YunxiaoInventoryPanel from '@/components/YunxiaoInventoryPanel.vue'
 import BatchTable from '@/components/BatchTable.vue'
 import { ApiError } from '@/api/client'
 import {
@@ -496,6 +514,8 @@ import {
   pickSingleHost,
   searchHost,
 } from '@/api/hosts'
+import { queryHostMachines, queryInventory } from '@/api/yunxiao'
+import type { HostMachineItem, InventoryItem } from '@/types/yunxiao'
 import type {
   BatchSearchResponse,
   HostInfo,
@@ -750,12 +770,28 @@ function submitDeployOrder() {
 }
 
 // ─── 节点资源概况 ───
+type OnlineDevice = {
+  asset_id: string
+  ip: string
+  machine_type: string
+  module?: string
+  // 以下为按固资号对齐的云霄母机资源（可能缺失）
+  cpu_available?: number
+  cpu_total?: number
+  mem_available?: number
+  mem_total?: number
+  health_score?: number
+  is_empty_host?: string
+  is_cdh?: string
+}
+
 interface NodeOverviewData {
-  positions: { zone: string; idc: string | null; free_count: number | null; total_positions?: number; message: string }
+  positions: { zone: string; idc: string | null; free_count: number | null; used_count?: number | null; total_positions?: number; message: string }
   offline_devices: { asset_id: string; ip: string; machine_type: string; module?: string; reason: string }[]
-  online_devices: { asset_id: string; ip: string; machine_type: string; module?: string }[]
+  online_devices: OnlineDevice[]
   non_tez_devices?: { asset_id: string; ip: string; machine_type: string; module?: string }[]
   non_tez_count?: number
+  unclassified_count?: number
   from_cache?: boolean
   last_sync_at?: string
 }
@@ -764,6 +800,9 @@ const nodeZoneSelected = ref('')
 const nodeLoading = ref(false)
 const nodeRefreshing = ref(false)
 const nodeOverviewData = ref<NodeOverviewData | null>(null)
+const nodeInventory = ref<InventoryItem[]>([])
+// null=未查询, true=已成功对齐云霄, false=云霄数据获取失败
+const yunxiaoEnriched = ref<boolean | null>(null)
 const nodeWaitingLogin = ref(false)
 let nodeAbortController: AbortController | null = null
 
@@ -783,20 +822,62 @@ async function fetchNodeOverview(forceRefresh = false) {
 
   try {
     const url = `/api/v1/zones/${encodeURIComponent(zone)}/overview${forceRefresh ? '?force_refresh=true' : ''}`
-    const resp = await fetch(url, { signal }).then(r => r.json())
+    // 并行抓取：物理资源概况 + 云霄母机 + 云霄库存（云霄失败不影响物理概况展示）
+    const [overviewRes, hostRes, invRes] = await Promise.allSettled([
+      fetch(url, { signal }).then(r => r.json()),
+      queryHostMachines({ zone }),
+      queryInventory({ zone }),
+    ])
+
+    if (overviewRes.status === 'rejected') throw overviewRes.reason
+    const resp = overviewRes.value
+
+    // 按固资号对齐云霄母机资源
+    let online: OnlineDevice[] = resp.online_devices || []
+    if (hostRes.status === 'fulfilled') {
+      const hostItems = (hostRes.value.data?.items ?? []) as HostMachineItem[]
+      const hostMap = new Map<string, HostMachineItem>()
+      for (const h of hostItems) {
+        if (h.asset_id) hostMap.set(h.asset_id, h)
+      }
+      online = online.map((d) => {
+        const m = hostMap.get(d.asset_id)
+        if (!m) return d
+        return {
+          ...d,
+          cpu_available: m.cpu_available,
+          cpu_total: m.cpu_total,
+          mem_available: m.mem_available,
+          mem_total: m.mem_total,
+          health_score: m.health_score,
+          is_empty_host: m.is_empty_host,
+          is_cdh: m.is_cdh,
+        }
+      })
+      yunxiaoEnriched.value = true
+    } else {
+      yunxiaoEnriched.value = false
+    }
+
+    // 库存（来自云霄）
+    nodeInventory.value = invRes.status === 'fulfilled'
+      ? ((invRes.value.data?.items ?? []) as InventoryItem[])
+      : []
 
     nodeOverviewData.value = {
       positions: {
         zone: resp.zone,
         idc: resp.idc,
         free_count: resp.free_count,
+        used_count: resp.used_count,
         total_positions: resp.total_positions,
         message: resp.message || '',
       },
       offline_devices: resp.offline_devices || [],
-      online_devices: resp.online_devices || [],
+      online_devices: online,
       non_tez_devices: resp.non_tez_devices || [],
       non_tez_count: resp.non_tez_count || 0,
+      unclassified_count: resp.unclassified_count || 0,
       from_cache: resp.from_cache,
       last_sync_at: resp.last_sync_at,
     }

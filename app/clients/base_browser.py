@@ -70,10 +70,11 @@ class BaseBrowserImpl:
     # ── SSO 自动点击 ──
 
     async def _try_finish_sso_flow(self, page: Any) -> None:
-        """在 SSO 登录页自动点击常见按钮（登录/确认/继续等）。"""
+        """在 SSO 登录页自动点击常见按钮（iOA 登录/确认/继续等）。"""
         click_terms = (
+            "iOA 登录", "IOA 登录", "手机 iOA", "一键认证",
             "登录", "确认", "确定", "继续", "继续访问",
-            "进入", "进入系统", "授权", "同意",
+            "进入", "进入系统", "授权", "同意", "快速登录",
         )
         deadline = asyncio.get_running_loop().time() + self._sso_deadline
         prefix = self._log_prefix
@@ -83,7 +84,9 @@ class BaseBrowserImpl:
             for term in click_terms:
                 locators = (
                     page.get_by_role("button", name=term),
+                    page.get_by_role("link", name=term),
                     page.get_by_text(term),
+                    page.locator(f"text={term}").first,
                 )
                 for loc in locators:
                     try:

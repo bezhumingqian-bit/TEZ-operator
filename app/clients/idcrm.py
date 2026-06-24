@@ -45,6 +45,9 @@ class IDCRMClient:
             return IDCRMAPIImpl()
         if mode == "browser":
             return IDCRMBrowserImpl()
+        if mode == "http":
+            from app.clients.idcrm_http import IDCRMHttpClient
+            return IDCRMHttpClient()
         raise ClientError(f"未知 IDCRM mode: {mode!r}")
 
     # ──────────────── public ────────────────

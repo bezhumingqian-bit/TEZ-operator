@@ -23,6 +23,7 @@ ZONE_INFO: list[dict] = [
     {"zone": "哈尔滨边缘一区", "city": "哈尔滨", "isp": "三通", "idc": "哈尔滨联通南岗EIC3-160G-MY", "arch": "25G", "region": "北京", "status": "已开区", "models": "SN3ne、IT5、BMD3c/3s", "ipv6": True, "ecm_source": "字节独占"},
     # ─── 华东（Region: 上海）───
     {"zone": "济南边缘一区", "city": "济南", "isp": "三通", "idc": "济南移动孙村OC16-160G-MY", "arch": "25G", "region": "上海", "status": "已开区", "models": "SN3ne、IT5、BMD3c/3s", "ipv6": True, "ecm_source": "济南五区"},
+    {"zone": "青岛边缘一区", "city": "青岛", "isp": "三通", "idc": "青岛边缘一区EIC", "arch": "10G", "region": "上海", "status": "已开区", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": "云霄补录"},
     {"zone": "济南边缘三区（联通）", "city": "济南", "isp": "联通", "idc": "济南联通担山屯EIC1-30G-V", "arch": "10G", "region": "上海", "status": "已开区", "models": "S5nt、IT5c", "ipv6": True, "ecm_source": "济南二区"},
     {"zone": "南昌边缘一区", "city": "南昌", "isp": "三通", "idc": "南昌电信孺子路OC2-160G-MY", "arch": "10G", "region": "上海", "status": "已开区", "models": "S5nt、IT5c", "ipv6": True, "ecm_source": "南昌六区"},
     {"zone": "南昌边缘三区（联通）", "city": "南昌", "isp": "联通", "idc": "南昌联通新建区EIC1-30G-V", "arch": "10G", "region": "上海", "status": "待启动", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": "南昌四区"},
@@ -47,6 +48,8 @@ ZONE_INFO: list[dict] = [
     {"zone": "武汉边缘三区（联通）", "city": "武汉", "isp": "联通", "idc": "武汉联通科技城EIC1-30G-V", "arch": "10G", "region": "广州", "status": "已开区", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": ""},
     {"zone": "长沙边缘一区", "city": "长沙", "isp": "三通", "idc": "长沙电信望城区OC6-160G-MY", "arch": "10G", "region": "广州", "status": "已开区", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": "长沙二区"},
     # ─── 华南（Region: 广州）───
+    {"zone": "广州边缘一区（电信）", "city": "广州", "isp": "电信", "idc": "广州边缘一区EIC", "arch": "10G", "region": "广州", "status": "已开区", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": "云霄补录"},
+    {"zone": "深圳边缘一区（联通）", "city": "深圳", "isp": "联通", "idc": "深圳边缘一区EIC", "arch": "10G", "region": "广州", "status": "已开区", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": "云霄补录"},
     {"zone": "广州边缘二区（联通）", "city": "广州", "isp": "联通", "idc": "广州联通龙荣路EIC1-30G-V", "arch": "10G", "region": "广州", "status": "已开区", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": ""},
     {"zone": "广州边缘三区（电信）", "city": "广州", "isp": "电信", "idc": "广州电信东涌EIC1-30G-V", "arch": "10G", "region": "广州", "status": "已开区", "models": "S5nt、IT5c", "ipv6": None, "ecm_source": ""},
     {"zone": "广州边缘四区（移动）", "city": "广州", "isp": "移动", "idc": "广州移动旗锐EIC1-60G-V", "arch": "25G", "region": "广州", "status": "已开区", "models": "SN3ne、IT5、BMD3c/3s", "ipv6": None, "ecm_source": ""},
@@ -92,6 +95,7 @@ NEBULA_REGION_MAP: dict[str, str] = {
     "天津边缘一区（电信）": "华北地区(北京)",
     # 华东地区(上海)
     "济南边缘一区": "华东地区(上海)",
+    "青岛边缘一区": "华东地区(上海)",
     "南昌边缘一区": "华东地区(上海)",
     "宁波边缘一区": "华东地区(上海)",
     "合肥边缘一区": "华东地区(上海)",
@@ -112,6 +116,8 @@ NEBULA_REGION_MAP: dict[str, str] = {
     "长沙边缘一区": "华南地区(广州)",
     "东莞边缘一区": "华南地区(广州)",
     "郑州边缘一区": "华南地区(广州)",
+    "广州边缘一区（电信）": "华南地区(广州)",
+    "深圳边缘一区（联通）": "华南地区(广州)",
     "广州边缘二区（联通）": "华南地区(广州)",
     "南宁边缘一区（电信）": "华南地区(广州)",
     "南宁边缘二区（移动）": "华南地区(广州)",

@@ -43,6 +43,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '需求提交表', public: true },
   },
   {
+    path: '/water-level',
+    name: 'water-level',
+    component: () => import('@/views/WaterLevel.vue'),
+    meta: { title: '资源水位', icon: 'Odometer', module: 'hosts' },
+  },
+  {
+    path: '/yunxiao',
+    name: 'yunxiao',
+    component: () => import('@/views/YunxiaoBrowse.vue'),
+    meta: { title: '云霄数据', icon: 'Platform', module: 'hosts' },
+  },
+  {
     path: '/cost',
     name: 'cost',
     component: () => import('@/views/Cost.vue'),

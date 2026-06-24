@@ -36,14 +36,51 @@ class YunxiaoService:
         zone: str | None = None,
         machine_type: str | None = None,
         instance_family: str | None = None,
+        is_empty_host: bool = False,
+        zones: list[str] | None = None,
+        region: str | None = None,
     ) -> list[dict]:
         """查询母机管理并入库快照。"""
-        raw = await self._client.query_host_machines(zone, machine_type, instance_family)
+        raw = await self._client.query_host_machines(
+            zone, machine_type, instance_family, is_empty_host,
+            zones=zones, region=region,
+        )
+        await self._persist_host_snapshots(session, raw)
+        return raw
+
+    async def query_host_by_keyword(
+        self, session: AsyncSession, keyword: str,
+    ) -> list[dict]:
+        """按固资号 / IP 精确查单台母机并入库快照。"""
+        raw = await self._client.query_host_by_keyword(keyword)
+        await self._persist_host_snapshots(session, raw)
+        return raw
+
+    # 母机模型已知字段集合（用于过滤 API 客户端返回的额外派生字段如 pool_type）
+    _HOST_MODEL_FIELDS = frozenset({
+        "snapshot_time", "asset_id", "ip", "instance_family", "device_type",
+        "zone", "logical_zone", "pool", "sale_pool", "module_label",
+        "cpu_available", "cpu_total", "mem_available", "mem_total",
+        "gpu_available", "gpu_total", "disk_available", "disk_total",
+        "local_disk_available", "local_disk_total",
+        "is_empty_host", "is_cdh", "exclusive_owner", "tags", "machine_model",
+        "health_score", "online_status", "kernel_version", "kernel_version_id",
+        "manufacturer_module", "sale_pool_type", "box_type", "host_updated_at",
+    })
+
+    async def _persist_host_snapshots(
+        self, session: AsyncSession, raw: list[dict],
+    ) -> None:
+        """将母机查询结果入库为快照（host 查询与精确查共用）。
+
+        自动过滤 API 客户端返回的派生字段（如 pool_type），
+        只保留数据库模型已定义的列。
+        """
         snapshot_time = datetime.now()
 
         saved_count = 0
         for item in raw:
-            snapshot = YunxiaoHostSnapshot(**{
+            kwargs = {
                 "snapshot_time": snapshot_time,
                 "asset_id": item.get("asset_id", ""),
                 "ip": item.get("ip"),
@@ -77,13 +114,15 @@ class YunxiaoService:
                 "sale_pool_type": item.get("sale_pool_type"),
                 "box_type": item.get("box_type"),
                 "host_updated_at": item.get("host_updated_at"),
-            })
+            }
+            # 安全过滤：只保留模型已知字段
+            kwargs = {k: v for k, v in kwargs.items() if k in self._HOST_MODEL_FIELDS}
+            snapshot = YunxiaoHostSnapshot(**kwargs)
             session.add(snapshot)
             saved_count += 1
 
         await session.commit()
         log.info("yunxiao_host_saved", count=saved_count, snapshot_time=str(snapshot_time))
-        return raw
 
     async def query_inventory(
         self,
@@ -91,9 +130,11 @@ class YunxiaoService:
         zone: str | None = None,
         instance_family: str | None = None,
         instance_type: str | None = None,
+        zones: list[str] | None = None,
+        region: str | None = None,
     ) -> list[dict]:
         """查询新机型库存并入库快照。"""
-        raw = await self._client.query_inventory(zone, instance_family, instance_type)
+        raw = await self._client.query_inventory(zone, instance_family, instance_type, zones=zones, region=region)
         snapshot_time = datetime.now()
 
         saved_count = 0

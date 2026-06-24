@@ -67,7 +67,7 @@ function toMessage(value: unknown): string | undefined {
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL,
-  timeout: 30_000,
+  timeout: 180_000,
   headers: {
     'Content-Type': 'application/json',
   },
