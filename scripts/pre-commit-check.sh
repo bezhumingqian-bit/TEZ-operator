@@ -29,16 +29,6 @@ declare -a PATTERNS=(
     # 真实接口人英文名（已知样本）
     'peersli|matttyzhang|sagelxxiao|brivenchen|xiancondeng|jackxtjing|wbrucewang'
 
-    # 内网平台域名
-    'tcum\.woa\.com'
-    'idcrm\.woa\.com'
-    'cmdb\.woa\.com'
-    'panshi\.woa\.com'
-    'yehe\.woa\.com'
-    'yunxiao\.vstation\.woa\.com'
-    'iwiki\.woa\.com'
-    'km\.woa\.com'
-
     # 真实机房名
     '上海茶'
     '沈阳边缘'
