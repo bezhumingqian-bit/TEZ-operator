@@ -35,8 +35,8 @@ echo [2/7] 检查 .env 配置...
 if exist ".env" (
     echo [=] .env 已存在，跳过生成（如需重置请手动删除后重跑）
 ) else (
-    echo [+] 生成 .env，使用 SQLite + browser 模式 + headless=new
-    python -c "import secrets;k=secrets.token_urlsafe(48);s=secrets.token_urlsafe(24);open('.env','w',encoding='utf-8').write('\n'.join(['TEZ_APP_ENV=local','TEZ_APP_DEBUG=false','TEZ_DATABASE_URL=sqlite+pysqlite:///./data/tez_operator.db','TEZ_REDIS_URL=','TEZ_CMDB_MODE=browser','TEZ_TCUM_MODE=browser','TEZ_IDCRM_MODE=browser','TEZ_BROWSER_HEADLESS=true','TEZ_BROWSER_PROFILE_DIR=data/playwright-profile','TEZ_JWT_SECRET_KEY='+k,'TEZ_PASSWORD_SALT='+s,''])+'\n')"
+    echo [+] 生成 .env，使用 SQLite + browser 模式 + headless=false（有图形界面，点击登录+手机确认）
+    python -c "import secrets;k=secrets.token_urlsafe(48);s=secrets.token_urlsafe(24);open('.env','w',encoding='utf-8').write('\n'.join(['TEZ_APP_ENV=local','TEZ_APP_DEBUG=false','TEZ_DATABASE_URL=sqlite+pysqlite:///./data/tez_operator.db','TEZ_REDIS_URL=','TEZ_CMDB_MODE=browser','TEZ_TCUM_MODE=browser','TEZ_IDCRM_MODE=browser','TEZ_BROWSER_HEADLESS=false','TEZ_BROWSER_PROFILE_DIR=data/playwright-profile','TEZ_JWT_SECRET_KEY='+k,'TEZ_PASSWORD_SALT='+s,''])+'\n')"
     echo [=] .env 已生成
 )
 if not exist "data" mkdir data
