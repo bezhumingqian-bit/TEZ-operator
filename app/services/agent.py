@@ -37,6 +37,8 @@ SYSTEM_PROMPT = """你是 TEZ 边缘可用区运营平台的 AI 运营助手。
 - search_knowledge：搜运维手册、SOP、故障处理流程（可看完整文章内容）
 - list_zones：列出所有可用区
 - get_zone_detail：查某可用区的机位总数、空闲位、在线/离线设备数
+- query_inventory：查云霄新机型可售卖库存（按可用区/实例族/实例类型）
+- check_online_capacity：判断某可用区能否上线新设备（空闲机位 + 库存概要）
 - list_my_workorders：查工单列表（搬迁单、投放单等）
 
 重要约束：
@@ -145,6 +147,7 @@ class AgentService:
             if msg.get("content") and not msg.get("tool_calls"):
                 final_reply = msg["content"]
                 messages.append(msg)
+                log.info("agent.final_reply_direct", iter=iteration, reply_len=len(final_reply))
                 break
 
             # 2. 模型请求 tool_calls
@@ -209,6 +212,8 @@ class AgentService:
             if not final_reply:
                 final_reply = "（AI 达到最大工具调用轮次,未生成最终回复,请简化问题重试）"
 
+        log.info("agent.done", iterations=iterations, tool_calls=len(tool_calls_log),
+                 reply_len=len(final_reply))
         return {
             "reply": final_reply,
             "tool_calls": tool_calls_log,

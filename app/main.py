@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -12,8 +13,8 @@ from app import __version__
 from app.clients.browser_session import BrowserSession
 from app.config import get_settings
 from app.deps import get_host_service
-from app.routers import hosts as hosts_router
 from app.routers import contacts as contacts_router
+from app.routers import hosts as hosts_router
 from app.routers import knowledge as knowledge_router
 from app.routers import op_logs as op_logs_router
 from app.routers import workorders as workorders_router
@@ -58,7 +59,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             )
 
     # ── 启动定时任务 ──
-    from app.scheduler import start_scheduler, shutdown_scheduler
+    from app.scheduler import shutdown_scheduler, start_scheduler
     start_scheduler()
 
     # ── 重试未完成的腾讯文档推送 ──
@@ -70,11 +71,31 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         log.warning("startup.retry_pushes_failed", error=str(exc))
 
+    # ── 企微智能机器人 WebSocket 长连接 ──
+    _wecom_ws_task: asyncio.Task | None = None
+    try:
+        from app.services.wecom_bot_ws import WecomWSClient
+        wecom_client = WecomWSClient()
+        _wecom_ws_task = asyncio.create_task(wecom_client.run())
+        log.info("wecom_ws.started")
+    except Exception as exc:
+        log.warning("wecom_ws.start_failed", error=str(exc))
+
     try:
         yield
     finally:
         log.info("app.shutdown")
         shutdown_scheduler()
+        # 停止企微 WS 客户端
+        if _wecom_ws_task:
+            try:
+                wecom_client.stop()
+                _wecom_ws_task.cancel()
+                await asyncio.wait_for(_wecom_ws_task, timeout=5)
+            except (TimeoutError, asyncio.CancelledError):
+                pass
+            except Exception as exc:  # noqa: BLE001
+                log.warning("wecom_ws.stop_failed", error=str(exc))
         # 关闭三 client + cache + browser
         try:
             await get_host_service().close()
@@ -167,10 +188,10 @@ def create_app() -> FastAPI:
     app.include_router(yunxiao_router.router, prefix="/api/v1")
 
     # ── 前端静态文件托管（SPA） ──
-    import os
     from pathlib import Path
-    from fastapi.staticfiles import StaticFiles
+
     from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
 
     frontend_dist = Path(__file__).parent.parent / "web" / "dist"
     if frontend_dist.exists():

@@ -107,6 +107,11 @@ class Settings(BaseSettings):
     # ───────── 告警（企微 webhook，空则只 log） ─────────
     wecom_webhook: str = Field(default="", description="企业微信群机器人 webhook URL，空则只打日志")
 
+    # ───────── 企微智能机器人（长连接模式）─────────
+    # 在企业微信管理后台「智能机器人 → API 模式 → 长连接」获取
+    wecom_bot_id: str = Field(default="", description="BotID，空则禁用机器人")
+    wecom_bot_secret: str = Field(default="", description="长连接专用密钥 Secret")
+
     # ───────── 认证 ─────────
     jwt_secret_key: str = Field(default="", description="JWT 签名密钥，生产环境必须设置强密钥")
     password_salt: str = Field(default="", description="密码哈希 salt，生产环境必须设置")

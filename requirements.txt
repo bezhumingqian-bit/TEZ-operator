@@ -15,3 +15,5 @@ openpyxl>=3.1
 alembic>=1.13
 tenacity>=8.3
 playwright>=1.45
+cryptography>=42.0
+websockets>=12.0

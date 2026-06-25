@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,7 +32,7 @@ TOOL_SCHEMAS: list[dict] = [
                 "properties": {
                     "asset_id": {
                         "type": "string",
-                        "description": "固资号，例如 TYSV20061X2A。优先用此字段。",
+                        "description": "固资号，例如 TYSV00000001。优先用此字段。",
                     },
                     "ip": {
                         "type": "string",
@@ -97,7 +96,57 @@ TOOL_SCHEMAS: list[dict] = [
                 "properties": {
                     "zone": {
                         "type": "string",
-                        "description": "可用区名称，例如'沈阳边缘一区'、'上海边缘三区（联通）'",
+                        "description": "可用区名称，例如'示例可用区A'、'示例可用区B（联通）'",
+                    },
+                },
+                "required": ["zone"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_inventory",
+            "description": (
+                "查询云霄新机型可售卖库存（本地快照，7 天内有效）。"
+                "返回某可用区 / 实例族 / 实例类型的库存量、安全水位、CPU/内存/GPU 规格等。"
+                "当用户问'某可用区还有多少库存'、'XX 机型还能卖多少'、'库存够不够'时调用。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "zone": {
+                        "type": "string",
+                        "description": "可用区名称，例如'广州六区'。建议传，避免返回过多。",
+                    },
+                    "instance_family": {
+                        "type": "string",
+                        "description": "实例族，例如 S5、IT5、D3nt。可选。",
+                    },
+                    "instance_type": {
+                        "type": "string",
+                        "description": "实例类型，例如 S5.MEDIUM4。可选。",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_online_capacity",
+            "description": (
+                "判断某可用区是否还能上线（上架）新设备：返回空闲机位数、已用机位、"
+                "在线/离线设备数，以及可售卖库存概要，并给出能否上线的结论。"
+                "当用户问'XX 区还能不能上线设备'、'还有没有空位'、'能不能再上架机器'时调用。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "zone": {
+                        "type": "string",
+                        "description": "可用区名称，例如'示例可用区A'。",
                     },
                 },
                 "required": ["zone"],
@@ -292,6 +341,109 @@ async def exec_get_zone_detail(args: dict, session: AsyncSession | None = None) 
     }
 
 
+async def exec_query_inventory(args: dict, session: AsyncSession | None = None) -> dict:
+    """查询云霄库存（仅本地快照，不触发浏览器自动化）。"""
+    if session is None:
+        return {"ok": False, "error": "需要 DB session"}
+
+    zone = (args.get("zone") or "").strip() or None
+    instance_family = (args.get("instance_family") or "").strip() or None
+    instance_type = (args.get("instance_type") or "").strip() or None
+
+    try:
+        from app.services.yunxiao_service import YunxiaoService
+
+        items = await YunxiaoService._get_cached_inventory(
+            session, zone=zone, instance_family=instance_family, instance_type=instance_type
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("agent.query_inventory_error", error=str(exc))
+        return {"ok": False, "error": f"查询失败: {str(exc)[:200]}"}
+
+    if items is None:
+        return {
+            "ok": False,
+            "error": (
+                "本地暂无库存快照（或已过期）。请到'云霄库存'页面手动同步后再查。"
+            ),
+        }
+
+    # 裁剪：最多返回 30 条，避免超长
+    trimmed = items[:30]
+    total_inventory = sum(int(i.get("inventory") or 0) for i in items)
+    return {
+        "ok": True,
+        "data_source": "local_snapshot",
+        "zone": zone,
+        "count": len(items),
+        "total_inventory": total_inventory,
+        "items": trimmed,
+        "truncated": len(items) > 30,
+    }
+
+
+async def exec_check_online_capacity(args: dict, session: AsyncSession | None = None) -> dict:
+    """判断可用区能否上线新设备（仅读本地快照，不触发同步/浏览器）。"""
+    if session is None:
+        return {"ok": False, "error": "需要 DB session"}
+
+    zone = (args.get("zone") or "").strip()
+    if not zone:
+        return {"ok": False, "error": "zone 不能为空"}
+
+    try:
+        from sqlalchemy import select
+
+        from app.models.zone_snapshot import ZoneSnapshot
+
+        stmt = select(ZoneSnapshot).where(ZoneSnapshot.zone == zone)
+        result = await session.execute(stmt)
+        snap = result.scalar_one_or_none()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("agent.check_online_capacity_error", error=str(exc))
+        return {"ok": False, "error": f"查询失败: {str(exc)[:200]}"}
+
+    if snap is None:
+        return {
+            "ok": False,
+            "error": f"未找到可用区 '{zone}' 的本地快照，可能未同步数据。",
+        }
+
+    free_count = snap.free_count or 0
+
+    # 附带可售卖库存概要（本地快照，可能为 None）
+    inventory_total = None
+    try:
+        from app.services.yunxiao_service import YunxiaoService
+
+        inv = await YunxiaoService._get_cached_inventory(session, zone=zone)
+        if inv is not None:
+            inventory_total = sum(int(i.get("inventory") or 0) for i in inv)
+    except Exception:  # noqa: BLE001, S110
+        pass  # 库存属附加信息，失败不影响主结论
+
+    can_online = free_count > 0
+    if can_online:
+        conclusion = f"可以上线：{zone} 当前有 {free_count} 个空闲机位"
+    else:
+        conclusion = f"暂不可上线：{zone} 无空闲机位（机位已满）"
+
+    return {
+        "ok": True,
+        "data_source": "local_snapshot",
+        "zone": zone,
+        "can_online": can_online,
+        "conclusion": conclusion,
+        "free_count": free_count,
+        "used_count": snap.used_count or 0,
+        "total_positions": snap.total_positions or 0,
+        "online_count": snap.online_count or 0,
+        "offline_count": snap.offline_count or 0,
+        "sellable_inventory_total": inventory_total,
+        "last_sync_at": snap.last_sync_at.isoformat() if snap.last_sync_at else None,
+    }
+
+
 async def exec_list_my_workorders(args: dict, session: AsyncSession | None = None) -> dict:
     """查询工单列表（本地 DB）。"""
     if session is None:
@@ -340,5 +492,7 @@ TOOL_EXECUTORS: dict[str, Callable[[dict, AsyncSession | None], Awaitable[dict]]
     "search_knowledge": exec_search_knowledge,
     "list_zones": exec_list_zones,
     "get_zone_detail": exec_get_zone_detail,
+    "query_inventory": exec_query_inventory,
+    "check_online_capacity": exec_check_online_capacity,
     "list_my_workorders": exec_list_my_workorders,
 }
