@@ -5,5 +5,5 @@ chcp 65001 >nul
 :: 部署过一次后，重启服务用这个（不重装依赖、不重建前端）
 :: ===================================================================
 cd /d "%~dp0.."
-echo [TEZ] 启动服务: http://localhost:8000  (Ctrl+C 停止)
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+echo [TEZ] 启动服务: http://localhost  (Ctrl+C 停止)
+python -m uvicorn app.main:app --host 0.0.0.0 --port 80
