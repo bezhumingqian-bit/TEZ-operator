@@ -41,6 +41,12 @@ SYSTEM_PROMPT = """你是 TEZ 边缘可用区运营平台的 AI 运营助手。
 - check_online_capacity：判断某可用区能否上线新设备（空闲机位 + 库存概要）
 - list_my_workorders：查工单列表（搬迁单、投放单等）
 
+工具调用纪律（必须遵守）：
+- 涉及具体机器、可用区、库存、工单、操作流程的问题，必须先调用对应工具拿到真实数据再回答，禁止凭记忆或猜测作答。
+- 需要多项数据时，一次可以调用多个工具，拿到结果后再综合组织回答。
+- 工具返回 ok=false 或结果为空时，如实说明"未查到相关数据"，绝不编造数字或负责人。
+- 仅当问题是寒暄、概念解释等无需查数据时，才可直接回答。
+
 重要约束：
 - query_host 只查本地数据库(7 天内有效)，不触发 CMDB/TCUM 浏览器
 - 数据可能略陈旧，引用时说明"本地缓存"
@@ -53,6 +59,33 @@ SYSTEM_PROMPT = """你是 TEZ 边缘可用区运营平台的 AI 运营助手。
 - 引用具体数据而不是泛泛而谈
 - 涉及数字时直接给出数值+单位
 """
+
+
+def _parse_tool_args(raw: str) -> dict:
+    """宽松解析工具参数 JSON。
+
+    工具调用较弱的模型(如 MiniMax)可能返回带前后缀或夹杂文字的 arguments，
+    标准 json.loads 会失败导致参数丢失。失败时尝试截取首个 {...} 子串再解析。
+    """
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            parsed = json.loads(raw[start : end + 1])
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+    log.warning("agent.tool_args_parse_failed", raw=raw[:200])
+    return {}
 
 
 class AgentService:
@@ -168,10 +201,7 @@ class AgentService:
                 tc_id = tc.get("id", "")
 
                 # 解析 args
-                try:
-                    fn_args = json.loads(fn_args_raw) if fn_args_raw else {}
-                except json.JSONDecodeError:
-                    fn_args = {}
+                fn_args = _parse_tool_args(fn_args_raw)
 
                 # 执行
                 log.info("agent.tool_call", name=fn_name, args=fn_args)
@@ -229,7 +259,7 @@ class AgentService:
             "model": self._settings.ai_model,
             "messages": messages,
             "max_tokens": self._settings.ai_max_tokens,
-            "temperature": 0.5,
+            "temperature": 0.2,
         }
         if tools:
             payload["tools"] = tools
@@ -323,10 +353,7 @@ class StreamingAgent:
                 fn_args_raw = (tc.get("function") or {}).get("arguments", "")
                 tc_id = tc.get("id", "")
 
-                try:
-                    fn_args = json.loads(fn_args_raw) if fn_args_raw else {}
-                except json.JSONDecodeError:
-                    fn_args = {}
+                fn_args = _parse_tool_args(fn_args_raw)
 
                 # 通知前端：工具开始执行
                 yield {"event": "tool_call", "data": {"name": fn_name, "args": fn_args}}
