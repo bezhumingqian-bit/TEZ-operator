@@ -1,0 +1,48 @@
+# TEZ Operator 环境变量模板
+# 复制为 .env 并填入实际值
+
+TEZ_APP_ENV=production
+TEZ_APP_DEBUG=false
+TEZ_APP_HOST=0.0.0.0
+TEZ_APP_PORT=80
+TEZ_APP_LOG_LEVEL=INFO
+
+# 数据库（云桌面用 SQLite 零配置）
+TEZ_DATABASE_URL=sqlite+pysqlite:///./data/tez_operator.db
+TEZ_REDIS_URL=redis://127.0.0.1:6379/0
+
+TEZ_CACHE_DEFAULT_TTL=300
+TEZ_CACHE_ZONE_TTL=600
+TEZ_BATCH_CONCURRENCY=5
+TEZ_BATCH_MAX_SIZE=100
+
+# 外部平台模式
+TEZ_CMDB_MODE=browser
+TEZ_TCUM_MODE=browser
+TEZ_IDCRM_MODE=http
+TEZ_YUNXIAO_MODE=api
+
+# 浏览器配置（云桌面 headless=false，需要首次扫码）
+TEZ_BROWSER_PROFILE_DIR=data/playwright-profile
+TEZ_BROWSER_HEADLESS=false
+TEZ_BROWSER_LOGIN_VALID_DAYS=7
+TEZ_BROWSER_PAGE_TIMEOUT_MS=30000
+TEZ_BROWSER_IGNORE_HTTPS_ERRORS=true
+
+# 外部平台地址
+TEZ_CMDB_BASE_URL=https://cmdb.woa.com
+TEZ_TCUM_BASE_URL=https://tcum.woa.com
+TEZ_IDCRM_BASE_URL=https://idcrm.woa.com
+
+# AI 配置（填真实的 Key）
+TEZ_AI_API_BASE=
+TEZ_AI_API_KEY=
+TEZ_AI_MODEL=
+TEZ_AI_MAX_TOKENS=2000
+
+# 企业微信（填真实的 Bot ID 和 Secret）
+TEZ_WECOM_BOT_ID=
+TEZ_WECOM_BOT_SECRET=
+
+# 腾讯文档 OnePage URL（填真实地址）
+TEZ_TENCENT_DOC_URL=

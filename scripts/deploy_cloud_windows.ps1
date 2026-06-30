@@ -46,23 +46,28 @@ python -m playwright install chromium
 Write-Host "  Chromium 安装完成" -ForegroundColor Green
 
 # ── Step 5: 配置环境变量 ──
-Write-Host "[5/6] 检查配置文件..." -ForegroundColor Yellow
+Write-Host "[5/6] 配置环境变量..." -ForegroundColor Yellow
+
+# 如果 .env 不存在，从模板创建
 if (-not (Test-Path ".env")) {
-    Write-Host "  未找到 .env 文件，请从项目源码复制" -ForegroundColor Red
-    exit 1
+    if (Test-Path "scripts/env_template.txt") {
+        Copy-Item "scripts/env_template.txt" ".env"
+        Write-Host "  已从模板创建 .env（请填入真实 API Key 等敏感配置）" -ForegroundColor Yellow
+    } else {
+        Write-Host "  未找到 .env 模板，请手动创建" -ForegroundColor Red
+        exit 1
+    }
 }
 
 # 确保云桌面使用有头浏览器（首次需要扫码登录）
 $envContent = Get-Content .env -Raw
 if ($envContent -match "TEZ_BROWSER_HEADLESS=true") {
-    Write-Host "  将 headless 改为 false（云桌面需要可视化扫码）" -ForegroundColor Yellow
     (Get-Content .env) -replace "TEZ_BROWSER_HEADLESS=true", "TEZ_BROWSER_HEADLESS=false" | Set-Content .env
 }
 if ($envContent -match "TEZ_APP_DEBUG=true") {
-    Write-Host "  将 debug 改为 false（生产环境）" -ForegroundColor Yellow
     (Get-Content .env) -replace "TEZ_APP_DEBUG=true", "TEZ_APP_DEBUG=false" | Set-Content .env
 }
-Write-Host "  配置检查完成" -ForegroundColor Green
+Write-Host "  配置完成" -ForegroundColor Green
 
 # ── Step 6: 设置开机自启 ──
 Write-Host "[6/6] 设置开机自启..." -ForegroundColor Yellow

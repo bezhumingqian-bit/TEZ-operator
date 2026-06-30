@@ -42,11 +42,18 @@ echo "  OK"
 
 # ── Step 5: 配置 ──
 echo "[5/6] 配置环境..."
-if [ -f .env ]; then
-    sed -i 's/TEZ_BROWSER_HEADLESS=true/TEZ_BROWSER_HEADLESS=false/' .env
-    sed -i 's/TEZ_APP_DEBUG=true/TEZ_APP_DEBUG=false/' .env
-    echo "  已将 headless=false, debug=false"
+if [ ! -f .env ]; then
+    if [ -f scripts/env_template.txt ]; then
+        cp scripts/env_template.txt .env
+        echo "  已从模板创建 .env（请填入真实 API Key 等敏感配置）"
+    else
+        echo "  未找到 .env 模板"
+        exit 1
+    fi
 fi
+sed -i 's/TEZ_BROWSER_HEADLESS=true/TEZ_BROWSER_HEADLESS=false/' .env
+sed -i 's/TEZ_APP_DEBUG=true/TEZ_APP_DEBUG=false/' .env
+echo "  已将 headless=false, debug=false"
 echo "  OK"
 
 # ── Step 6: 开机自启 (systemd) ──
