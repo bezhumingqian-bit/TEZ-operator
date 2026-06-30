@@ -47,8 +47,10 @@ export class ApiError extends Error {
 }
 
 // 开发环境：baseURL 为空，请求走 Vite proxy(/api → localhost:8000)
-// 生产环境：通过 VITE_API_BASE 环境变量指定
-const baseURL = import.meta.env.VITE_API_BASE || ''
+// 生产环境：
+//   1. 优先使用 VITE_API_BASE 环境变量（构建时注入）
+//   2. 否则自动探测当前 host（同域部署场景，如直接访问 http://21.39.150.132/）
+const baseURL = import.meta.env.VITE_API_BASE || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : '')
 
 const TOKEN_KEY = 'tez-ops:token'
 
