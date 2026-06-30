@@ -1,48 +1,89 @@
-# TEZ Operator 环境变量模板
-# 复制为 .env 并填入实际值
+# TEZ Operator 后端环境变量样例
+# 拷贝为 .env 并填实际值，.env 已在 .gitignore 中忽略
 
-TEZ_APP_ENV=production
-TEZ_APP_DEBUG=false
+# ───────── docker-compose（必填，被 docker-compose.yml 引用）─────────
+MYSQL_ROOT_PASSWORD=change_me_strong_password
+MYSQL_DATABASE=tez_operator
+
+# ───────── 应用 ─────────
+TEZ_APP_ENV=local
+TEZ_APP_DEBUG=true
 TEZ_APP_HOST=0.0.0.0
-TEZ_APP_PORT=80
+TEZ_APP_PORT=8000
 TEZ_APP_LOG_LEVEL=INFO
 
-# 数据库（云桌面用 SQLite 零配置）
+# ───────── DB / Redis ─────────
+# 本地开发用 SQLite（无需启动 MySQL）
 TEZ_DATABASE_URL=sqlite+pysqlite:///./data/tez_operator.db
 TEZ_REDIS_URL=redis://127.0.0.1:6379/0
-
 TEZ_CACHE_DEFAULT_TTL=300
 TEZ_CACHE_ZONE_TTL=600
+
+# ───────── 批量查询限流（W3 新增） ─────────
+# 同时进行的批量查询数（防止 100 条同时打开 100 个浏览器 tab）
 TEZ_BATCH_CONCURRENCY=5
+# 单次 batch_search / export 请求接受的最大条数
 TEZ_BATCH_MAX_SIZE=100
 
-# 外部平台模式
+# ───────── 客户端三态模式 ─────────
+# W2 起，每个客户端支持 mock | api | browser 三态（详见 docs/14 § 二）
+#   mock    —— 默认；不发请求，返回固定虚构数据
+#   api     —— 走官方 OpenAPI（W2 占位，等账号到位再实现）
+#   browser —— 走 Playwright 自动化（TCUM 已实现）
 TEZ_CMDB_MODE=browser
 TEZ_TCUM_MODE=browser
 TEZ_IDCRM_MODE=http
 TEZ_YUNXIAO_MODE=api
 
-# 浏览器配置（云桌面 headless=false，需要首次扫码）
+# ───────── 浏览器自动化（TEZ_*_MODE=browser 时使用）─────────
 TEZ_BROWSER_PROFILE_DIR=data/playwright-profile
-TEZ_BROWSER_HEADLESS=false
+TEZ_BROWSER_HEADLESS=true
 TEZ_BROWSER_LOGIN_VALID_DAYS=7
 TEZ_BROWSER_PAGE_TIMEOUT_MS=30000
+# 默认不忽略 HTTPS 证书错误；仅内网自签证书场景在本地 .env 显式改 true
 TEZ_BROWSER_IGNORE_HTTPS_ERRORS=true
 
-# 外部平台地址
-TEZ_CMDB_BASE_URL=https://cmdb.woa.com
-TEZ_TCUM_BASE_URL=https://tcum.woa.com
-TEZ_IDCRM_BASE_URL=https://idcrm.woa.com
+# ───────── 腾讯文档（OnePage 写入）─────────
+# 资源运营-OnePage 文档地址，供搬迁/投放记录写入 Skill 使用
+TEZ_TENCENT_DOC_URL=https://doc.weixin.qq.com/sheet/e3_ARoAXAZbAKAVzsF8h3sTqONbQmUrD?scode=AJEAIQdfAAojsFN6C4ARQA7QYwAGY&tab=BB08J2
 
-# AI 配置（填真实的 Key）
-TEZ_AI_API_BASE=
-TEZ_AI_API_KEY=
-TEZ_AI_MODEL=
+# ───────── CMDB ─────────
+# 切真实模式时改 TEZ_CMDB_MODE=api 或 browser，并在本地 .env 填内部平台地址
+TEZ_CMDB_BASE_URL=https://cmdb.woa.com
+TEZ_CMDB_TOKEN=
+TEZ_CMDB_CALLER=tez-operator
+TEZ_CMDB_TIMEOUT=5
+
+# CMDB 直查（可选，仅 zone 列表场景）
+TEZ_CMDB_DB_HOST=
+TEZ_CMDB_DB_PORT=3306
+TEZ_CMDB_DB_USER=
+TEZ_CMDB_DB_PASSWORD=
+TEZ_CMDB_DB_NAME=CMDB4
+
+# ───────── TCUM ─────────
+# 切 browser 模式时把 TEZ_TCUM_MODE=browser 并改 TEZ_TCUM_BASE_URL 为内网真实地址
+TEZ_TCUM_BASE_URL=https://tcum.woa.com
+TEZ_TCUM_TOKEN=
+TEZ_TCUM_TIMEOUT=5
+
+# ───────── 数全通（IDCRM）─────────
+# IDCRM browser 解析待 W4 真实页面样本补齐；样本到位前保持 TEZ_IDCRM_MODE=mock
+TEZ_IDCRM_BASE_URL=https://idcrm.woa.com
+TEZ_IDCRM_TOKEN=
+TEZ_IDCRM_TIMEOUT=5
+
+# ───────── 告警（可选） ─────────
+# 企业微信群机器人 webhook URL，留空则告警只 log
+TEZ_WECOM_WEBHOOK=
+
+# ───────── AI 助手 ─────────
+# 支持任何兼容 OpenAI Chat API 格式的接口（混元/DeepSeek/GPT/MiniMax等）
+TEZ_AI_API_BASE=https://api.minimaxi.com/v1
+TEZ_AI_API_KEY=sk-api-vusBEHvPWLaevXR2PLlyHiUht2lfSJK4vQNvVpUmKmcxxJZBrBh94Lx7zdPzAwu_nKaVhcMopIhVzC6rWwxaIaTN1QeCat4dvrbt1WESNAnHJquw5A2E-04
+TEZ_AI_MODEL=MiniMax-M3
 TEZ_AI_MAX_TOKENS=2000
 
-# 企业微信（填真实的 Bot ID 和 Secret）
-TEZ_WECOM_BOT_ID=
-TEZ_WECOM_BOT_SECRET=
-
-# 腾讯文档 OnePage URL（填真实地址）
-TEZ_TENCENT_DOC_URL=
+# ───────── 企微智能机器人（长连接模式）─────────
+TEZ_WECOM_BOT_ID=aibVB4ioXxc17zJFkAxE_C72LzQXHyrfT_F
+TEZ_WECOM_BOT_SECRET=WNnCoWAtrPvKAjoLXkWTtcBbJKOSBDOQozYr3Cy8w4m
