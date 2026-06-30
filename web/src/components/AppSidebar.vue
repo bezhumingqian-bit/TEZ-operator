@@ -62,6 +62,7 @@ const allMenus: MenuItem[] = [
   { path: '/competitive', title: '竞争分析', icon: 'TrendCharts', module: 'knowledge' },
   { path: '/ai', title: 'AI 助手', icon: 'ChatLineRound', module: 'users' },
   { path: '/users', title: '用户管理', icon: 'UserFilled', module: 'users' },
+  { path: '/observability', title: '可观测性', icon: 'Monitor', module: 'dashboard' },
 ]
 
 const visibleMenus = computed(() =>

@@ -70,17 +70,22 @@ class TCUMBrowserImpl(BaseBrowserImpl):
         url = self._build_search_url(search_key)
         timeout_ms = self._settings.browser_page_timeout_ms
 
-        async with BrowserSession.page() as page:
+        async with BrowserSession.page(audit_platform="tcum", audit_operation="batch_search") as page:
             try:
                 await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
             except Exception:
                 pass
 
             await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
-            await self._try_finish_sso_flow(page)
 
-            if is_login_url(page.url):
-                raise BrowserAuthExpired("TCUM 登录态失效，请重新扫码登录")
+            # 自动 iOA 快速登录（无头模式也能完成）
+            from app.clients.browser_session import auto_iOA_login
+
+            login_ok = await auto_iOA_login(page, prefix="tcum_browser")
+            if not login_ok:
+                from app.core.observability import BrowserAuditLogger
+                BrowserAuditLogger(platform="tcum", operation="batch_search").mark_login_required(screenshot=page)
+                raise BrowserAuthExpired("TCUM 登录态失效（iOA 自动登录失败），请手动扫码登录")
 
             # 勾选"机器状态"展示列
             await self._enable_machine_status_column(page)

@@ -98,7 +98,7 @@ class IDCRMBrowserImpl(BaseBrowserImpl):
     ) -> list[list[str]]:
         timeout_ms = self._settings.browser_page_timeout_ms
 
-        async with BrowserSession.page() as page:
+        async with BrowserSession.page(audit_platform="idcrm", audit_operation="query") as page:
             try:
                 await page.goto(url, wait_until="networkidle", timeout=timeout_ms)
             except Exception as exc:  # noqa: BLE001
@@ -106,10 +106,15 @@ class IDCRMBrowserImpl(BaseBrowserImpl):
 
             await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
 
-            current_url = page.url
-            if is_login_url(current_url):
-                log.warning("idcrm_browser.auth_expired", url=current_url)
-                raise BrowserAuthExpired("数全通登录态失效（被踢回 SSO），请重新扫码登录")
+            # 自动 iOA 快速登录（无头模式也能完成）
+            from app.clients.browser_session import auto_iOA_login
+
+            login_ok = await auto_iOA_login(page, prefix="idcrm_browser")
+            if not login_ok:
+                log.warning("idcrm_browser.auth_expired", url=page.url)
+                raise BrowserAuthExpired(
+                    "数全通登录态失效（iOA 自动登录失败），请手动扫码登录"
+                )
 
             rows: list[list[str]] = []
             for selector in self.SELECTOR_FALLBACKS:

@@ -463,6 +463,43 @@ class HostService:
 
         return await asyncio.gather(*(_one(q, t) for q, t in queries))
 
+    # ─────────────────── Guarded 入口（PoC: agent-guard 集成）───────────────────
+    # M3 阶段给 AI Agent 用的"安全查询入口"。
+    # 当前 PoC 范围：仅在 get_host_guarded 上加 audit_log + result_limit 两个 Guard。
+    # 注意：原 get_host() / get_host_by_ip() 保持不变，向后兼容。
+
+    async def get_host_guarded(
+        self,
+        asset_id: str,
+        *,
+        actor,  # app.core.guard.actor.Actor（延迟导入避免循环引用）
+    ) -> HostInfo | None:
+        """带 Guard 链的 get_host 入口（给 AI Agent 调用）。
+
+        Guards 链:
+        1. audit_log - 留痕所有 AI 的查询
+        2. result_limit(1000) - 防止 AI 一次拉太多（虽然单查询不会爆，但留好防护）
+
+        失败时:
+        - Guard 拒绝 → GuardRejected 异常向上抛
+        - 业务异常 → 透传
+        """
+        from app.core.guard import Actor, audit_log, guard_chain
+        from app.core.guard.exceptions import GuardRejected
+        from app.core.guard.guards import result_limit
+
+        if not isinstance(actor, Actor):
+            raise GuardRejected(
+                f"get_host_guarded 要求 actor 参数是 Actor 类型，得到 {type(actor).__name__}"
+            )
+
+        @guard_chain(audit_log(), result_limit(max_items=1))
+        async def _guarded_get(asset_id: str, actor: Actor) -> HostInfo | None:
+            # 委托给原 get_host（业务逻辑零改动）
+            return await self.get_host(asset_id)
+
+        return await _guarded_get(asset_id=asset_id, actor=actor)
+
     async def close(self) -> None:
         """W2 lifespan close 用：释放三个 client（reviewer 建议-5）。"""
         await self.cmdb.close()

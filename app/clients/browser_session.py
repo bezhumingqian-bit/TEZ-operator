@@ -100,17 +100,36 @@ class BrowserSession:
 
     @classmethod
     @asynccontextmanager
-    async def page(cls) -> AsyncIterator:
+    async def page(cls, *, audit_platform: str = "", audit_operation: str = "") -> AsyncIterator:
         """打开一个新 page，使用完自动关闭。
 
         使用 _operation_lock 确保同一时间只有一个页面操作，
         防止并发 Playwright 操作导致冲突。
+
+        Args:
+            audit_platform: 可选，平台名（tcum/cmdb/idcrm/yunxiao），启用浏览器审计
+            audit_operation: 可选，操作名（search/sync/batch），启用浏览器审计
         """
+        from app.core.observability import BrowserAuditLogger
+
+        auditor = BrowserAuditLogger(platform=audit_platform, operation=audit_operation) if audit_platform else None
+
         async with cls._operation_lock:
             ctx = await cls._ensure()
             page = await ctx.new_page()
+
+            if auditor:
+                auditor.mark_start()
+
             try:
                 yield page
+                # 正常退出 → 标记成功
+                if auditor:
+                    auditor.mark_success(screenshot=page)
+            except Exception as exc:
+                if auditor:
+                    auditor.mark_failure(error=str(exc), screenshot=page)
+                raise
             finally:
                 try:
                     await page.close()
@@ -176,5 +195,78 @@ async def is_doc_login_page(page) -> bool:
         return False
 
 
+async def auto_iOA_login(page, *, deadline: float | None = None, prefix: str = "browser") -> bool:
+    """在 SSO 登录页自动点击 iOA 快速登录按钮（无需扫码）。
+
+    适用范围：CMDB / TCUM / IDCRM / YunXiao 等通过 iOA SSO 认证的内网平台。
+
+    流程：
+    1. 检测到 SSO 登录页 → 查找"IOA 登录"按钮
+    2. 点击按钮 → iOA 客户端弹出确认框
+    3. 等待页面离开 SSO 域（iOA 确认后自动回调）
+
+    与 BaseBrowserImpl._try_finish_sso_flow 的区别：
+    - 该函数是独立的全局工具函数，任何 client 可以直接调用
+    - 返回 bool 表示是否成功，不抛异常
+    - 只点击一次 IOA 登录按钮，然后等待回调（不重复点击）
+
+    Returns:
+        True 表示登录成功（已离开 SSO 页面），False 表示超时或失败。
+    """
+    import asyncio
+
+    # Step 1: 找到并点击"IOA 登录"按钮（只点一次）
+    ioa_terms = ("IOA 登录", "iOA 登录", "手机 iOA", "一键认证", "快速登录", "iOA快速登录")
+
+    if deadline is None:
+        deadline = asyncio.get_running_loop().time() + 60  # 60 秒足够
+
+    loop = asyncio.get_running_loop()
+    clicked = False
+
+    for term in ioa_terms:
+        locators = (
+            page.get_by_role("button", name=term),
+            page.get_by_role("link", name=term),
+            page.locator(f'button:has-text("{term}")').first,
+            page.locator(f'[class*="loginBtn"]').first,
+            page.locator(f'[class*="login"] button').first,
+        )
+        for loc in locators:
+            try:
+                count = await loc.count()
+                if count > 0 and await loc.first.is_visible(timeout=1000):
+                    log.info(f"{prefix}.auto_iOA.click", term=term)
+                    await loc.first.click(timeout=3000)
+                    clicked = True
+                    break
+            except Exception as exc:
+                log.debug(f"{prefix}.auto_iOA.click_failed", term=term, error=str(exc))
+        if clicked:
+            break
+
+    if not clicked:
+        log.warning(f"{prefix}.auto_iOA.no_button_found", url=page.url)
+        return False
+
+    # Step 2: 等待页面离开 SSO 域（iOA 确认后自动跳转）
+    log.info(f"{prefix}.auto_iOA.waiting_for_callback")
+    while is_login_url(page.url) and loop.time() < deadline:
+        await asyncio.sleep(2)
+
+    # 最终检查
+    if is_login_url(page.url):
+        log.warning(f"{prefix}.auto_iOA.timeout", url=page.url[:120])
+        return False
+    log.info(f"{prefix}.auto_iOA.success", url=page.url[:120])
+    return True
+
+
 # 便于其他模块复用 os.environ 读取（避免循环 import）
-__all__ = ["BrowserSession", "is_login_url", "is_doc_login_page", "os"]
+__all__ = [
+    "BrowserSession",
+    "is_login_url",
+    "is_doc_login_page",
+    "auto_iOA_login",
+    "os",
+]

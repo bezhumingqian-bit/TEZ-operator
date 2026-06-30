@@ -91,6 +91,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'AI 助手', icon: 'ChatLineRound', module: 'users' },
   },
   {
+    path: '/observability',
+    name: 'observability',
+    component: () => import('@/views/Observability.vue'),
+    meta: { title: '可观测性', icon: 'Monitor', module: 'dashboard' },
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('@/views/Settings.vue'),

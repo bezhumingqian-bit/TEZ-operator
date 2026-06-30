@@ -129,8 +129,8 @@ class ZoneResourceService:
             return {"zone": zone, "message": "未知可用区"}
 
         settings = get_settings()
-        if settings.idcrm_mode != "browser":
-            return {"zone": zone, "message": "需要 browser 模式才能同步"}
+        if settings.idcrm_mode not in ("browser", "http"):
+            return {"zone": zone, "message": f"需要 IDCRM 模式为 browser 或 http 才能同步（当前={settings.idcrm_mode}）"}
 
         try:
             # Step 1: IDCRM 查全量机位（支持 HTTP 和 Browser 两种模式）

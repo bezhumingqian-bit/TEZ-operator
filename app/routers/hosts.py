@@ -277,21 +277,25 @@ async def get_free_positions(
         return {"zone": zone, "idc": None, "free_count": None, "message": "未知可用区"}
 
     settings = get_settings()
-    if settings.idcrm_mode != "browser":
+    if settings.idcrm_mode not in ("browser", "http"):
         return {
             "zone": zone,
             "idc": idc,
             "free_count": None,
             "status": "mock",
-            "message": f"IDCRM 当前为 mock 模式，请切 browser 模式后查询真实数据（{idc}）",
+            "message": f"IDCRM 当前为 {settings.idcrm_mode} 模式，请切 browser 或 http 模式后查询真实数据（{idc}）",
         }
 
-    # 真实查询：通过 IDCRM Skill 查空闲虚拟化机位
+    # 真实查询：根据模式选 client
     try:
-        from app.skills.idcrm_position_skill import IDCRMPositionSkill
-
-        skill = IDCRMPositionSkill()
-        result = await skill.query_free_positions(idc)
+        if settings.idcrm_mode == "http":
+            from app.clients.idcrm_http import IDCRMHttpClient
+            client = IDCRMHttpClient()
+            result = await client.query_positions_by_idc(idc)
+        else:
+            from app.skills.idcrm_position_skill import IDCRMPositionSkill
+            skill = IDCRMPositionSkill()
+            result = await skill.query_free_positions(idc)
         result["zone"] = zone
         result["idc"] = idc
         return result
@@ -328,20 +332,25 @@ async def get_offline_devices(
         return {"zone": zone, "devices": [], "message": "未知可用区"}
 
     settings = get_settings()
-    if settings.idcrm_mode != "browser" or settings.tcum_mode != "browser":
+    if settings.idcrm_mode not in ("browser", "http") or settings.tcum_mode != "browser":
         return {
             "zone": zone,
             "idc": idc,
             "devices": [],
-            "message": "需要 IDCRM+TCUM 均为 browser 模式才能查询未上线设备",
+            "message": f"需要 IDCRM 模式为 browser/http + TCUM 模式为 browser 才能查询未上线设备（当前 idcrm={settings.idcrm_mode}, tcum={settings.tcum_mode}）",
         }
 
     try:
-        # Step 1: 用 IDCRM Skill 查全量虚拟化机位 + 获取所有设备固资号
-        from app.skills.idcrm_position_skill import IDCRMPositionSkill
-
-        skill = IDCRMPositionSkill()
-        pos_result = await skill.query_free_positions(idc)
+        # Step 1: 根据 mode 选 IDCRM client 查全量虚拟化机位 + 获取所有设备固资号
+        settings = get_settings()
+        if settings.idcrm_mode == "http":
+            from app.clients.idcrm_http import IDCRMHttpClient
+            client = IDCRMHttpClient()
+            pos_result = await client.query_positions_by_idc(idc)
+        else:
+            from app.skills.idcrm_position_skill import IDCRMPositionSkill
+            skill = IDCRMPositionSkill()
+            pos_result = await skill.query_free_positions(idc)
 
         # 新版返回 all_assets（全量固资号）
         asset_ids_from_positions = pos_result.get("all_assets", []) or pos_result.get("occupied_assets", [])

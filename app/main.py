@@ -158,6 +158,17 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # ── API 访问日志中间件（最外层，记录所有请求） ──
+    from app.core.access_log_middleware import AccessLogMiddleware
+
+    app.add_middleware(AccessLogMiddleware)
+
+    # ── agent-guard 全局中间件（M3 阶段接入） ──
+    # 自动识别 AI Actor，套上对应 Guard 链 + 审计日志
+    from app.core.guard.middleware import HarnessMiddleware
+
+    app.add_middleware(HarnessMiddleware)
+
     # ── 健康检查 ──
     @app.get("/health", tags=["meta"], summary="健康检查")
     def health() -> dict[str, str]:
@@ -186,6 +197,9 @@ def create_app() -> FastAPI:
 
     from app.routers import yunxiao as yunxiao_router
     app.include_router(yunxiao_router.router, prefix="/api/v1")
+
+    from app.routers import observability as obs_router
+    app.include_router(obs_router.router)
 
     # ── 前端静态文件托管（SPA） ──
     from pathlib import Path

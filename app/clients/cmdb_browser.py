@@ -118,7 +118,7 @@ class CMDBBrowserImpl(BaseBrowserImpl):
 
         timeout_ms = self._settings.browser_page_timeout_ms
 
-        async with BrowserSession.page() as page:
+        async with BrowserSession.page(audit_platform="cmdb", audit_operation="search") as page:
             try:
                 await page.goto(
                     self._base_query_url(),
@@ -131,13 +131,15 @@ class CMDBBrowserImpl(BaseBrowserImpl):
             # 等 SPA 渲染
             await asyncio.sleep(self.DEFAULT_WAIT_AFTER_GOTO_MS / 1000)
 
-            # SSO 中转处理（同 TCUM 逻辑）
-            await self._try_finish_sso_flow(page)
+            # SSO 中转处理（自动 iOA 快速登录，无头模式也能完成）
+            from app.clients.browser_session import auto_iOA_login
 
-            current_url = page.url
-            if is_login_url(current_url):
-                log.warning("cmdb_browser.auth_expired", url=current_url)
-                raise BrowserAuthExpired("CMDB 登录态失效（被踢回 SSO），请重新扫码登录")
+            login_ok = await auto_iOA_login(page, prefix="cmdb_browser")
+            if not login_ok:
+                log.warning("cmdb_browser.auth_expired", url=page.url)
+                raise BrowserAuthExpired(
+                    "CMDB 登录态失效（iOA 自动登录失败），请手动扫码登录"
+                )
 
             # 填入搜索关键词
             filled = False
